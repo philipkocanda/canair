@@ -1,23 +1,25 @@
 # Broadcast CAN frames (domain B)
 
-canair handles **two kinds of CAN data**, and they're analysed and defined
-differently:
+canair handles **two kinds of controller area network (CAN) data**. It analyzes and defines them
+in different ways:
 
 | Domain | What it is | Identity | Signal definition |
 |---|---|---|---|
-| **A. Diagnostics** | request/response UDS/KWP2000 over ISO-TP | `(ECU, PID/DID)` | a freeform **WiCAN `expression`** over `Bnn` bytes, in `ecus/` |
-| **B. Broadcast frames** | periodic frames no request elicits | **arbitration ID** | a DBC-compatible **linear** signal in `signals/<bus>.yaml` |
+| **A. Diagnostics** | request/response Unified Diagnostic Services (UDS) or Keyword Protocol 2000 (KWP2000) over the ISO 15765-2 transport protocol (ISO-TP) | `(ECU, PID/DID)` | a freeform **WiCAN `expression`** over `Bnn` bytes, in `ecus/` |
+| **B. Broadcast frames** | periodic frames that no request elicits | **arbitration ID** | a linear signal in `signals/<bus>.yaml`, compatible with the CAN database (DBC) format |
 
-Most of canair is domain A (the [bring-your-own-car](../bring-your-own-car/overview.md)
-journey). This page covers **domain B** — the passively-broadcast traffic that
-carries drive-mode / regen / thermal / body signals which are often *only* on the
-internal bus, never exposed to an OBD-II diagnostic read.
+In domain A, the identity `(ECU, PID/DID)` is an electronic control unit (ECU) plus a parameter ID
+(PID) or data identifier (DID).
 
-> On many cars (the bundled Ioniq included) the **OBD-II port is
-> gateway-isolated** — passive sniffing there sees ~no broadcast traffic. So the
-> realistic source of frames is an **imported log** (from SavvyCAN, another tool,
-> or a device wired to an internal bus), not `canair sniff` on the OBD port.
-> Import is the front door.
+Most of canair is domain A (the [bring-your-own-car](../bring-your-own-car/overview.md) journey).
+This page covers **domain B**: the passively broadcast traffic. This traffic carries drive-mode,
+regen, thermal and body signals. Often these signals are *only* on the internal bus. An on-board
+diagnostics (OBD-II) diagnostic read never exposes them.
+
+> On many cars (the bundled Ioniq included) the **OBD-II port is gateway-isolated**. Passive
+> sniffing there sees almost no broadcast traffic. The realistic source of frames is an
+> **imported log**, not `canair sniff` on the OBD port. The log comes from SavvyCAN, another tool,
+> or a device wired to an internal bus. Import is the front door.
 
 ## The workflow
 
@@ -27,10 +29,10 @@ import a frame log → correlate / hunt → define signals → export (DBC)
 
 ### 1. Import a frame log
 
-`canair import can` reads a raw frame log and stores it **verbatim** under the
-profile's `captures/can/`, indexing its metadata in `captures/can/index.yaml`
-(frame count, distinct arbitration IDs, bitrate, …). High-volume logs stay
-native — they are **not** exploded into the `captures/*.json` schema.
+`canair import can` reads a raw frame log. It stores the log **verbatim** under the
+`captures/can/` directory of the profile. It indexes the metadata of the log in
+`captures/can/index.yaml` (frame count, distinct arbitration IDs, bitrate, …). High-volume logs
+stay native. canair does **not** explode them into the `captures/*.json` schema.
 
 ```bash
 canair import can drive.blf --label "drive fwd/N/rev" --bitrate 500000
@@ -39,14 +41,15 @@ canair import can savvycan.csv         # SavvyCAN GVRET (.csv, auto-detected)
 canair captures can                    # list imported logs
 ```
 
-Formats: `.asc`, `.blf`, python-can `.csv`, candump `.log`, `.trc`, and **SavvyCAN
-GVRET `.csv`** (auto-detected by header, or force with `--format gvret`).
+canair reads these formats: `.asc`, `.blf`, python-can `.csv`, candump `.log`, `.trc` and
+**SavvyCAN GVRET `.csv`**. canair detects GVRET from its header. To force it, use
+`--format gvret`.
 
 ### 2. Find signals — correlate / hunt
 
-Frame bytes flow into the *same* analysis engine as diagnostic captures — a
-frame byte is referenced as **`0xID:rN`** (raw-CAN space: no ISO-TP framing, no
-PCI, distinct from WiCAN `Bnn`).
+Frame bytes go into the *same* analysis engine as diagnostic captures. You reference a frame byte
+as **`0xID:rN`**. This is raw-CAN space. It has no ISO-TP framing and no protocol control
+information (PCI) bytes, and it is distinct from WiCAN `Bnn`.
 
 ```bash
 # Which broadcast bytes move together across a drive?
@@ -62,19 +65,22 @@ canair hunt can drive.blf --id 0x220 --against 0x386:r0
 canair correlate can drive.blf --find-mirrors
 ```
 
-Both reuse the correlation / interpretation-sweep / linear-fit machinery of the
-diagnostic `correlate uds` / `hunt uds`, so the output (ranked `|r|`, fit, unit
-guess) reads the same. `correlate can` takes `--bits`, `--min-r` and `--json`; `hunt can`
-takes the required `--id` and `--against`, plus `--min-n`, `--top` and `--json`. (The
-`can` kind is the domain-B counterpart of the default `uds` kind — a bare
-`canair correlate …` / `hunt …` still targets diagnostic captures.)
+Both commands reuse the correlation, interpretation-sweep and linear-fit machinery of the
+diagnostic `correlate uds` and `hunt uds`. The output (ranked `|r|`, fit, unit guess) therefore
+reads the same.
+
+- `correlate can` takes `--bits`, `--min-r` and `--json`.
+- `hunt can` takes the required `--id` and `--against`, plus `--min-n`, `--top` and `--json`.
+
+The `can` kind is the domain-B counterpart of the default `uds` kind. A bare `canair correlate …`
+or `hunt …` still targets diagnostic captures.
 
 ### 3. Define signals
 
-Once you've identified a byte/bit field, record it in the **`signals/`** sidecar —
-the domain-B analogue of a PID's signals. Unlike the freeform WiCAN
-`expression`, a broadcast signal is a **linear** model (`physical = raw*scale +
-offset` over a contiguous bit range), deliberately DBC-compatible.
+When you identify a byte or bit field, record it in the **`signals/`** sidecar. This is the
+domain-B analogue of the signals of a PID. A broadcast signal differs from the freeform WiCAN
+`expression`. It is a **linear** model (`physical = raw*scale + offset` over a contiguous bit
+range). It is deliberately DBC-compatible.
 
 ```bash
 canair signals upsert powertrain 0x386 WHL_SPD_FL \
@@ -84,39 +90,56 @@ canair signals list                    # review
 canair validate signals                # structural check
 ```
 
-Edits are surgical, comment-preserving, validated, and auto-reverted on failure
-(via `canair signals` / `src/canair/yaml_edit/signals.py`).
+The edits (via `canair signals` and `src/canair/yaml_edit/signals.py`) change only the target
+entry and keep comments. canair validates each edit and reverts it automatically on failure.
 
-`--start-bit` follows DBC numbering, so for `--byte-order big` it names the field's
-*most significant* bit: a 16-bit big-endian field in data bytes 4-5 is
-`--start-bit 39 --length 16 --byte-order big`. A raw value is an unsigned integer
-unless you pass `--signed` (two's complement, DBC `@0-`/`@1-`) — use it for anything
-that can go negative, such as a motor speed in reverse — or `--float` (an IEEE 754
-value, 32 or 64 bits long; DBC `SIG_VALTYPE_`).
+#### Bit numbering and value types
 
-Upserting a signal that already exists **changes only what you pass**: the rest of
-the signal (its byte order, provenance, notes, verification, typed decoding) keeps
-its stored value, so `canair signals upsert powertrain 0x386 WHL_SPD_FL --verified`
-just marks it verified. `--unsigned` and `--integer` undo `--signed` and `--float`,
-an empty `--unit ""` / `--source ""` / `--notes ""` removes that field, and
-`--clear FIELD` (repeatable) removes `scale`, `offset`, `min` or `max` too.
+`--start-bit` follows DBC numbering. For `--byte-order big`, it names the *most significant* bit
+of the field. For example, a 16-bit big-endian field in data bytes 4-5 is
+`--start-bit 39 --length 16 --byte-order big`.
 
-Message options ride along on any upsert: `--msg-name`, `--tx-ecu`, `--msg-length`
-(the DBC DLC: 0-8 bytes, or a CAN FD size 12/16/20/24/32/48/64, and long enough for
-every signal) and the frame format. An ID above `0x7FF` is an extended (29-bit)
-frame and a frame longer than 8 bytes is CAN FD without saying so; `--extended`
-marks an extended frame numbered at or below `0x7FF`, and `--fd` a CAN FD frame of 8
-bytes or fewer. Arbitration IDs end at `0x1FFFFFFF`.
+A raw value is an unsigned integer unless you pass one of these flags:
 
-Record **where the signal came from** in `--source` (a reproducible provenance
-string — the log used, a reference sheet, or `dbc:<file>` when it came from a DBC
-import); keep the supporting *evidence* (correlations, sample counts, reasoning)
-in `--notes`.
+- `--signed` — two's complement (DBC `@0-`/`@1-`). Use it for anything that can go negative, such
+  as a motor speed in reverse.
+- `--float` — an IEEE 754 value, 32 or 64 bits long (DBC `SIG_VALTYPE_`).
+
+#### Update an existing signal
+
+If you upsert a signal that already exists, canair **changes only what you pass**. The rest of the
+signal keeps its stored value: byte order, provenance, notes, verification and typed decoding. For
+example, `canair signals upsert powertrain 0x386 WHL_SPD_FL --verified` only marks the signal as
+verified.
+
+- `--unsigned` and `--integer` undo `--signed` and `--float`.
+- An empty `--unit ""`, `--source ""` or `--notes ""` removes that field.
+- `--clear FIELD` (repeatable) removes `scale`, `offset`, `min` or `max` too.
+
+#### Message options
+
+Message options work with any upsert: `--msg-name`, `--tx-ecu`, `--msg-length` and the frame
+format.
+
+- `--msg-length` is the DBC data length code (DLC). It is 0-8 bytes, or a size for CAN with
+  flexible data rate (CAN FD): 12, 16, 20, 24, 32, 48 or 64. It must be long enough for every
+  signal.
+- An ID above `0x7FF` is an extended (29-bit) frame.
+- A frame longer than 8 bytes is CAN FD without further flags.
+- `--extended` marks an extended frame that is numbered at or below `0x7FF`.
+- `--fd` marks a CAN FD frame of 8 bytes or fewer.
+- Arbitration IDs end at `0x1FFFFFFF`.
+
+#### Provenance and evidence
+
+Record **where the signal came from** in `--source`. Use a reproducible provenance string: the log
+you used, a reference sheet, or `dbc:<file>` when the signal came from a DBC import. Keep the
+supporting *evidence* (correlations, sample counts, reasoning) in `--notes`.
 
 ### 4. Interop — DBC import / export
 
-Bootstrap `signals/` from an existing DBC, or share yours with SavvyCAN / cabana /
-cantools / the Wireshark CAN dissector:
+Bootstrap `signals/` from an existing DBC. You can also share your DBC with SavvyCAN, cabana,
+cantools or the Wireshark CAN dissector:
 
 ```bash
 canair import dbc car.dbc --bus powertrain --dry-run   # preview
@@ -124,46 +147,58 @@ canair import dbc car.dbc --bus powertrain             # DBC → signals/
 canair export dbc --bus powertrain -o mycar.dbc        # signals/ → DBC
 ```
 
-Real-world DBCs (with overlapping signals) load in non-strict mode. A DBC that
-cantools rejects as written is repaired in memory and parsed again; the file itself
-is never changed, and every repair is listed with its line (and under `repairs` in
-`--json`). The repairs cover the dialect quirks common in hand-maintained DBCs such
-as opendbc's: a malformed `CM_` comment (dropped, since comments are not imported),
-a 29-bit ID written without the DBC extended flag, a number without its leading
-zero (`.25`), a `VAL_` table without its closing `;`, missing `BS_:`/`BU_:` header
-lines, and a message or signal name starting with a digit — the one repair you see
-in the result, as the name gains a `_` prefix (`0_COUNTER` → `_0_COUNTER`). The
-list is in `src/canair/interop/dbc/repair.py`.
+#### DBC repairs
+
+canair loads real-world DBCs (with overlapping signals) in non-strict mode. If cantools rejects a
+DBC as written, canair repairs it in memory and parses it again. canair never changes the file
+itself. It lists every repair with its line (and under `repairs` in `--json`).
+
+The repairs cover dialect quirks that are common in hand-maintained DBCs such as those of opendbc:
+
+- a malformed `CM_` comment (dropped, because canair does not import comments)
+- a 29-bit ID written without the DBC extended flag
+- a number without its leading zero (`.25`)
+- a `VAL_` table without its closing `;`
+- missing `BS_:`/`BU_:` header lines
+- a message or signal name that starts with a digit. This is the one repair you see in the
+  result: the name gains a `_` prefix (`0_COUNTER` → `_0_COUNTER`).
+
+The full list is in `src/canair/interop/dbc/repair.py`.
+
+#### What a round trip carries
 
 A round trip carries:
 
-- **each signal's** layout (start bit, length, byte order), signedness, integer or
-  float type, scale, offset, min/max and unit, and its value table (DBC `VAL_`) when
-  the signal is an unscaled integer — imported as `type: enum` with `values`;
-- **each message's** name, data length (`length`, the DBC DLC) and frame format:
-  standard or extended, classic or CAN FD (written with the DBC `VFrameFormat`
-  attribute).
+- **Each signal's** layout (start bit, length, byte order), signedness, integer or float type,
+  scale, offset, min/max and unit. It also carries the value table (DBC `VAL_`) when the signal is
+  an unscaled integer. canair imports that signal as `type: enum` with `values`.
+- **Each message's** name, data length (`length`, the DBC DLC) and frame format. The frame format
+  is standard or extended, classic or CAN FD. canair writes it with the DBC `VFrameFormat`
+  attribute.
 
-Not carried: messages without signals; multiplexing (a multiplexed message's
-signals import as plain, overlapping ones); value tables on scaled or float signals
-(a DBC table is keyed by the raw value, canair's `values` by the decoded one — the
-import lists the signals affected); comments, senders/receivers, attributes such as
-cycle times, and signal groups. A message `canair validate signals` would reject —
-a signal overrunning its frame, a scale of 0 — is skipped and listed rather than
-failing the whole import. One `signals/<bus>.yaml` keys messages by number, so a
-DBC with a standard and an extended frame of the same number is refused; import its
-two halves into separate buses.
+A round trip does not carry:
+
+- messages without signals
+- multiplexing (the signals of a multiplexed message import as plain, overlapping signals)
+- value tables on scaled or float signals. A DBC table uses the raw value as its key. The `values`
+  of canair use the decoded value. The import lists the signals that this affects.
+- comments, senders/receivers, attributes such as cycle times, and signal groups
+
+`canair validate signals` rejects some messages, for example a signal that overruns its frame or a
+scale of 0. The import skips such a message and lists it. The import does not fail as a whole.
+
+One `signals/<bus>.yaml` keys messages by number. canair therefore refuses a DBC with a standard
+and an extended frame of the same number. Import the two halves of such a DBC into separate buses.
 
 `scripts/check/check_dbc_corpus.py --fetch` checks this against
-[commaai/opendbc](https://github.com/commaai/opendbc): it imports, validates,
-exports and re-decodes every DBC, comparing against cantools' own parse. It is
+[commaai/opendbc](https://github.com/commaai/opendbc). It imports, validates, exports and
+re-decodes every DBC. It compares the result against the parse of cantools. The check is
 opt-in and fetches into the gitignored `references/can/`.
 
 ## Storing raw-CAN logs (what's committed vs. fetched)
 
-Raw frame logs get large (a few minutes of one bus is megabytes), and some come
-from other people's cars under unclear licenses. canair splits them by
-**origin** and **license**:
+Raw frame logs get large. A few minutes of one bus is megabytes. Some logs come from other
+people's cars under unclear licenses. canair splits the logs by **origin** and **license**:
 
 | Origin | License | Where it lives | Committed? |
 | --- | --- | --- | --- |
@@ -171,38 +206,36 @@ from other people's cars under unclear licenses. canair splits them by
 | **Third-party, redistributable** (CC0/CC-BY/MIT/public-domain/explicit permission) | permits redistribution | `profiles/<car>/captures/can/` (or `references/can/`) with the license recorded next to it | **Yes** — via Git LFS when large |
 | **Third-party, no / unclear license** (e.g. the uhi22 Ioniq-28 corpus) | none | gitignored `references/can/` | **No** — fetch on demand (`scripts/fetch/fetch_can_corpus.py`) + a tiny fair-use excerpt under `tests/fixtures/can/` |
 
-The rule of thumb: **your data goes in; other people's data goes in only if the
-license lets you redistribute it.** A partial slice of unlicensed data is still
-unlicensed — what makes the committed `tests/fixtures/can/` excerpts acceptable
-is that they are *minimal, hand-trimmed fair-use* samples, not that they're
-"only part" of the log. Git LFS is a storage mechanism only; it does **not**
-grant any redistribution right, so it never changes the license question.
+The rule of thumb: **your data goes in. Other people's data goes in only if the license lets you
+redistribute it.** A partial slice of unlicensed data is still unlicensed. The committed
+`tests/fixtures/can/` excerpts are acceptable because they are *minimal, hand-trimmed fair-use*
+samples. They are not acceptable because they are "only part" of the log. Git LFS is a storage
+mechanism only. It does **not** grant any redistribution right, so it never changes the license
+question.
 
 ### Git LFS
 
-Large binary/high-volume frame logs are tracked by [Git LFS](https://git-lfs.com)
-so the repository history stays small. The tracking rules live in
-`.gitattributes`:
+[Git LFS](https://git-lfs.com) tracks large binary and high-volume frame logs, so the repository
+history stays small. The tracking rules are in `.gitattributes`:
 
-- `*.blf`, `*.asc`, `*.trc` and everything under `profiles/*/captures/can/**`
-  are stored in LFS — except `captures/can/index.yaml`, which stays plain git so
-  `canair validate can` can read it in a checkout without the LFS objects (CI).
-- the tiny `tests/fixtures/**` excerpts are explicitly kept in **plain git** so
-  they stay diffable and inspectable.
+- `*.blf`, `*.asc`, `*.trc` and everything under `profiles/*/captures/can/**` are stored in LFS.
+  The exception is `captures/can/index.yaml`. It stays in plain git, so `canair validate can` can
+  read it in a checkout without the LFS objects, as in continuous integration (CI).
+- The tiny `tests/fixtures/**` excerpts are explicitly in **plain git**, so they stay diffable and
+  inspectable.
 
-Contributors need Git LFS installed (`git lfs install`) or a fresh clone will
-show pointer files instead of the log contents. GitHub's free tier caps LFS
-storage/bandwidth, another reason unlicensed corpora stay fetch-on-demand rather
-than committed.
+Contributors need Git LFS installed (`git lfs install`). Without it, a fresh clone shows pointer
+files instead of the log contents. The free tier of GitHub caps LFS storage and bandwidth. This is
+another reason that unlicensed corpora stay fetch-on-demand and are not committed.
 
 ## Where things live
 
-- **`captures/can/`** — imported frame logs, native, indexed by `index.yaml`
-  (schema `src/canair/schema/can_index_schema.json`). Large logs are stored via Git
-  LFS (see [Storing raw-CAN logs](#storing-raw-can-logs-whats-committed-vs-fetched)).
+- **`captures/can/`** — imported frame logs, native, indexed by `index.yaml` (schema
+  `src/canair/schema/can_index_schema.json`). Git LFS stores large logs (see
+  [Storing raw-CAN logs](#storing-raw-can-logs-whats-committed-vs-fetched)).
 - **`signals/<bus>.yaml`** — broadcast signal maps, one file per bus (schema
   `src/canair/schema/signals_schema.yaml`).
 
-Both are optional and absent until you import broadcast data; `canair validate
-can` and `canair validate signals` check them and quietly skip when they don't
+Both are optional and absent until you import broadcast data. `canair validate can` and
+`canair validate signals` check them. They skip the check without a message when the files do not
 exist. See `plans/2026-07-24-raw-can-analysis.md` for the design.

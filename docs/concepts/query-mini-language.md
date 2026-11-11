@@ -1,13 +1,13 @@
 # The query mini-language
 
-`canair read` — and the capture/decode tools — select ECUs and PIDs with a
-small, consistent syntax.
+`canair read`, the capture tools and the decode tools select electronic control units (ECUs) and
+parameter identifiers (PIDs) with one small syntax.
 
 ## Selectors
 
-A **selector** is `ECU[:PIDLIST]`. (The `BMS`/`IGPM`/`VCU` names below are from
-the bundled Ioniq profile, used as examples — the ECU and PID names available are
-whatever the *active* profile defines; see `canair ecu`.)
+A **selector** is `ECU[:PIDLIST]`. The names `BMS`, `IGPM` and `VCU` below come from the bundled
+Ioniq profile and serve as examples. The ECU and PID names that you can use are the names that the
+*active* profile defines. Run `canair ecu` to see them.
 
 | Selector | Meaning |
 |---|---|
@@ -18,32 +18,42 @@ whatever the *active* profile defines; see `canair ecu`.)
 | `VCU:22` | every VCU PID starting with `22` (all its service-22 DIDs) |
 | `VCU:2101 BMS:2101` | cross-ECU — a **space separates independent selectors** |
 
-A PID token picks every PID that **starts or ends** with it (`BC03` picks `22BC03`,
-`22` picks every `22xxxx` DID), never one it only appears in the middle of — the same
-rule in `read`/`monitor` as in the capture tools. The one difference: in a live read, a
-token that *is* a defined PID picks only that one (`0101` reads `0101`, not also
-`220101`), where the capture tools list both.
+A data identifier (DID) is the 2-byte identifier of a Unified Diagnostic Services (UDS) read.
+OBD-II is On-Board Diagnostics II.
 
-A PID like `2101` vs `22B002` differs by its service-byte prefix — see
-[ECU protocols & PID prefixes](ecu-protocols.md) for what the `21`/`22` means and
-why canair can resolve a bare identifier.
+A PID token picks every PID that **starts or ends** with the token. `BC03` picks `22BC03`, and `22`
+picks every `22xxxx` DID. It never picks a PID that contains the token only in the middle. `read`,
+`monitor` and the capture tools all use this rule.
+
+One difference exists. In a live read, a token that *is* a defined PID picks only that PID. `0101`
+reads `0101` and not also `220101`. The capture tools list both.
+
+Two PIDs such as `2101` and `22B002` differ by their service-byte prefix. See
+[ECU protocols & PID prefixes](ecu-protocols.md) for what the `21` and `22` mean and why canair
+can resolve a bare identifier.
 
 ### Naming the service: `SERVICE/ID`
 
-A PID the profile does not define is sent with a service inferred from its length:
-two hex digits are a KWP2000 local identifier (`01` → `2101`), four starting with `21`
-are a KWP2000 read as written (`2101`), any other four are a UDS service-22 DID
-(`B001` → `22B001`, `2201` → `222201`), and six starting with `22` are a DID read as
-written (`22BC03`). That makes `0101` the DID `0x0101`, which is a real identifier on
-some ECUs — so it can never also mean OBD-II mode 01 PID `01`. Anything else — an odd
-number of digits, or a longer request such as `BC0301` — is skipped with a warning
-rather than sent as a guess; write it with `SERVICE/ID` or send it with a `raw` step.
-Inference applies only when no defined PID matches, so a short token that picks
-defined pages (`21`, `22`) needs the explicit form to read the bare identifier
-(`21/22` for local identifier `0x22`).
+canair sends a PID that the profile does not define with a service that it infers from the length
+of the token:
 
-Write the service and the identifier with a `/` to say exactly which request you
-mean:
+- Two hex digits are a Keyword Protocol 2000 (KWP2000) local identifier (`01` → `2101`).
+- Four digits that start with `21` are a KWP2000 read as written (`2101`).
+- Any other four digits are a UDS service-22 DID (`B001` → `22B001`, `2201` → `222201`).
+- Six digits that start with `22` are a DID read as written (`22BC03`).
+
+This makes `0101` the DID `0x0101`. That DID is a real identifier on some ECUs. For this reason,
+`0101` can never also mean OBD-II mode 01 PID `01`.
+
+canair skips anything else with a warning and does not send a guess. Examples are an odd number of
+digits, or a longer request such as `BC0301`. Write such a request with `SERVICE/ID`, or send it
+with a `raw` step.
+
+Inference applies only when no defined PID matches. A short token such as `21` or `22` picks the
+defined pages. To read the bare identifier, use the explicit form (`21/22` for local identifier
+`0x22`).
+
+Write the service and the identifier with a `/` to say exactly which request you mean:
 
 | Token | Request | What it is |
 |---|---|---|
@@ -57,25 +67,30 @@ canair read BMS:01/00,01/20 --save --label "BMS mode 01 support"   # support bit
 canair captures uds BMS:01/00                                       # their captures
 ```
 
-A `SERVICE/ID` token matches **only** that request code, in `read`/`monitor` and in the
-capture tools alike, so `BMS:01/00` never picks a `220100` DID the way a bare `0100`
-(prefix/suffix matching) can. Only these services are accepted, each with a
-single identifier — not a multi-PID mode 01 request (`01 0C 0D`). A PID the profile
-*defines* is still found by its key: a mode 01 PID defined as `010D` decodes with its
-signals whether you write `01/0D` or `010D`. (Quote an all-digit key in YAML, e.g.
-`"0105"`: unquoted, it reads as an octal number; `canair validate pids` reports it.)
+A `SERVICE/ID` token matches **only** that request code. This holds in `read`, `monitor` and the
+capture tools. `BMS:01/00` therefore never picks a `220100` DID, as a bare `0100` can with
+prefix/suffix matching.
+
+Only these services are accepted, each with a single identifier. A multi-PID mode 01 request
+(`01 0C 0D`) is not accepted.
+
+canair still finds a PID that the profile *defines* by its key. A mode 01 PID defined as `010D`
+decodes with its signals whether you write `01/0D` or `010D`.
+
+Quote an all-digit key in YAML, for example `"0105"`. Unquoted, YAML reads it as an octal number.
+`canair validate pids` reports this.
 
 !!! warning "Bind each PID to its ECU with a colon, never a space"
-    `IGPM 22BC07` means "all of IGPM **plus** a bogus ECU `22BC07`" — write
-    `IGPM:22BC07`. A bare PID in the ECU slot is rejected with a hint. In a query
-    step, a space separates *independent ECU selectors*.
+    `IGPM 22BC07` means "all of IGPM **plus** a bogus ECU `22BC07`". Write `IGPM:22BC07`. canair
+    rejects a bare PID in the ECU slot and prints a hint. In a query step, a space separates
+    *independent ECU selectors*.
 
 ## Groups (`@name`)
 
-A **group** is a named, reusable set of selectors saved per-profile in
-`groups.yaml` — a saved query. Recall one on the command line with the `@`
-sigil; it expands to its member selectors before the query is parsed, so it
-composes with other groups and with ad-hoc selectors:
+A **group** is a named, reusable set of selectors. canair saves it for each profile in
+`groups.yaml`. It is a saved query. Recall a group on the command line with the `@` sigil. canair
+expands it to its member selectors before it parses the query. A group therefore composes with
+other groups and with ad-hoc selectors:
 
 ```bash
 canair monitor @charging            # e.g. BMS:2101 BMS:2105 OBC:2101 VCU:2101 …
@@ -84,28 +99,28 @@ canair monitor @driving CLU:220B    # a group plus an extra selector
 canair monitor "@charging @powertrain"   # two groups in one step
 ```
 
-Groups work anywhere `canair read`/`canair monitor` take steps. Members are
-plain selectors (ECU or `ECU:PID`) — never other groups, never full pipeline
-steps. A group reference carries no PID suffix (`@charging`, not
-`@charging:2101`).
+Groups work anywhere that `canair read` and `canair monitor` take steps. Members are plain
+selectors (ECU or `ECU:PID`). A member is never another group and never a full pipeline step. A
+group reference carries no PID suffix (`@charging`, not `@charging:2101`).
 
 List and edit the vocabulary with [`canair groups`](../reference/cli/index.md)
-(`add`/`rm`/`rename`/`set-description`/`set-members`); the editor re-validates on write.
-`canair validate groups` checks every member's ECU exists.
+(`add`/`rm`/`rename`/`set-description`/`set-members`). The editor validates again on write.
+`canair validate groups` checks that the ECU of every member exists.
 
 ## Overlapping selectors are coalesced
 
-Groups overlap, and a group often already contains an ECU you also named by hand.
-`canair read`/`canair monitor` therefore **coalesce every overlapping selector down
-to one per ECU** before polling, however many steps or groups they came from:
+Groups overlap, and a group often already contains an ECU that you also named by hand.
+`canair read` and `canair monitor` therefore **coalesce every overlapping selector down to one
+selector per ECU** before they poll. This holds however many steps or groups the selectors came
+from:
 
 ```bash
 canair monitor IGPM OBC AAF @driving
 ```
 
-If `@driving` already contains `IGPM` and `AAF:2180 AAF:2181`, that names IGPM
-twice and AAF three times. Only one block per ECU is polled and rendered, and the
-overlap is reported up front so the collapse is never silent:
+Suppose `@driving` already contains `IGPM` and `AAF:2180 AAF:2181`. Then the command names IGPM
+twice and AAF three times. canair polls and renders only one block for each ECU. It reports the
+overlap up front, so the collapse is never silent:
 
 ```
 Merged overlapping selectors (each ECU is polled once):
@@ -115,38 +130,37 @@ Merged overlapping selectors (each ECU is polled once):
 
 The rules:
 
-- **A bare ECU supersedes its `ECU:PID` selectors.** `AAF` already means every AAF
-  PID, so `AAF` + `AAF:2180` is just `AAF`.
-- **Different PIDs on one ECU union.** `BMS:2101` + `BMS:2105` becomes
-  `BMS:2101,2105` — a legitimate combination, so it merges without a note.
+- **A bare ECU supersedes its `ECU:PID` selectors.** `AAF` already means every AAF PID. `AAF` +
+  `AAF:2180` is therefore `AAF`.
+- **Different PIDs on one ECU form a union.** `BMS:2101` + `BMS:2105` becomes `BMS:2101,2105`.
+  This is a legitimate combination, so canair merges it without a note.
 - **Aliases resolve to the canonical ECU.** `MDPS` and `EPS` are one ECU, so
   `canair read MDPS EPS:220101` polls it once.
-- **Position is the first mention's.** Coalescing never reorders the display.
+- **Position is the position of the first mention.** Coalescing never reorders the display.
 - **A non-`query` step ends the run.** A deliberate re-read across a pipeline
   (`canair read "query BMS:2101" "sleep 5" "query BMS:2101"`) keeps both reads.
 
 !!! note "Why this matters in `canair monitor`"
-    A duplicated ECU used to be polled twice per cycle — halving the refresh rate
-    for no new data — and its rows shared a selection key, so the TUI cursor and
-    viewport would snap back to the first copy. Coalescing removes both.
+    canair used to poll a duplicated ECU twice for each cycle. This halved the refresh rate for no
+    new data. The rows of the duplicate also shared a selection key, so the TUI cursor and
+    viewport snapped back to the first copy. Coalescing removes both problems.
 
 ## Pipelines
 
-`canair read` also accepts a **pipeline** of steps (each a quoted string), run
-in order over one session. A bare selector is shorthand for a `query` step.
+`canair read` also accepts a **pipeline** of steps, each a quoted string. It runs the steps in
+order over one session. A bare selector is shorthand for a `query` step.
 
 ```bash
 canair read "session IGPM --wake" "query IGPM:BC03,BC06"
 ```
 
-Step verbs include: `query`, `session <ECU> [--wake]`, `skm-wake [acc|ign1|ign2]`,
-`raw <TX:PID>`, `scan`, `iocontrol <ECU> <DID> [--off]`, `sleep`, `repl`. This lets you,
-for example, wake an ECU, open a session, and read several PIDs in one command
-over one connection.
+The step verbs include `query`, `session <ECU> [--wake]`, `skm-wake [acc|ign1|ign2]`,
+`raw <TX:PID>`, `scan`, `iocontrol <ECU> <DID> [--off]`, `sleep` and `repl`. With them, you can
+wake an ECU, open a session and read several PIDs in one command over one connection.
 
-An `iocontrol` step switches an actuator on (or off with `--off`) in the session its entry
-declares. When the pipeline ends, Ctrl-C included, canair releases every actuator it switched
-on and did not switch off, before it closes the sessions:
+An `iocontrol` step switches an actuator on (or off with `--off`) in the session that its entry
+declares. When the pipeline ends, canair releases every actuator that it switched on and did not
+switch off. It does this before it closes the sessions, and also when you press Ctrl-C:
 
 ```bash
 canair read "iocontrol IGPM BC0C" "sleep 2" IGPM:BC03   # the defogger is released at the end
@@ -154,27 +168,30 @@ canair read "iocontrol IGPM BC0C" "sleep 2" IGPM:BC03   # the defogger is releas
 
 ## Sessions and keepalive
 
-Some ECUs only answer certain requests inside an **extended diagnostic session**.
-Opening one (a `session <ECU>` step, or any command's `--session`) does the right
-thing automatically:
+Some ECUs answer certain requests only inside an **extended diagnostic session**. When you open
+one, canair handles the details. You open a session with a `session <ECU>` step or with the
+`--session` flag of any command.
 
 !!! note "Keeping a session alive is automatic"
-    There is no `tester-present` command or flag. Once a session is open, canair
-    keeps it alive by sending TesterPresent (`3E00`) whenever the session goes
-    idle past the timeout; real request traffic resets that timer, so a busy
-    polling loop or scan injects no redundant keepalives. TesterPresent is shared
-    by UDS and KWP2000, so it's sent identically regardless of the ECU's protocol.
+    There is no `tester-present` command or flag. Once a session is open, canair keeps it alive.
+    It sends TesterPresent (`3E00`) whenever the session goes idle past the timeout. Real request
+    traffic resets that timer. A busy polling loop or scan therefore sends no redundant keepalives.
+
+    UDS and KWP2000 share TesterPresent, so canair sends it the same way for any ECU protocol.
     Every command and every transport opens and keeps sessions the same way.
 
-`--wake` (or `session <ECU> --wake`) rouses a sleeping ECU before the session request. An
-ECU whose profile declares a `wake:` ritual gets that ritual (a burst of cheap reads, for a
-module such as a smart key unit that sleeps again within seconds); any other ECU gets a
-`10 01`, asked twice if the first draws no answer.
+`--wake` (or `session <ECU> --wake`) rouses a sleeping ECU before the session request. The wake
+depends on the ECU:
 
-To send one by hand, use a raw step (`canair read "raw 7E4:3E00"`): as a query token,
+- If the profile of the ECU declares a `wake:` ritual, the ECU gets that ritual. The ritual is a
+  burst of cheap reads. It suits a module such as a smart key unit, which sleeps again within
+  seconds.
+- Any other ECU gets a `10 01`. canair asks twice if the first request draws no answer.
+
+To send TesterPresent by hand, use a raw step (`canair read "raw 7E4:3E00"`). As a query token,
 `3E00` would be read as the DID `0x3E00`.
 
 ## After a session
 
-Using the WebSocket terminal overrides the WiCAN's AutoPID mode. Pass `--reboot`
-to any live command to restore AutoPID after your session ends.
+Using the WebSocket terminal overrides the AutoPID mode of the WiCAN. Pass `--reboot` to any live
+command to restore AutoPID after your session ends.

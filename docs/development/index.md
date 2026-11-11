@@ -1,30 +1,31 @@
 # Development
 
-This section is for people changing **canair itself** (the `src/canair/` package —
-CLI, transports, modes, library code, tests). Contributing a *vehicle profile* or
-decoded signals needs none of this — that's [Contributing](../contributing/index.md),
-and it's the most wanted contribution.
+This section is for people who change **canair itself**: the `src/canair/` package (the
+command-line interface (CLI), transports, modes, library code and tests). To contribute a *vehicle
+profile* or decoded signals, you need none of this. See [Contributing](../contributing/index.md).
+That is the most wanted contribution.
 
-The engineering guidelines — the transport contract, how to add a subcommand,
-test expectations, and the "keep docs & README current" policy — live in the agent
-skill at `.claude/skills/contributing-code/SKILL.md`, which doubles as the human
-contributor guide. (The profile-contribution mechanics — `canair contribute`, the
-PII/security scrub — are in `.claude/skills/contributing-profiles/SKILL.md`.)
+The engineering guidelines live in the agent skill at `.claude/skills/contributing-code/SKILL.md`.
+They cover the transport contract, how to add a subcommand, test expectations and the "keep docs &
+README current" policy. The skill also serves as the guide for human contributors. The mechanics of
+profile contribution are in `.claude/skills/contributing-profiles/SKILL.md`. They cover
+`canair contribute` and the scrub for personally identifiable information (PII) and security keys.
 
 ## Run the working tree, not an installed copy
 
-Always run and test with `uv run canair …` from the repo root (never a
-globally-installed bare `canair`) — that runs your working-tree code and reads the
-repo's bundled `profiles/` live, whereas a bare `canair` runs a frozen
-install-time snapshot. See
-[During development](../concepts/profiles.md#during-development-which-canair-sees-your-edits)
-for why.
+Always run and test with `uv run canair …` from the repo root. Never use a globally installed bare
+`canair`. `uv run canair` runs your working-tree code and reads the bundled `profiles/` of the repo
+live. A bare `canair` runs a frozen snapshot from install time. For the reason, see
+[During development](../concepts/profiles.md#during-development-which-canair-sees-your-edits).
 
 ## Enable the git hooks (once per clone)
 
-The hooks run the fast CI gates automatically — `ruff format`/`ruff check`/`ty`, the import
-contracts, the structure tests and skill-frontmatter validation on each commit, the
-[Conventional Commits](commit-messages.md) check on each commit message, and the generated-artifact currency checks on each push:
+The hooks run the fast continuous integration (CI) gates automatically:
+
+- On each commit, they run `ruff format`, `ruff check`, `ty`, the import contracts, the structure
+  tests and the skill-frontmatter validation.
+- On each commit message, they run the [Conventional Commits](commit-messages.md) check.
+- On each push, they run the checks that generated artifacts are current.
 
 ```bash
 make install                                 # Git LFS + hooks + uv sync + `canair` tool (alias: setup)
@@ -33,28 +34,29 @@ git lfs install --force                      # first: see the note below
 uv run pre-commit install --install-hooks
 ```
 
-`make install` first runs `scripts/dev/check_toolchain.sh`: it stops when uv is older than 0.13 or
-would use a pre-release Python. The clone pins Python 3.15, and an older uv resolves that to an
-old alpha. Without make, run `uv self update` and check that `uv python list 3.15` offers a
-release, not an alpha.
+`make install` first runs `scripts/dev/check_toolchain.sh`. The script stops when uv is older than
+0.13 or would use a pre-release Python. The clone pins Python 3.15, and an older uv resolves that
+pin to an old alpha. Without make, run `uv self update`. Then check that `uv python list 3.15`
+offers a release, not an alpha.
 
-A clean local run means a green CI; CI stays the hard gate.
+A clean local run means that CI passes. CI remains the final gate.
 
 !!! warning "Run `git lfs install --force` before `pre-commit install`"
-    Large profile files (raw CAN logs under `captures/can/`) live in Git LFS and are uploaded by
-    git-lfs's own `pre-push` hook. If that hook is installed first, `pre-commit install` chains
-    it; otherwise it replaces it. Without the upload, `git push` succeeds but publishes pointers
-    whose files never reach the server, and the next `git pull` on another machine fails with
-    `Object does not exist on the server`. (`--force` lets a re-run succeed once pre-commit's
-    hook is already in place.)
+    Git Large File Storage (LFS) stores large profile files, such as raw Controller Area Network
+    (CAN) logs under `captures/can/`. The `pre-push` hook of git-lfs uploads them. If you
+    install that hook first, `pre-commit install` chains it. Otherwise `pre-commit install`
+    replaces it. Without the upload, `git push` succeeds but publishes pointers whose files never
+    reach the server. The next `git pull` on another machine then fails with
+    `Object does not exist on the server`. The `--force` flag lets a re-run succeed once the hook
+    of pre-commit is in place.
 
-    Two further guards: the `lfs-push` pre-push hook uploads the objects itself, and CI runs
-    `scripts/check/check_lfs_objects.py` (`make lfs-check` locally) to flag any pointer whose object is
-    missing from the server.
+    Two more guards exist. The `lfs-push` pre-push hook uploads the objects itself. CI runs
+    `scripts/check/check_lfs_objects.py` (`make lfs-check` locally). It flags any pointer whose
+    object is missing from the server.
 
 ## Checks before you open a code PR
 
-Run from the repo root:
+Run these from the repo root:
 
 ```bash
 uv run pytest -q                                    # tests (parallel; ~14s)
@@ -68,30 +70,30 @@ uv run python scripts/gen/gen_cli_reference.py --check   # if you changed a comm
 uv run python scripts/gen/gen_screenshots.py --check     # if you changed screenshotted command output
 ```
 
-The [bundled-profile](../profiles/index.md) counts need no regenerating: an MkDocs hook
-(`scripts/mkdocs_hooks/profiles_index.py`) computes them from `profiles/*/ecus/` each time
-the site is built. The same goes for the [profile explorer](../profiles/explorer.md): its data is
-exported at build time (`src/canair/interop/explorer/export.py`, written out by
-`scripts/mkdocs_hooks/explorer.py`), and `docs/assets/explorer/explorer.{js,css}` only render it.
-Change what the explorer shows in the exporter, which is unit-tested; the JavaScript is
-checked by hand in a browser.
+You do not need to regenerate the counts of the [bundled profiles](../profiles/index.md). An
+MkDocs hook (`scripts/mkdocs_hooks/profiles_index.py`) computes them from `profiles/*/ecus/` each
+time the site is built.
 
-The suite runs in parallel by default (`-n auto --dist loadscope`, set in
-`pyproject.toml`). When iterating on a single file or debugging one failure, pass
-`-n0` — spinning up workers costs more than a small selection saves, and serial
-output stays ordered instead of interleaved:
+The [profile explorer](../profiles/explorer.md) works the same way. The build exports its data
+(`src/canair/interop/explorer/export.py`, written out by `scripts/mkdocs_hooks/explorer.py`).
+`docs/assets/explorer/explorer.{js,css}` only render that data. To change what the explorer shows,
+change the exporter. The exporter has unit tests. Check the JavaScript by hand in a browser.
+
+The suite runs in parallel by default (`-n auto --dist loadscope`, set in `pyproject.toml`). To
+iterate on a single file or debug one failure, pass `-n0`. Starting workers costs more than a small
+selection saves. Serial output also stays ordered instead of interleaved:
 
 ```bash
 uv run pytest -n0 tests/safety/test_safety.py -k some_case
 ```
 
-No car and no dongle? You can still exercise the full transport stack — see
+If you have no car and no dongle, you can still test the full transport stack. See
 [Offline testing with ELM327-Emulator](offline-testing.md).
 
-Touched `import dbc`, `export dbc` or the `signals/` model? Run the opt-in
-real-world DBC round-trip, which fetches
-[commaai/opendbc](https://github.com/commaai/opendbc) into the gitignored
-`references/can/` and expects `problems: 0`:
+If you changed `import dbc`, `export dbc` or the `signals/` model, run the opt-in real-world
+round-trip of the CAN database (DBC) format. It fetches
+[commaai/opendbc](https://github.com/commaai/opendbc) into the gitignored `references/can/` and
+expects `problems: 0`:
 
 ```bash
 uv run python scripts/check/check_dbc_corpus.py --fetch
@@ -99,24 +101,23 @@ uv run python scripts/check/check_dbc_corpus.py --fetch
 
 ## Keep the docs current
 
-If your change adds, removes, or alters a user-facing capability, update the docs
-and README in the same PR (see the README ↔ `docs/` policy in `AGENTS.md`). Docs
-screenshots are **generated**, not hand-made — see
-[Documentation screenshots](screenshots.md).
+If your change adds, removes or alters a user-facing capability, update the docs and the README in
+the same pull request (PR). See the README ↔ `docs/` policy in `AGENTS.md`. The docs screenshots
+are **generated**, not hand-made. See [Documentation screenshots](screenshots.md).
 
 ## Also in this section
 
-- [Architecture](architecture.md) — the layers, where new code goes, and the checks that keep
-  the structure.
-- Designs that span several packages, each with the rules a change must keep:
-  [response frame counts](frame-counts.md),
-  [link health](link-health.md) (fallback, reconnect, desync recovery),
-  [variants and ECU revisions](variants-and-revisions.md),
-  [layered profiles and write targets](layered-profiles.md) and
-  [the contribute pipeline](contribute-pipeline.md).
-- [Commit messages](commit-messages.md) — the Conventional Commits format that
-  drives the version bump and the changelog.
-- [Documentation screenshots](screenshots.md) — how the docs' SVG/GIF assets are
-  generated, checked, and regenerated.
-- [Offline testing (emulator)](offline-testing.md) — drive canair with no dongle
-  and no car.
+- [Architecture](architecture.md): the layers, where new code goes, and the checks that keep the
+  structure.
+- Designs that span several packages, each with the rules that a change must keep:
+    - [response frame counts](frame-counts.md)
+    - [link health](link-health.md) (fallback, reconnect, desync recovery)
+    - [variants and ECU revisions](variants-and-revisions.md) (an ECU is an electronic control
+      unit)
+    - [layered profiles and write targets](layered-profiles.md)
+    - [the contribute pipeline](contribute-pipeline.md)
+- [Commit messages](commit-messages.md): the Conventional Commits format that drives the version
+  bump and the changelog.
+- [Documentation screenshots](screenshots.md): how canair generates, checks and regenerates the
+  SVG and GIF assets of the docs.
+- [Offline testing (emulator)](offline-testing.md): drive canair with no dongle and no car.

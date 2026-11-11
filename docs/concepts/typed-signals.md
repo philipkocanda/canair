@@ -1,30 +1,29 @@
 # Typed (multi-modal) signals
 
-Most vehicle signals are **continuous linear numbers** — a temperature, a speed,
-a state of charge. canair's default signal model captures these with a WiCAN
-`expression` (a formula over byte indices) plus an optional `unit`/`min`/`max`,
-and the whole analysis suite (`decode`/`correlate`/`hunt`/`investigate`) is built
-to reason about them as scalar floats.
+Most vehicle signals are **continuous linear numbers**, such as a temperature, a speed or a state
+of charge. The default signal model of canair describes these with a WiCAN `expression` (a formula
+over byte indices) and an optional `unit`/`min`/`max`. The whole analysis suite
+(`decode`/`correlate`/`hunt`/`investigate`) reasons about them as scalar floats.
 
 But some signals are **not numbers on a line**:
 
-- a **mode / enum** — fan level 1-8, gear P/R/N/D, a climate mode;
-- a **flag set / bitmask** — a day-of-week schedule mask, a set of door bits;
-- **text** — a part number or serial read as ASCII;
-- a **date** — a manufacture or preheat-schedule date;
-- a **struct** — a whole record (e.g. schedule = day-mask + hour + minute).
+- a **mode / enum** — fan level 1-8, gear P/R/N/D, a climate mode
+- a **flag set / bitmask** — a day-of-week schedule mask, a set of door bits
+- **text** — a part number or serial read as ASCII
+- a **date** — a manufacture or preheat-schedule date
+- a **struct** — a whole record (for example, schedule = day-mask + hour + minute)
 
-For these, min/max and Pearson correlation are meaningless: the numeric spacing
-between `Drive=3` and `Neutral=2` carries no physical meaning. canair models them
-with an optional signal **`type:`** and a small companion map.
+For these signals, min/max and Pearson correlation have no meaning. The numeric spacing between
+`Drive=3` and `Neutral=2` carries no physical meaning. canair models them with an optional signal
+**`type:`** and a small companion map.
 
 ## The parallel decoder
 
-The WiCAN `expression` **stays a pure float** — it is what the WiCAN device ships
-and what numeric analysis consumes. `type:` attaches a **parallel typed
-decoding** on top (`src/canair/expression/decode_value.py`): the expression yields the raw
-integer, and the typed layer interprets it for display and categorical analysis.
-This never changes device output or the numeric path.
+The WiCAN `expression` **stays a pure float**. The WiCAN device ships it, and numeric analysis
+consumes it. `type:` attaches a **parallel typed decoding** on top
+(`src/canair/expression/decode_value.py`). The expression yields the raw integer, and the typed
+layer interprets it for display and categorical analysis. This never changes the device output or
+the numeric path.
 
 | `type:`   | Companion field | Renders as |
 |-----------|-----------------|------------|
@@ -53,60 +52,66 @@ canair pids upsert-param IGPM 22BC03 DOOR_STATUS B10 \
     --bit 5=driver_open --bit 7=trunk_open --unverified
 ```
 
-The bundled Ioniq profile already decodes both bytes — VCU `GEAR`, and IGPM B10 bit by bit as
-`DOOR_*_OPEN`, `DOOR_LOCK_RL`/`DOOR_LOCK_RR` and `TRUNK_OPEN` — so these two commands show the
-syntax rather than a signal still to be found. With the rear doors locked and every door shut,
-`DOOR_STATUS` would render as `rear_left_locked|rear_right_locked`.
+The bundled Ioniq profile already decodes both bytes. It decodes VCU `GEAR`. It decodes IGPM B10
+bit by bit as `DOOR_*_OPEN`, `DOOR_LOCK_RL`/`DOOR_LOCK_RR` and `TRUNK_OPEN`. These two commands
+therefore show the syntax. They do not show a signal that is still to be found. With the rear
+doors locked and every door shut, `DOOR_STATUS` would render as
+`rear_left_locked|rear_right_locked`.
 
-`--value`/`--bit` are repeatable `KEY=LABEL` pairs (`KEY` may be decimal or
-`0x`-hex). Passing only `--value`/`--bit` infers `--type enum`/`bitmask`.
+`--value` and `--bit` are repeatable `KEY=LABEL` pairs. `KEY` may be decimal or `0x`-hex. If you
+pass only `--value`, canair infers `--type enum`. If you pass only `--bit`, canair infers
+`--type bitmask`.
 
-`struct` signals (ordered `fields:`) are defined in the YAML directly today; each
-sub-field is itself a typed mini-signal over the same payload.
+You currently define `struct` signals (ordered `fields:`) in the YAML directly. Each sub-field is
+itself a typed mini-signal over the same payload.
 
 ## Byte-run types: `ascii` and `date`
 
-`ascii` and `date` are the two types that read a **run of bytes** rather than a
-scalar, so their `expression` is a plain range — `[B04:B22]`, not a formula:
+`ascii` and `date` are the two types that read a **run of bytes** and not a scalar. Their
+`expression` is a plain range, such as `[B04:B22]`, and not a formula:
 
 ```bash
 # The VIN: KWP2000 record 1A90 returns SID + record byte + 17 ASCII chars
 canair pids upsert-param VCU 1A90 VIN "[B04:B22]" --type ascii --unverified
 ```
 
-Two consequences worth knowing:
+Two consequences follow:
 
-- **The range may cross a CAN frame boundary.** Byte indices are in
-  [WiCAN notation](byte-indexing.md), which *includes* the ISO-TP PCI bytes at `B00`/`B01`, then
-  `B08`, `B16`, … The run decoder drops those, so `[B04:B22]` yields 17 consecutive *data* bytes
-  even though `B08` and `B16` sit inside it — the only way to express a 17-character VIN. The
-  "range spans a PCI byte" warning from `canair validate pids` is therefore not raised for
-  `ascii`/`date`, but still is for numeric types, which read consecutive raw bytes.
-- **Omitting a range is allowed but imprecise.** With no `[Bn:Bm]` expression the decoder uses
-  the whole payload minus its UDS header, with the header width taken from the response's service
-  (`0x5A` → 2 bytes; `0x62` → 3). Prefer an explicit range; the fallback can only guess where
-  your data begins.
+- **The range may cross a frame boundary of the controller area network (CAN).** Byte indices are in
+  [WiCAN notation](byte-indexing.md). This notation *includes* the ISO 15765-2 transport protocol
+  (ISO-TP) protocol control information (PCI) bytes at `B00`/`B01`, then `B08`, `B16`, … The run
+  decoder drops those bytes. `[B04:B22]` therefore yields 17 consecutive *data* bytes, even though
+  `B08` and `B16` sit inside it. This is the only way to express a 17-character vehicle
+  identification number (VIN).
 
-Trailing `AA`/`00`/`FF` padding is stripped, and a run that decodes to mostly
-non-printable bytes renders as hex rather than mojibake — so a wrong offset shows
-up as obvious garbage instead of silently plausible text.
+    For this reason, `canair validate pids` does not raise its "range spans a PCI byte" warning
+    for `ascii` and `date`. It still raises the warning for numeric types, which read consecutive
+    raw bytes.
+
+- **You may omit a range, but the result is imprecise.** With no `[Bn:Bm]` expression, the
+  decoder uses the whole payload minus its Unified Diagnostic Services (UDS) header. It takes the
+  header width from the service of the response (`0x5A` → 2 bytes, `0x62` → 3). Prefer an
+  explicit range. The fallback can only guess where your data begins.
+
+canair strips trailing `AA`/`00`/`FF` padding. A run that decodes to mostly non-printable bytes
+renders as hex and not as mojibake. A wrong offset therefore shows up as obvious garbage and not
+as silently plausible text.
 
 ## Analyzing categorical signals
 
-- **`canair decode ECU PID`** renders typed signals as their labels, and shows the
-  set of distinct decoded values rather than a numeric range.
-- **`canair decode ECU PID --discriminate state`** scores an enum/bitmask signal
-  with **Cramér's V** (nominal association) instead of the interval-scale F —
-  answering "which byte separates the power states?" correctly.
-- **`canair correlate … --method cramers_v|mutual_info`** (also on `decode
-  --corr`) ranks by *categorical* association: "which byte tracks this known
-  mode?" — the question Pearson can't answer for a fan/mode/flag byte.
-- **`canair investigate ECU PID --events --field NAME`** collapses a typed
-  field into **one logical signal** and prints one transition per decoded-value
-  change (`park (33) → drive (40)` at a timestamp), instead of scattered
-  per-byte edges — ideal for schedule/mode/date fields.
+- **`canair decode ECU PID`** renders typed signals as their labels. It shows the set of distinct
+  decoded values and not a numeric range.
+- **`canair decode ECU PID --discriminate state`** scores an enum or bitmask signal with
+  **Cramér's V** (nominal association) instead of the interval-scale F. This answers "which byte
+  separates the power states?" correctly.
+- **`canair correlate … --method cramers_v|mutual_info`** (also on `decode --corr`) ranks by
+  *categorical* association. It answers "which byte tracks this known mode?" Pearson correlation
+  cannot answer this question for a fan, mode or flag byte.
+- **`canair investigate ECU PID --events --field NAME`** collapses a typed field into **one
+  logical signal**. It prints one transition per decoded-value change (`park (33) → drive (40)`
+  at a timestamp). It does not print scattered per-byte edges. This suits schedule, mode and date
+  fields.
 
-See the [analyze journey](../bring-your-own-car/06-analyze.md) for a worked
-example, and the
+See the [analyze journey](../bring-your-own-car/06-analyze.md) for a worked example. See the
 [write-command workflow](../bring-your-own-car/06-analyze.md#decoding-set-commands-toggle-and-diff)
-for reverse-engineering settings the head unit *writes*.
+for how to reverse-engineer settings that the head unit *writes*.

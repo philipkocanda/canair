@@ -1,21 +1,21 @@
 # 6. Analyze
 
-You have captures; now work out **which byte is which signal**. This is the core
-of reverse-engineering, and it's a *reasoning* process, not a single command:
+You have captures. Now work out **which byte is which signal**. This is the core of
+reverse-engineering. It is a *reasoning* process, not one command:
 
-1. **Inspect** — see which bytes actually move.
-2. **Reason** — from what the ECU is, and how the byte behaves, form a hypothesis
-   about what it could be.
-3. **Test** — check that hypothesis against the data (a known reference, a
-   plausible range, correlation) *without* committing anything.
-4. **Confirm or reject**, then move to the next byte.
+1. **Inspect** — see which bytes move.
+2. **Reason** — form a hypothesis about what the byte could be. Base it on what the electronic
+   control unit (ECU) is and how the byte behaves.
+3. **Test** — check the hypothesis against the data without committing anything. Use a known
+   reference, a plausible range or a correlation.
+4. **Confirm or reject** the hypothesis. Then move to the next byte.
 
-canair's analysis tools support each of those steps, and all work over your saved
-captures — no live car needed. Below is the workflow, worked through on a real
-example: finding vehicle speed.
+canair's analysis tools support each step. All of them work on your saved captures, so you need no
+live car. This page shows the workflow on a real example: finding vehicle speed.
 
 !!! tip "Short on time? Start here"
-    1. Run `canair investigate MyECU 2101`. It gives one ranked report for every byte of a PID.
+    1. Run `canair investigate MyECU 2101`. It gives one ranked report for every byte of a parameter
+       identifier (PID).
     2. Read [the one-shot shortcut](#the-one-shot-shortcut-investigate).
     3. If you know a signal that should move with the byte, run
        `canair hunt MyECU 2101 --against REF`.
@@ -26,34 +26,33 @@ example: finding vehicle speed.
 
 ## First, two families of signal: continuous vs discrete
 
-Before reasoning about any byte, work out which of two broad families it belongs
-to — they need **different analysis tools**, and getting this wrong sends you
-down a dead end (e.g. Pearson-correlating a gear enum against speed).
+Before you reason about any byte, work out which of two families it belongs to. The families need
+**different analysis tools**. A wrong choice sends you down a dead end. An example is a Pearson
+correlation of a gear enum against speed.
 
-**Continuous signals** are a value on a number line: speed, voltage, current,
-temperature, RPM, state-of-charge. Neighbouring values are meaningfully "close"
-(91 km/h is just above 90) and arithmetic is valid — mean, min/max, and a linear
-`scale·x + offset` all make sense. This is what Pearson correlation, `--stats`
-distributions, and linear fits are built for. Most powertrain sensor bytes are
-continuous.
+**Continuous signals** are a value on a number line. Examples are speed, voltage, current,
+temperature, revolutions per minute (RPM) and state of charge. Neighbouring values are close in a
+meaningful way (91 km/h is just above 90). Arithmetic is valid: the mean, the min/max and a linear
+`scale·x + offset` all make sense. Pearson correlation, `--stats` distributions and linear fits
+are built for these signals. Most powertrain sensor bytes are continuous.
 
-**Discrete signals** take a value from a fixed set where the number is a *label*,
-not a quantity:
+**Discrete signals** take a value from a fixed set. The number is a *label*, not a quantity:
 
-- **Enums / state machines** — gear, drive mode, fan level, charge state. A small
-  set of distinct integers; `Drive=3` is not "one more than" `Neutral=2`, so
-  spacing, averages, and min/max are meaningless.
-- **Bitfields / flags** — doors, locks, lights, relays: individual bits toggle
-  independently with discrete physical events.
-- **Counters / checksums** — a rolling frame counter or CRC: high-distinct, but
-  with *no* physical quantity to decode. Recognise them so you don't waste time
-  fitting a scale to noise.
+- **Enums and state machines** — gear, drive mode, fan level, charge state. These are a small set
+  of distinct integers. `Drive=3` is not "one more than" `Neutral=2`, so spacing, averages and
+  min/max have no meaning.
+- **Bitfields and flags** — doors, locks, lights, relays. Individual bits toggle independently
+  with discrete physical events.
+- **Counters and checksums** — a rolling frame counter or a cyclic redundancy check (CRC). These
+  have many distinct values but no physical quantity to decode. Learn to recognise them, so that
+  you do not waste time on a scale fit to noise.
 
-Body and comfort modules (BCM/IGPM/HVAC) are mostly discrete; powertrain modules
-(BMS/MCU/VCU) are mostly continuous, with a few enum/flag bytes (contactor state,
-drive mode) mixed in.
+Body and comfort modules (the body control module (BCM), IGPM and the heating, ventilation and air
+conditioning (HVAC) module) are mostly discrete. Powertrain modules (the battery management system
+(BMS), the motor control unit (MCU) and the vehicle control unit (VCU)) are mostly continuous.
+They also have a few enum and flag bytes, such as contactor state and drive mode.
 
-Why the split drives the tooling:
+The split decides which tools you use:
 
 | | Continuous | Discrete (enum / flag) |
 |---|---|---|
@@ -62,32 +61,31 @@ Why the split drives the tooling:
 | canair tools | `hunt`, `correlate`, `decode --stats` / `--corr` / `--discriminate` | `correlate --method cramers_v`, `investigate --bits` / `--events`, `decode --discriminate` |
 | Model | linear `expression` (scale + offset) | `type: enum`/`bitmask` + a `values:`/`bits:` map |
 
-Your quickest classifier is the `--stats` **`distinct`** count over a varied
-drive: 2–8 distinct values (or a byte whose bits toggle independently) is almost
-certainly an enum/flag; dozens of smoothly-changing values is continuous.
+The quickest classifier is the `--stats` **`distinct`** count over a varied drive. A byte with 2–8
+distinct values, or a byte whose bits toggle independently, is almost certainly an enum or flag.
+A byte with dozens of smoothly changing values is continuous.
 
-The worked example below (finding vehicle speed) follows the **continuous** path.
-The **discrete** path — typed signals and categorical statistics — is covered
-under [Categorical signals](#categorical-signals-modes-flags-schedules) further
-down.
+The worked example below (finding vehicle speed) follows the **continuous** path. The **discrete**
+path (typed signals and categorical statistics) is in
+[Categorical signals](#categorical-signals-modes-flags-schedules) further down.
 
 ## Step 1 — Inspect: which bytes move?
 
-A byte that never changes across your captures can't be a live signal. Start by
-diffing captures of the same PID taken in different conditions:
+A byte that never changes across your captures cannot be a live signal. Start by diffing captures
+of the same PID taken in different conditions:
 
 ```bash
 canair captures uds MyECU:2101 --diff --state driving   # byte-level diff across a drive
 canair captures uds MyECU:2101 --diff --rulers          # overlay the byte-index ruler
 ```
 
-(`captures`, `correlate`, and `hunt` are `uds`/`can` groups — `uds` is the
-diagnostic domain and the default, so a bare `canair captures MyECU:2101 …`
-works too; the `can` kind targets raw broadcast-CAN frame logs.)
+`captures`, `correlate` and `hunt` each have a `uds` kind and a `can` kind. `uds` is the
+diagnostic domain and the default, so a bare `canair captures MyECU:2101 …` works too. The `can`
+kind targets raw broadcast frame logs from the controller area network (CAN).
 
-The bytes that **change** are your candidates. The ones highlighted as you go
-from parked to driving are the ones carrying motion-related information. Map the
-raw payload to byte indices so you know exactly what you're looking at:
+The bytes that **change** are your candidates. The bytes that light up between parked and driving
+carry motion-related information. Map the raw payload to byte indices, so that you know exactly
+what you look at:
 
 ```bash
 canair bix --annotate 6101FFFF… --ecu MyECU --pid 2101
@@ -95,15 +93,16 @@ canair bix --annotate 6101FFFF… --ecu MyECU --pid 2101
 
 ![canair bix --annotate — map a payload to byte notations and signals](../screenshots/bix-annotate.svg)
 
-> Byte indexing is the classic trap — WiCAN, ISO-TP, and Torque all count bytes
-> differently, and there are transport (PCI) bytes you must not read across. See
+> Byte indexing is a common trap. WiCAN, ISO-TP (the transport layer for CAN frames) and Torque
+> count bytes differently. Transport bytes (protocol control information, PCI) also exist, and you
+> must not read across them. See
 > [Byte indexing](../concepts/byte-indexing.md).
 
 ### Reading several PIDs at the same instant
 
-`--diff` shows one PID's history. When the question is *"what did **that** byte do
-while **this** other signal changed?"*, step through the captures instead and let
-canair stack the PIDs into one time-joined frame:
+`--diff` shows the history of one PID. Sometimes the question is: *"what did **that** byte do
+while **this** other signal changed?"* In that case, step through the captures. canair stacks the
+PIDs into one time-joined frame:
 
 ```bash
 canair captures uds "MyECU:2101,2102" --step              # two PIDs, stacked
@@ -111,50 +110,53 @@ canair captures uds "HVAC:220100,2201A0,2201A2" --step    # duct temps vs heat m
 canair captures uds "VCU:2101 BMS:2101" --step            # across two ECUs
 ```
 
-Each frame is anchored on a capture timestamp, with the other PIDs joined to the
-nearest capture within `--join-tol` (10s by default — wide enough to span a full
-round-robin `monitor` cycle over several ECUs). A block shows its `Δt` from the
-anchor, and a PID
-with no capture in range is reported rather than hidden, so you always know
-whether you are looking at a real simultaneous reading.
+Each frame is anchored on a capture timestamp. canair joins the other PIDs to the nearest capture
+within `--join-tol`. The default is 10 s, which is wide enough to span a full round-robin
+`monitor` cycle over several ECUs. Each block shows its `Δt` from the anchor. If a PID has no
+capture in range, canair reports it and does not hide it. You therefore always know whether you
+look at a real simultaneous reading.
 
-Inside the stepper: `←`/`→` (or `h`/`l`) move between frames, `↑`/`↓` (or `k`/`j`)
-scroll a tall frame (`g`/`G` for its first/last frame, `Home`/`End` for the view's
-top/bottom), **`p`** adds/removes signals from the comparison,
-**`J`** changes the join tolerance,
-**`V`** switches rendering (`signals` drops the hex to fit more PIDs; `changed`
-shows only signals whose value actually moved), **`tab`** picks a block so
-**`e`** can annotate that capture, and **`?`** lists every key.
+These keys work inside the stepper:
+
+- `←`/`→` (or `h`/`l`) move between frames.
+- `↑`/`↓` (or `k`/`j`) scroll a tall frame.
+- `g`/`G` go to the first or last frame. `Home`/`End` go to the top or bottom of the view.
+- **`p`** adds or removes signals from the comparison.
+- **`J`** changes the join tolerance.
+- **`V`** switches the rendering. `signals` drops the hex to fit more PIDs. `changed` shows only
+  signals whose value moved.
+- **`tab`** picks a block, so that **`e`** can annotate that capture.
+- **`?`** lists every key.
 
 **Moving between frames keeps your scroll position.** A stacked frame is usually taller than the
-terminal, so scroll to the byte you care about and step with `←`/`→`: the view stays put and the
-numbers underneath change, which makes the stepper a comparator rather than a pager. The status
-bar repeats the frame's timestamp while the header is scrolled out of sight, and `Home` takes you
-back to it.
+terminal. Scroll to the byte you care about and step with `←`/`→`. The view stays put and the
+numbers underneath change. This makes the stepper a comparator, not a pager. When the header
+scrolls out of sight, the status bar repeats the timestamp of the frame. `Home` takes you back to
+the header.
 
-This is the fastest way to watch an event-driven signal: put the *known* signal
-(a compressor flag, a door state) in the same frame as the *candidate* byte, then
-walk the frames across the moment it switched.
+This is the fastest way to watch an event-driven signal. Put the *known* signal (a compressor flag
+or a door state) in the same frame as the *candidate* byte. Then walk the frames across the
+moment it switched.
 
 **Leave yourself landmarks.** Press **`e`** on any frame to annotate that capture ("Heating
-started", "pressed the lock button"), then **`s`** to jump back to it later. The jump list shows
+started", "pressed the lock button"). Press **`s`** later to jump back to it. The jump list shows
 every session in scope, newest first, with its noted captures nested underneath. Write the note
-while you remember what you did, and analysis becomes "jump to the event, then step outward".
-Notes are stored with the capture and show up in `canair captures --sessions`.
+while you remember what you did. Analysis then becomes "jump to the event, then step outward".
+canair stores notes with the capture, and they show up in `canair captures --sessions`.
 
-To see what's still undecoded across a whole ECU (or PID), `canair coverage`
-audits every signal expression against the payload length of the PID's newest
-session and lists the **unmapped** and partially-decoded bytes (every finding, and how the
-length is chosen, is in [Audit for gaps](07-define-and-verify.md#audit-for-gaps)). The usual
-scope flags apply, so `--until DATE` audits against the history as it stood on that date:
+To see what is still undecoded across a whole ECU (or PID), use `canair coverage`. It audits every
+signal expression against the payload length of the newest session of the PID. It lists the
+**unmapped** and partially decoded bytes. [Audit for gaps](07-define-and-verify.md#audit-for-gaps)
+describes every finding and how canair chooses the length. The usual scope flags apply, so
+`--until DATE` audits against the history as it stood on that date:
 
 ![canair coverage BMS — undecoded payload bytes](../screenshots/coverage.svg)
 
 ### Finding text: part numbers, versions, VINs
 
-Everything above starts from "which ECU, which PID". When the thing you want is
-*text* — a part number, a software version, an ECU name — you often don't know where
-it lives. `canair search` asks the whole capture store:
+Everything above starts from "which ECU, which PID". Sometimes you want *text*: a part number, a
+software version or an ECU name. You often do not know where it lives. `canair search` asks the
+whole capture store:
 
 ```bash
 canair search 95400G7470          # which ECU/PID holds this part number?
@@ -162,42 +164,41 @@ canair search                     # list every plausible string in the captures
 canair search --hex 'DE AD BE EF' # a byte pattern instead of text
 ```
 
-Findings are grouped by **location**, not by capture, with a hit count and the dates
-first and last seen. Each payload hit carries a ready-to-run
-`canair pids upsert-param … --type ascii` command (fill in the signal name), so a
-string you found is one step from being a defined signal. The inventory is filtered
-to identifier-looking strings — numeric telemetry is often printable ASCII, so an
-unfiltered sweep is mostly noise (`--all-runs` shows you what that looks like).
+canair groups findings by **location**, not by capture. Each group shows a hit count and the dates
+of the first and last sighting. Each payload hit carries a ready-to-run
+`canair pids upsert-param … --type ascii` command. Fill in the signal name, and a string you found
+is one step from a defined signal. The inventory shows only identifier-looking strings. Numeric
+telemetry is often printable ASCII, so an unfiltered sweep is mostly noise. `--all-runs` shows
+what that looks like.
 
-A string never includes the response header (the service byte and the DID/LID echo,
-which is often printable), and the raw responses a scan records in its notes are
-searched as bytes too, marked `from scan notes` (and `lossy` where the note was cut
-short). To search for text that is also a kind name, put it after `--`:
-`canair search -- uds`.
+A string never includes the response header. The header is the service byte and the echo of the
+data identifier (DID) or local identifier (LID). It is often printable. canair also searches the
+raw responses that a scan records in its notes, as bytes. It marks these hits `from scan notes`,
+and `lossy` where the note was cut short. To search for text that is also a kind name, put it
+after `--`: `canair search -- uds`.
 
 ## Step 2 — Reason: what could this byte be?
 
-Before guessing offsets, ask *what would this ECU need to report?* An ECU's job
-constrains what its bytes can plausibly be:
+Before you guess offsets, ask *what this ECU needs to report*. The job of an ECU limits what its
+bytes can be:
 
-- A **BMS** reports cell voltages, pack current (signed, symmetric about zero),
-  temperatures (slow-moving), state-of-charge (0–100%).
-- An **MCU/inverter** reports motor RPM and torque (signed, symmetric under
-  regen), and several component temperatures.
-- A **body module** (BCM/IGPM) reports mostly *discrete* things — lights, locks,
-  doors — as **bitfields**, not continuous values.
+- A **BMS** reports cell voltages, pack current (signed, symmetric about zero), temperatures
+  (slow-moving) and state of charge (0–100%).
+- An **MCU/inverter** reports motor RPM and torque (signed, symmetric under regeneration). It also
+  reports several component temperatures.
+- A **body module** (BCM/IGPM) reports mostly *discrete* things, such as lights, locks and doors.
+  It reports them as **bitfields**, not continuous values.
 
-The byte's *behaviour* narrows it further:
+The *behaviour* of the byte narrows the choice further:
 
-- **Range & distribution** — a value bounded 0–100 is likely a percentage; one
-  symmetric about zero is likely signed (torque, current).
-- **Speed of change** — temperatures drift slowly; loads/currents jump fast.
-- **Distinct values** — a handful of discrete integers is an enum/state machine,
-  not an analog reading.
+- **Range and distribution** — a value bounded 0–100 is likely a percentage. A value symmetric
+  about zero is likely signed (torque, current).
+- **Speed of change** — temperatures drift slowly. Loads and currents jump fast.
+- **Distinct values** — a handful of discrete integers is an enum or state machine, not an analog
+  reading.
 
-For our example: on a drive, a byte that sits at 0 while parked and climbs
-smoothly to ~100 as you accelerate, staying non-negative, looks a lot like
-**speed in km/h**.
+In our example, a byte sits at 0 while parked. It climbs smoothly to about 100 as you accelerate
+and stays non-negative. This looks like **speed in km/h**.
 
 `canair decode --stats` gives you the distribution to reason from:
 
@@ -208,42 +209,41 @@ canair decode MyECU 2101 --stats --group-by state # per-state means (parked vs d
 
 ## Step 3 — Test the hypothesis (without committing)
 
-Now confirm it with evidence. The single strongest lever is **correlation against
-a signal you already trust** — often a known signal on *another* ECU captured
-during the same drive.
+Now confirm the hypothesis with evidence. The strongest method is a **correlation against a
+signal you already trust**. This is often a known signal on *another* ECU, captured during the
+same drive.
 
-**If you have a reference signal**, let `canair hunt` do the search for you: it
-sweeps every byte offset and interpretation on the PID, correlates each against
-the reference, and reports the best fit with a physical-unit guess:
+**If you have a reference signal**, let `canair hunt` search for you. It sweeps every byte offset
+and interpretation on the PID. It correlates each one against the reference. It reports the best
+fit with a guess at the physical unit:
 
 ```bash
 canair hunt uds MyECU:2101 --against ESC:22C101:REAL_SPEED_KMH
 # → B12  r=0.99  y = 1.00·x + 0.3   (looks like km/h)
 ```
 
-> `ESC:22C101:REAL_SPEED_KMH` here is a *known* speed signal from the bundled
-> Ioniq profile, used purely to illustrate. On your car the reference is
-> whatever signal *you've* already verified (or an external anchor like
-> GPS-logged speed) — the technique is the same.
+> `ESC:22C101:REAL_SPEED_KMH` is a *known* speed signal from the bundled Ioniq profile. It
+> illustrates the technique only. On your car, the reference is a signal that *you* have already
+> verified, or an external anchor such as GPS-logged speed. The technique is the same.
 
-**Reference an external log** (a calibrated meter, a GPS speed track, a
-grid-voltage export) with `--against-file` — a two-column `timestamp,value` CSV,
-joined by nearest timestamp exactly like an on-bus reference. This is the only
-way to hunt a signal that has *no* correlate on the bus:
+**Reference an external log** with `--against-file`. The log can come from a calibrated meter, a
+global positioning system (GPS) speed track or a grid-voltage export. The file is a two-column
+`timestamp,value` CSV (comma-separated values). canair joins it by nearest timestamp, exactly like
+an on-bus reference. This is the only way to hunt a signal that has *no* correlate on the bus:
 
 ```bash
 canair hunt uds MyECU:2101 --against-file gps_speed.csv    # vs an external track
 canair correlate uds --against-file grid_voltage.csv       # rank every byte vs it
 ```
 
-> The CSV must be on the same absolute wall clock as your captures. A
-> relative/zero-based log will parse but join to nothing (reported as `n=0`).
+> The CSV must use the same absolute wall clock as your captures. canair parses a relative or
+> zero-based log, but it joins to nothing and reports `n=0`.
 
-An `r` near 1.0 on byte 12 with a ~1:1 linear fit is strong evidence that **byte
-12 is speed in km/h**. That's our hypothesis, confirmed by data.
+An `r` near 1.0 on byte 12, with a fit of about 1:1, is strong evidence that **byte 12 is speed in
+km/h**. The data has now confirmed our hypothesis.
 
-**If you're not sure what relates to what**, let `canair correlate` rank *every*
-strong cross-signal relationship in the drive, then focus:
+**If you are not sure what relates to what**, let `canair correlate` rank *every* strong
+cross-signal relationship in the drive. Then focus on the best ones:
 
 ```bash
 canair correlate uds --overlap --state driving   # which PIDs share a timeline?
@@ -258,15 +258,20 @@ canair decode MyECU 2101 --try "SPEED_KMH=[B12]" --corr ESC:22C101:REAL_SPEED_KM
 canair decode MyECU 2101 --plot               # interactive: sweep interpretations visually
 ```
 
-`--plot` opens an interactive explorer: step through signals/bytes, sweep
-`u8`/`i16`/`f32` interpretations and endianness, apply transforms, and read off
-the equivalent WiCAN expression — all against your saved captures, no car needed:
+`--plot` opens an interactive explorer. In it, you can:
+
+- step through signals and bytes
+- sweep `u8`/`i16`/`f32` interpretations and endianness
+- apply transforms
+- read off the equivalent WiCAN expression
+
+It works on your saved captures, so you need no car:
 
 ![canair decode --plot — the interactive signal explorer](../screenshots/decode-plot.gif)
 
-**Dump the raw bytes** as a `timestamp × byte-offset` matrix when you want to
-analyze outside canair (a spreadsheet, a scratch script) — the structured escape
-hatch, CSV by default or `--json`:
+**Dump the raw bytes** as a `timestamp × byte-offset` matrix when you want to analyze outside
+canair, for example in a spreadsheet or a scratch script. This is the structured escape hatch. The
+output is CSV by default, or JSON with `--json`:
 
 ```bash
 canair decode MyECU 2101 --dump-bytes                 # CSV to stdout (PCI skipped)
@@ -275,10 +280,9 @@ canair decode MyECU 2101 --dump-bytes --json          # same, as JSON
 
 ## When a signal fights back: confounders, plausibility, independence
 
-Correlation-based tools fail on a signal that has **no clean anchor on the bus** —
-one that's masked by a dominant driver, or that correlates with nothing at all.
-Three levers for those cases (all worked through in the
-[AC input voltage case study](../case-studies/ac-input-voltage.md)):
+Correlation-based tools fail on a signal that has **no clean anchor on the bus**. A dominant driver
+may mask such a signal, or it may correlate with nothing at all. Three methods help in these
+cases. The [AC input voltage case study](../case-studies/ac-input-voltage.md) shows all three:
 
 ```bash
 # Confounder control: rank by the PARTIAL correlation, with a nuisance signal
@@ -295,21 +299,26 @@ canair investigate MyECU 2101 --independent-of OBC:2101:OBC_DC_A --state chargin
 ```
 
 !!! tip "800 V pack or a non-EU grid? Tune the bands first"
-    The physical bands default to a ~400 V EV on a 230 V / 50 Hz grid, so on a
-    mismatched car/grid the `--physical` scan can silently find nothing. For an
-    **800 V architecture** set the HV band in your profile —
-    `physical_bands: { hv_pack: [450, 850] }` (see
-    [Profiles](../concepts/profiles.md)); if you're **not on a 230 V / 50 Hz
-    grid** set your region — `canair config set grid_region US` (see
-    [Configuration](../reference/config.md)) — before running `--physical`.
+    The physical bands default to a ~400 V electric vehicle (EV) on a 230 V / 50 Hz grid. If your
+    car or grid does not match, the `--physical` scan may find nothing and give no warning. Set
+    your values before you run `--physical`:
+
+    - For an **800 V architecture**, set the high-voltage (HV) band in your profile:
+      `physical_bands: { hv_pack: [450, 850] }`. See [Profiles](../concepts/profiles.md).
+    - If you are **not on a 230 V / 50 Hz grid**, set your region:
+      `canair config set grid_region US`. See [Configuration](../reference/config.md).
 
 
 ## The one-shot shortcut: `investigate`
 
-`canair investigate` bundles inspect + reason + correlate into a single report:
-for every varying byte it tells you whether a signal already maps it, how well
-it separates across vehicle states, and its strongest relationship to a
-co-captured signal — with a unit guess. Point it at an unknown PID first:
+`canair investigate` combines inspect, reason and correlate in one report. For every varying
+byte, it tells you three things:
+
+- whether a signal already maps the byte
+- how well the byte separates across vehicle states
+- the strongest relationship of the byte to a co-captured signal, with a unit guess
+
+Point it at an unknown PID first:
 
 ```bash
 canair investigate MyECU 2101 --state driving
@@ -317,67 +326,69 @@ canair investigate MyECU 2101 --bits     # rank toggling bits too (body/discrete
 canair investigate MyECU 2101 --events   # edge timeline for narrated door/lock/hood captures
 ```
 
-Each byte also carries a one-word **triage class** — `constant` / `counter` /
-`checksum` / `enum` (a live analog byte is left unlabelled) — a cheap first read
-of what kind of field it is. And a **probable multi-byte words** section flags
-adjacent `[Bn:Bn+1]` pairs shaped like a scaled 16-bit value (a near-constant
-high byte next to a full-range low byte) — the exact shape a scaled voltage takes
-when it hides across a byte boundary.
+Each byte also carries a one-word **triage class**: `constant`, `counter`, `checksum` or `enum`.
+canair leaves a live analog byte unlabelled. The class is a cheap first read of what kind of field
+the byte is.
 
-It's the fastest way to get oriented; the individual tools above are how you
-follow up on what it surfaces.
+A **probable multi-byte words** section flags adjacent `[Bn:Bn+1]` pairs that look like a scaled
+16-bit value. The shape is a near-constant high byte next to a full-range low byte. A scaled
+voltage takes this shape when it hides across a byte boundary.
+
+`investigate` is the fastest way to get oriented. Use the individual tools above to follow up on
+what it finds.
 
 ### Odometers, hour meters and cycle counts: `--counters`
 
-The triage `counter` class above spots a *fast rolling* byte — a message/alive
-counter cycling through every value. It cannot find the counters you actually want
-a name for, because they are slow: an odometer or an operating-hours tally does not
-move at all within one recording session, so it looks **constant** to every tool on
-this page, correlation included.
+The triage `counter` class above finds a *fast rolling* byte, such as a message or alive counter
+that cycles through every value. It cannot find the counters you usually want to name, because
+they are slow. An odometer or an operating-hours tally does not move at all within one recording
+session. It looks **constant** to every tool on this page, correlation included.
 
-`--counters` asks the one question that finds them — *which byte windows only ever
-go up across the entire capture history?*
+`--counters` asks the one question that finds them: *which byte windows only ever go up across the
+entire capture history?*
 
 ```bash
 canair investigate MyECU 2101 --counters
 canair investigate MyECU 2101 --counters --unmapped-only   # skip what's already verified
 ```
 
-It sweeps 1–4-byte windows in both endiannesses (a real odometer is usually 3 or 4
-bytes) and sorts hits into **accumulators** (rise within sessions too — odometer,
-cumulative Ah/Wh), **cycle counters** (flat inside every session, stepping only
-between them — ignition/trip counts) and **run timers** (ramp and reset each
-session, tracking wall-clock — uptime).
+It sweeps windows of 1–4 bytes in both endiannesses. A real odometer usually uses 3 or 4 bytes.
+It sorts the hits into three classes:
 
-Two things to know before you trust a hit:
+- **Accumulators** rise within sessions too. Examples are an odometer and cumulative Ah/Wh.
+- **Cycle counters** stay flat inside every session and step only between sessions. Examples are
+  ignition counts and trip counts.
+- **Run timers** ramp and reset each session, and they track wall-clock time. An example is
+  uptime.
 
-- **Evidence is reported in bits.** Each clean rise with no fall is one bit, so a
-  window at 3 bits rose three times and never fell — a 1-in-8 coincidence, i.e. a
-  *lead*, not a finding. A long-running accumulator scores in the hundreds. Don't
-  write a signal off a handful of bits; go get more captures across more days.
-- **Don't scope it.** This is the one analysis that wants your whole history —
-  `--state`/`--since` shorten the horizon, and the horizon is the evidence.
+Two points matter before you trust a hit:
 
-The magnitude usually identifies the signal on sight: a 3-byte window reading
-`70047 → 73048` over four months is a kilometre odometer, and one reading
-`21268317 → 22312975` at roughly one per second is an operating-second counter.
-Cross-check a distance candidate against your cluster odometer, and confirm it is
-*distance* and not *time* by checking that its ratio to a known time counter is not
-constant.
+- **Evidence is reported in bits.** Each clean rise with no fall is one bit. A window at 3 bits
+  rose three times and never fell. That is a 1-in-8 coincidence, so it is a *lead*, not a
+  finding. A long-running accumulator scores in the hundreds. Do not write off a signal because of
+  a handful of bits. Get more captures across more days.
+- **Do not scope it.** This is the one analysis that needs your whole history. `--state` and
+  `--since` shorten the horizon, and the horizon is the evidence.
+
+The magnitude usually identifies the signal on sight. A 3-byte window that reads `70047 → 73048`
+over four months is a kilometre odometer. A window that reads `21268317 → 22312975` at about one
+per second is an operating-second counter. Cross-check a distance candidate against the odometer
+of your instrument cluster. To confirm it is *distance* and not *time*, check that its ratio to a
+known time counter is not constant.
 
 See [Analysis commands](../concepts/analysis-techniques.md#counters-the-one-thing-correlation-cannot-find)
 for the fingerprint table and the ISO-TP window details.
 
 ## Categorical signals: modes, flags, schedules
 
-This is the **discrete** family from the taxonomy above — a fan level, a climate
-mode, a gear, a day-of-week schedule mask. The worked speed example took the
-continuous path; here the numeric spacing is meaningless (`Drive=3` isn't "one
-more than" `Neutral=2`), so Pearson correlation and the variance-F don't apply.
+This is the **discrete** family from the taxonomy above. Examples are a fan level, a climate mode,
+a gear and a day-of-week schedule mask. The worked speed example took the continuous path. Here
+the numeric spacing has no meaning (`Drive=3` is not "one more than" `Neutral=2`). Pearson
+correlation and the variance-F therefore do not apply.
 
-canair models these as **typed** signals (`enum`/`bitmask`/`ascii`/`date`/
-`struct`) and analyzes them with *categorical* statistics — see
-[Typed signals](../concepts/typed-signals.md) for the model. The analysis levers:
+canair models these as **typed** signals (`enum`, `bitmask`, `ascii`, `date` and `struct`). It
+analyzes them with *categorical* statistics. See [Typed signals](../concepts/typed-signals.md) for
+the model. These commands do the analysis:
 
 ```bash
 # "Which byte is the gear?" — rank by nominal association, not linear r
@@ -391,23 +402,22 @@ canair investigate VCU 2101 --events --field GEAR
 # → 10:05:00  park (33) → drive (40)
 ```
 
-`--method cramers_v` / `--method mutual_info` treat each distinct value as a
-nominal category — the right question for a mode/flag/enum byte. For a body
-module's discrete bits, `investigate --bits` and `--events` remain the entry
-points.
+`--method cramers_v` and `--method mutual_info` treat each distinct value as a nominal category.
+This is the right question for a mode, flag or enum byte. For the discrete bits of a body module,
+`investigate --bits` and `--events` remain the entry points.
 
 ## Decoding "set" commands: toggle and diff
 
-Some of the most interesting signals aren't *read* — they're **written** by the
-car (the head unit setting a preheat schedule, a clock, a charge timer). Two
-things make these harder:
+Some of the most interesting signals are not *read*. The car **writes** them. Examples are a
+preheat schedule, a clock or a charge timer that the head unit sets. Two things make these signals
+harder:
 
-1. On a gateway-isolated OBD port you often can't *sniff* the write itself (see
-   [Broadcast frames](../concepts/broadcast-frames.md) for the raw-CAN path when
-   you can).
-2. The result is a **structured record** (day-mask + time), not one byte.
+1. On a gateway-isolated On-Board Diagnostics (OBD) port, you often cannot *sniff* the write
+   itself. See [Broadcast frames](../concepts/broadcast-frames.md) for the raw-CAN path when you
+   can.
+2. The result is a **structured record** (day mask plus time), not one byte.
 
-The reliable device-only workflow is **toggle → re-read → diff**:
+The reliable workflow that needs only the device is **toggle → re-read → diff**:
 
 ```bash
 # 1. Read the DID that you expect to store the setting, before the change
@@ -428,31 +438,29 @@ canair pids upsert-param <ECU> <DID> SCHEDULE_DAYS B<nn> \
 canair decode <ECU> <DID>
 ```
 
-Only step 5 is worth doing for bytes that actually moved in step 4. If nothing changes, the
-setting lives in another DID (or is written by a command you can't see), so go back to step 1
-with a different candidate instead of modelling a byte that never moves.
+Do step 5 only for bytes that moved in step 4. If nothing changes, the setting lives in another
+DID, or a command that you cannot see writes it. In that case, go back to step 1 with a different
+candidate. Do not model a byte that never moves.
 
-For a whole schedule record, define a `struct` signal whose ordered `fields:`
-cover the day-mask, hour, and minute — `investigate --events --field` then reads
-each schedule change as one logical `{days=…, hour=…, minute=…}` transition.
+For a whole schedule record, define a `struct` signal. Its ordered `fields:` cover the day mask,
+the hour and the minute. `investigate --events --field` then reads each schedule change as one
+logical `{days=…, hour=…, minute=…}` transition.
 
 ## Be rigorous
 
-A hypothesis is a hypothesis until the data confirms it. Don't accept a byte
-because it "looks about right" — check the range, the distribution, correlation
-against a known reference, and physical plausibility across states. State your
-confidence honestly. This is exactly why the next step starts every new signal
-as **unverified**.
+A hypothesis stays a hypothesis until the data confirms it. Do not accept a byte because it "looks
+about right". Check the range, the distribution, the correlation against a known reference and the
+physical plausibility across states. State your confidence honestly. For this reason, the next
+step starts every new signal as **unverified**.
 
-> The full reasoning toolkit — thermal-mass tricks, signed/symmetry tests,
-> conservation laws (P ≈ V·I), enum/counter fingerprints, endianness sweeps — is
-> documented in depth in the `reverse-engineer-signal` agent skill
-> (`.claude/skills/reverse-engineer-signal/`). This page is the human-facing tour of
-> the same workflow.
+> The `reverse-engineer-signal` agent skill (`.claude/skills/reverse-engineer-signal/`) documents
+> the full reasoning toolkit in depth. The toolkit includes thermal-mass tricks, signed and
+> symmetry tests, conservation laws (P ≈ V·I), enum and counter fingerprints, and endianness
+> sweeps. This page is the human-facing tour of the same workflow.
 
 > **See it fight back:** [Finding the hidden AC input voltage](../case-studies/ac-input-voltage.md)
-> is a full case study of this workflow applied to a signal that resisted every
-> obvious approach — a good read for *why* the rigor above matters.
+> is a full case study of this workflow. It applies the workflow to a signal that resisted every
+> obvious approach. Read it to see *why* the rigor above matters.
 
 ---
 

@@ -1,15 +1,16 @@
 # Architecture: where code belongs
 
-canair is one CLI over a stack of layers. A layer may import from the layers below it and never
-from the layers above. This page says what each package is for and where new code goes. The
-rules behind it, and the migration that gets the tree there, are in
+canair is one command-line interface (CLI) over a stack of layers. A layer may import from the
+layers below it and never from the layers above. This page says what each package is for and where
+new code goes. The rules behind it are in
 [`plans/2026-11-04-package-layout-and-layering.md`](https://github.com/philipkocanda/canair/blob/main/plans/2026-11-04-package-layout-and-layering.md).
+The same plan describes the migration that moves the tree to this layout.
 
 !!! note "Migration state"
-    The code lives in `src/canair/`. The 52 loose modules that used to sit at its root are in
-    packages now, and the Textual apps are in `tui/apps/`. Library code takes the profile as an
-    argument; only the CLI holds the active one (`cli/profile_context.py`). What is left is
-    listed in the plans.
+    The code lives in `src/canair/`. The 52 loose modules that sat at its root now live in
+    packages, and the Textual apps are in `tui/apps/`. Library code takes the profile as an
+    argument. Only the CLI holds the active profile (`cli/profile_context.py`). The plans list the
+    remaining work.
 
 ## Layers
 
@@ -43,17 +44,21 @@ Top to bottom. A package imports only from the layers below its own.
 <!-- END GENERATED: layers -->
 
 The first three layers are the interface and the live operations. The profile editors
-(`yaml_edit/`) and the validators they run after each write (`validation/`) sit below them and
-above everything they read. Then come the packages that compute over the store and the
-definitions, the store and the transport, and the definitions themselves.
+(`yaml_edit/`) sit below them. The validators that the editors run after each write
+(`validation/`) sit below the editors. Both sit above everything that they read. Below these come,
+in order:
+
+- the packages that compute over the store and the definitions
+- the store and the transport
+- the definitions themselves
 
 The definitions are three layers: `ecus/` (the loaded definitions) above `variants/` (which car
 the profile describes) above `profile/` (the bundle on disk). `profile/` does not know what a
-variant is, so the CLI applies the variant and holds the active profile
-(`cli/profile_context.py`). Every layer is ordered, and `lint-imports` fails on a wrong-way
+variant is. The CLI therefore applies the variant and holds the active profile
+(`cli/profile_context.py`). Every layer has a fixed order, and `lint-imports` fails on a wrong-way
 import.
 
-`render/` sits below `live/` rather than beside the CLI, because live operations print through it.
+`render/` sits below `live/` and not beside the CLI, because live operations print through it.
 
 ## Packages
 
@@ -122,48 +127,53 @@ import.
 | is generic and needs nothing from the package | `core/` |
 | is developer tooling that does not ship | `scripts/` |
 
-`live/` and `tui/apps/` hold sub-packages, one per family or app. A module in one needs no
-leading underscore: the sub-package is the unit of privacy, and its charter says what other
-packages may import. A sub-package `__init__.py` holds only the charter and imports nothing
+`live/` and `tui/apps/` hold sub-packages, one per family or app. A module in a sub-package needs
+no leading underscore, because the sub-package is the unit of privacy. Its charter says what other
+packages may import. The `__init__.py` of a sub-package holds only the charter and imports nothing
 (`tests/contracts/test_cheap_imports.py` pins why).
 
-If two rows fit, choose the lower layer. If none fits, stop and ask: a new top-level package
+If two rows fit, choose the lower layer. If no row fits, stop and ask. A new top-level package
 needs a plan that names its layer.
 
 ## Rules
 
 1. **No new module at the `src/canair/` root.** Use the table above.
-2. **Put code in the lowest layer that can hold it.** If it needs no device, it is not a live
-   operation. If it needs no flags, it is not in `cli/`. If it does no I/O, it may be protocol or
-   leaf code.
-3. **Only the CLI imports `argparse`. Only the TUI imports `textual`.** Code below takes typed
-   options and returns data.
+2. **Put code in the lowest layer that can hold it.**
+    - If the code needs no device, it is not a live operation.
+    - If the code needs no flags, it is not in `cli/`.
+    - If the code does no input or output (I/O), it may be protocol or leaf code.
+3. **Only the CLI imports `argparse`. Only the text user interface (TUI) imports `textual`.** Code
+   below them takes typed options and returns data.
 4. **Never add an `ignore_imports` entry to make a contract pass.** Move the function down, pass
    the value in, or split the module. If that is impossible, ask the user. An accepted entry
    carries a one-line reason and a plan reference.
-5. **A package's `__init__.py` docstring is its charter** (see below).
-6. **Tests go in the directory that mirrors the code they test.** Tests with several subjects go in
-   `tests/integration/`, repo-wide invariants in `tests/contracts/`, shared helpers in
-   `tests/support/`. A test module never imports another test module.
-7. **A new module stays under 500 lines.** Split a growing one by concern in the same change.
-   The one exception is a file that is long because it holds many items of one kind (see "Long
-   files that are fine" below).
-8. **A deferred (function-level) import needs a reason**: a measured start-up cost or an optional
-   dependency, said in a `# deferred: <reason>` comment on the line or just above it. A deferral
-   that only hides a cycle is a layering bug (`# deferred: cycle with <package>, see
-   plans/<plan>.md` while that plan is open). `import_graph.py --deferred` classifies them and
-   `scripts/dev/hoist_deferred.py` hoists the ones that cost no start-up time. On Python 3.15 and
-   later, the `canair` command makes the top-level imports of canair modules lazy
-   (`src/canair/core/lazy_imports.py`), so there a deferral saves no start-up time. A test patches
-   a name in the module that uses it, never in the module that defines it.
-9. **A move is mechanical and alone**: `git mv` plus a codemod, one package per commit, no
-   compatibility aliases, no logic change.
+5. **The `__init__.py` docstring of a package is its charter** (see below).
+6. **Tests go in the directory that mirrors the code they test.**
+    - Tests with several subjects go in `tests/integration/`.
+    - Repo-wide invariants go in `tests/contracts/`.
+    - Shared helpers go in `tests/support/`.
+    - A test module never imports another test module.
+7. **A new module stays under 500 lines.** When a module grows, split it by concern in the same
+   change. The one exception is a file that is long because it holds many items of one kind (see
+   "Long files that are fine" below).
+8. **A deferred (function-level) import needs a reason.** The reason is a measured start-up cost
+   or an optional dependency. Write it in a `# deferred: <reason>` comment on the line or just
+   above it.
+    - A deferral that only hides a cycle is a layering bug. While that plan is open, write it as
+      `# deferred: cycle with <package>, see plans/<plan>.md`.
+    - `import_graph.py --deferred` classifies the deferrals.
+    - `scripts/dev/hoist_deferred.py` hoists the deferrals that cost no start-up time.
+    - On Python 3.15 and later, the `canair` command makes the top-level imports of canair
+      modules lazy (`src/canair/core/lazy_imports.py`). There, a deferral saves no start-up time.
+    - A test patches a name in the module that uses it, never in the module that defines it.
+9. **A move is mechanical and stands alone.** Use `git mv` plus a codemod, one package per commit,
+   with no compatibility aliases and no logic change.
 
 ## Long files that are fine
 
 A module may pass 500 lines when it is long because it holds many items of one kind, not because
 it does many things. Splitting such a file separates no concern. It scatters one list across
-several files and makes the list harder to read and review. The test is: "can I name two
+several files and makes the list harder to read and review. Use this test: "can I name two
 concerns in this file that change for different reasons?" If yes, split it.
 
 These cases qualify:
@@ -177,7 +187,7 @@ These cases qualify:
 
 These cases do not qualify:
 
-- **"It is one command."** Packaging a command does not discharge the limit.
+- **"It is one command."** Putting code in one command does not exempt it from the limit.
 - **Many unrelated helpers in one file.** Split by concern.
 - **A file that is long because of comments or docstrings.** Move the prose to a page in
   `docs/development/`.
@@ -198,15 +208,15 @@ illustration, not a real one:
   ceiling in a reviewed diff.
 - **`reason`** is one line that says which kind of item the file lists. The test rejects an
   empty reason.
-- **Only the user adds an entry or raises a ceiling.** Do not add one to get a build green.
-  State the case and ask.
-- **`oversized_modules` is a different list.** It is debt: a module there should be split, and
-  its ceiling only falls. `long_modules` is not debt, so it has no "split me" pressure. An
-  entry leaves it only when the file drops to 500 lines or fewer.
+- **Only the user adds an entry or raises a ceiling.** Do not add one to get a build green. State
+  the case and ask.
+- **`oversized_modules` is a different list.** It is debt. You should split a module that is
+  there, and its ceiling only falls. `long_modules` is not debt, so it has no "split me" pressure.
+  An entry leaves `oversized_modules` only when the file drops to 500 lines or fewer.
 
 ## Package charters
 
-Every package's `__init__.py` docstring says what the package is, in this form:
+The `__init__.py` docstring of every package says what the package is. It uses this form:
 
 ```python
 """One-line summary.
@@ -218,7 +228,7 @@ Imports: the layers this package may import from.
 ```
 
 `tests/contracts/test_structure.py` requires a charter on every package that is not in its
-baseline list. The baseline starts with every existing package and shrinks as packages gain a
+baseline list. The baseline starts with every existing package. It shrinks as packages gain a
 charter or move.
 
 ## How the rules are enforced
@@ -232,10 +242,14 @@ charter or move.
 
 `make structure` runs the first two in a few seconds.
 
-The two baselines work as ratchets. A list baseline (root modules, packages without a charter,
-test-to-test imports) fails when the tree gains an entry and when an entry stops applying, so a fix
-has to leave the list. A ceiling baseline (module sizes, deferred imports, `ignore_imports`)
-fails when the number grows. Lower a ceiling with
-`uv run python -m tests.contracts.test_structure --write`. That command never raises a baseline.
-Raising one is a decision for the user and shows in the diff. The protocol-literal check has no
-baseline: the tree has none left, so any match fails.
+The baselines come in two kinds, and both work as ratchets.
+
+- A list baseline (root modules, packages without a charter, test-to-test imports) fails when the
+  tree gains an entry. It also fails when an entry stops applying. A fix therefore has to remove
+  the entry from the list.
+- A ceiling baseline (module sizes, deferred imports, `ignore_imports`) fails when the number
+  grows.
+
+Lower a ceiling with `uv run python -m tests.contracts.test_structure --write`. That command never
+raises a baseline. Raising one is a decision for the user and shows in the diff. The
+protocol-literal check has no baseline. The tree has no match left, so any match fails.

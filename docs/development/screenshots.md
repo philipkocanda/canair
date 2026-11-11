@@ -1,13 +1,12 @@
 # Documentation screenshots
 
-The docs embed SVG screenshots and animated GIFs of the CLI in action, all
-**generated** from the manifest at `docs/screenshots/shots.yaml` — you never
-craft or maintain them by hand. Static command output is rendered with
-[`freeze`](https://github.com/charmbracelet/freeze) (SVG); interactive TUI and
-montage clips with [`vhs`](https://github.com/charmbracelet/vhs) (GIF). Every
-asset is captured against the bundled, read-only `hyundai-ioniq-ae-ev` profile with **no
-device attached**, so it's reproducible on any machine and contains no
-owner-specific data.
+The docs embed SVG screenshots and animated GIFs of the CLI in action. canair **generates** all of
+them from the manifest at `docs/screenshots/shots.yaml`. You never craft or maintain them by hand.
+[`freeze`](https://github.com/charmbracelet/freeze) renders static command output (SVG).
+[`vhs`](https://github.com/charmbracelet/vhs) renders interactive text user interface (TUI) clips
+and montage clips (GIF). Every asset is captured against the bundled, read-only
+`hyundai-ioniq-ae-ev` profile with **no device attached**. It is therefore reproducible on any
+machine and contains no owner-specific data.
 
 ```bash
 brew install charmbracelet/tap/freeze vhs   # one-time: the render tools
@@ -16,20 +15,24 @@ make screenshots-only ONLY="bus decode-plot" # regenerate a subset
 make screenshots-check                        # verify assets present + commands still run
 ```
 
-`--check` (run by CI and the pre-push hook) is deliberately light: it needs
-neither `freeze` nor `vhs`, and never byte-compares images (they aren't
-reproducible). It verifies every manifest asset exists, flags orphans, and runs
-each screenshotted command device-free — so a renamed command or dropped flag
-fails the check and tells you to regenerate. **When you change the output of a
-screenshotted command, re-render and commit the updated asset.** To add a shot,
-append an entry to `shots.yaml` (a `rich` command or an `anim` tape) and
-regenerate. Do **not** screenshot views that surface free-text capture
-notes/labels (e.g. `captures --sessions`) — those can leak PII into public docs.
+`--check` is deliberately light. Continuous integration (CI) and the pre-push hook run it. It
+needs neither `freeze` nor `vhs`, and it never byte-compares images, because images are not
+reproducible. It verifies that every manifest asset exists, flags orphans, and runs each
+screenshotted command device-free. A renamed command or a dropped flag therefore fails the check,
+and the check tells you to regenerate.
 
-A few `anim` assets are marked **`live: true`** — recordings of the `monitor` TUI
-polling a *real* car. These are non-reproducible, so the default `make
-screenshots` skips them and `--check` only verifies the file is present. Re-record
-one manually when a vehicle is reachable:
+**When you change the output of a screenshotted command, re-render and commit the updated asset.**
+To add a shot, append an entry to `shots.yaml` (a `rich` command or an `anim` tape) and
+regenerate.
+
+Do **not** screenshot views that show free-text capture notes or labels (for example
+`captures --sessions`). Those views can leak personally identifiable information (PII) into public
+docs.
+
+A few `anim` assets are marked **`live: true`**. They are recordings of the `monitor` TUI that
+polls a *real* car. They are not reproducible, so the default `make screenshots` skips them and
+`--check` only verifies that the file is present. Re-record one by hand when a vehicle is
+reachable:
 
 ```bash
 python3 scripts/gen/gen_screenshots.py --only monitor-bms   # needs a live car + a configured device

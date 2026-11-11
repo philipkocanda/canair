@@ -1,8 +1,8 @@
 # Configuration
 
-canair reads user config from `~/.config/canair/config.yaml`
-(`$XDG_CONFIG_HOME/canair/config.yaml`). It's created on first run. View and edit
-it from the CLI rather than by hand:
+canair reads the user config from `~/.config/canair/config.yaml`
+(`$XDG_CONFIG_HOME/canair/config.yaml`). canair creates it on the first run. View and edit it from
+the CLI. Do not edit it by hand:
 
 ```bash
 canair config show          # config file locations + effective settings
@@ -14,42 +14,42 @@ canair config edit           # open in $EDITOR
 ```
 
 !!! note "Authoritative source"
-    Every key is documented with inline comments in `config.example.yaml` in the
-    repo root — print it anytime with `canair config example`. If this page and
-    that file ever disagree, the example file wins — it's kept next to the code.
+    `config.example.yaml` in the repo root documents every key with inline comments. Print it at
+    any time with `canair config example`. If this page and that file disagree, the example file
+    wins. It lives next to the code.
 
 ## Keys
 
 | Key | Purpose |
 |---|---|
-| `default_profile` | Which [profile](../concepts/profiles.md) to use when none is given. Overridden by `--profile` / `CANAIR_PROFILE`. Optional if only one profile is discovered. |
-| `profile_settings.<profile>.variant` | Which of that profile's [variants](../concepts/variants.md) your car is, remembered per profile. Set it with `canair profile use NAME --variant ID`. Overridden by `--variant` / `CANAIR_VARIANT`. Required (once) for a profile with several variants: live commands refuse until it is set. |
-| `profile_settings.<profile>.revisions.<ECU>` | Which revision an ECU of your car is (one of its `revisions:` IDs), for an ECU your variant allows several of. Set it with `canair profile use NAME --pin ECU=ID`. Overridden for one command by `--revision ECU=ID`. Without it, that ECU's revision-specific PIDs and signals are skipped. See [ECU revisions](../concepts/variants.md#ecu-revisions). |
-| `profiles_dir` | Extra directory to search for profiles (never committed). |
-| `devices` | Named devices for the `--wican` flag: each alias has a `host` and optional per-device `transport`/`port`/`bitrate` (see below). |
-| `default_wican` | Which device alias to use by default. |
-| `wican_addresses` | Legacy flat `alias: host` map (host-only). Read only when no `devices:` block exists, and **auto-migrated to `devices:` on first run**. |
-| `wican_model` | `pro` (default) or `classic`. `classic` makes canair cleanly refuse Pro-only features. |
-| `check_for_updates` | `true` (default) or `false`. Disables the automatic once-a-day update check (also disabled by `CANAIR_NO_UPDATE_CHECK`). |
-| `grid_region` | Charging-grid region for the physical-value scan: `EU`, `UK`, `US`, `JP`, `CN`, or `AU` (case-insensitive). Sets the mains-voltage / line-frequency bands (see below). |
-| `display.byte_notation` | Default byte-index notation for analysis output labels, and for the byte ruler / signal byte-reference column in `monitor` and `captures --diff/--step`: `wican` (default), `isotp`, `torque`, or `bix`. Overridden per-command by `--notation`. |
-| `safety.allow_unsafe` | `false` (default) or `true`. Live commands refuse `--unsafe` until this is `true` in the user config file, and while it is, every command starts with a warning banner (see [Safety](../concepts/safety.md#enabling-unsafe)). |
-| `safety.allow_reset` | `false` (default) or `true`. `canair reset` refuses to run until this is `true` in the user config file. Setting it asks you to type `YES` at a terminal, and no flag skips that (see [Safety](../concepts/safety.md#resetting-an-ecu)). |
-| `safety.allow_frame_injection` | `false` (default) or `true`. Profile actions that put a crafted broadcast CAN frame on the bus (`canair action`, `slcan-tcp` only) refuse to run until this is `true` in the user config file. Setting it asks you to type `YES` at a terminal, and no flag skips that (see [Safety](../concepts/safety.md#injecting-a-broadcast-frame)). |
+| `default_profile` | The [profile](../concepts/profiles.md) to use when you give none. `--profile` or `CANAIR_PROFILE` overrides it. Optional if canair discovers only one profile. |
+| `profile_settings.<profile>.variant` | The [variant](../concepts/variants.md) of that profile that your car is. canair remembers it per profile. Set it with `canair profile use NAME --variant ID`. `--variant` or `CANAIR_VARIANT` overrides it. Required once for a profile with several variants. Live commands refuse to run until you set it. |
+| `profile_settings.<profile>.revisions.<ECU>` | The revision of an electronic control unit (ECU) in your car (one of its `revisions:` IDs). Set it for an ECU that your variant allows several revisions of. Set it with `canair profile use NAME --pin ECU=ID`. `--revision ECU=ID` overrides it for one command. Without it, canair skips the revision-specific parameter identifiers (PIDs) and signals of that ECU. See [ECU revisions](../concepts/variants.md#ecu-revisions). |
+| `profiles_dir` | An extra directory to search for profiles. Git never commits it. |
+| `devices` | Named devices for the `--wican` flag. Each alias has a `host` and an optional `transport`, `port` and `bitrate` for that device (see below). |
+| `default_wican` | The device alias to use by default. |
+| `wican_addresses` | Legacy flat `alias: host` map (host only). canair reads it only when no `devices:` block exists. canair **migrates it to `devices:` on the first run**. |
+| `wican_model` | `pro` (default) or `classic`. `classic` makes canair refuse Pro-only features with a clear message. |
+| `check_for_updates` | `true` (default) or `false`. `false` turns off the automatic once-a-day update check. `CANAIR_NO_UPDATE_CHECK` also turns it off. |
+| `grid_region` | The charging-grid region for the physical-value scan: `EU`, `UK`, `US`, `JP`, `CN` or `AU` (case-insensitive). It sets the mains-voltage and line-frequency bands (see below). |
+| `display.byte_notation` | The default byte-index notation for analysis output labels. It also applies to the byte ruler and the signal byte-reference column in `monitor` and `captures --diff/--step`. Values: `wican` (default), `isotp`, `torque` or `bix`. `--notation` overrides it per command. |
+| `safety.allow_unsafe` | `false` (default) or `true`. Live commands refuse `--unsafe` until this is `true` in the user config file. While it is `true`, every command starts with a warning banner (see [Safety](../concepts/safety.md#enabling-unsafe)). |
+| `safety.allow_reset` | `false` (default) or `true`. `canair reset` refuses to run until this is `true` in the user config file. When you set it, canair asks you to type `YES` at a terminal. No flag skips that prompt (see [Safety](../concepts/safety.md#resetting-an-ecu)). |
+| `safety.allow_frame_injection` | `false` (default) or `true`. Profile actions that put a crafted broadcast Controller Area Network (CAN) frame on the bus (`canair action`, `slcan-tcp` only) refuse to run until this is `true` in the user config file. When you set it, canair asks you to type `YES` at a terminal. No flag skips that prompt (see [Safety](../concepts/safety.md#injecting-a-broadcast-frame)). |
 | `transport` | Advanced: explicit CAN transport selection (see below). |
 
 ## `grid_region` — physical-scan grid bands
 
-The reference-free physical-value scan (`canair hunt --physical` /
-`canair investigate`) flags a raw byte whose scaled value lands in a named
-physical range. The **mains-voltage and line-frequency** bands depend on *where
-the car charges*, not the car — the same EV charges from 230 V / 50 Hz in Berlin
-and split-phase 120/240 V / 60 Hz in Denver — so they're set once per location
-here (and apply across every profile), rather than in a shared vehicle profile.
+The reference-free physical-value scan (`canair hunt --physical` / `canair investigate`) flags a
+raw byte when its scaled value lands in a named physical range. The **mains-voltage and
+line-frequency** bands depend on *where the car charges*, not on the car. The same electric
+vehicle (EV) charges from 230 V / 50 Hz in Berlin and from split-phase 120/240 V / 60 Hz in
+Denver. So you set these bands once per location here, and they apply to every profile. They do
+not belong in a shared vehicle profile.
 
-Unset assumes **EU (230 V / 50 Hz)**; the first time a physical scan runs, canair
-offers to set the region (a one-time prompt on a TTY, a single stderr note when
-piped). Presets:
+If you leave `grid_region` unset, canair assumes **EU (230 V / 50 Hz)**. The first time a physical
+scan runs, canair offers to set the region. On a terminal it asks once. When output is piped, it
+prints one note on stderr. Presets:
 
 | Region | Nominal | Line frequency |
 |---|---|---|
@@ -58,18 +58,18 @@ piped). Presets:
 | `US` | 120 / 240 V split-phase | 60 Hz |
 | `JP` | 100 / 200 V | 50 Hz (east) + 60 Hz (west) |
 
-The **vehicle-axis** bands (HV pack voltage, 12 V rail) are a fact about the car
-model, so they live in the profile's
-[`physical_bands`](../concepts/profiles.md) instead. A profile's
-`physical_bands` override has final say over the `grid_region` preset.
+The **vehicle-axis** bands (high-voltage (HV) pack voltage, 12 V rail) are a fact about the car
+model. They live in the profile's [`physical_bands`](../concepts/profiles.md) instead. A profile's
+`physical_bands` override has the final say over the `grid_region` preset.
 
 ## `devices` — named devices, one per line
 
-Each alias maps to a device with a `host` (IP or hostname) and, optionally, its
-own `transport`, `port`, and `bitrate`. This lets a multi-device setup bind each
-device to the transport that suits it — e.g. a low-latency home LAN device to
-`slcan-tcp` and a laggy cellular/VPN device to the device-side-ISO-TP `wican-ws`
-(see [Remote & cellular links](../concepts/remote-and-cellular.md)).
+Each alias maps to a device with a `host` (IP address or hostname). It can also have its own
+`transport`, `port` and `bitrate`. With these keys, a setup with several devices can bind each
+device to the transport that suits it. For example, bind a low-latency home local area network
+(LAN) device to `slcan-tcp`. Bind a slow cellular or virtual private network (VPN) device to
+`wican-ws`, which runs the ISO transport protocol (ISO-TP) on the device side (see
+[Remote & cellular links](../concepts/remote-and-cellular.md)).
 
 ```yaml
 devices:
@@ -87,8 +87,8 @@ devices:
 default_wican: home
 ```
 
-Per-device values override the global `transport:` block; an explicit
-`--transport`/`--wican` on the command line still wins over both.
+Per-device values override the global `transport:` block. An explicit `--transport` or `--wican`
+on the command line still wins over both.
 
 Set them from the CLI:
 
@@ -98,16 +98,16 @@ canair config set devices.home.transport wican-ws   # validated: slcan-tcp | wic
 ```
 
 !!! note "Legacy `wican_addresses`"
-    The old flat `wican_addresses: {alias: host}` form still works when no
-    `devices:` block is present, and is **auto-migrated into `devices:` on the
-    next run** (comment-preserving; a one-line notice is printed). Once a
-    `devices:` block exists, `wican_addresses` is ignored — setting it warns.
+    The old flat `wican_addresses: {alias: host}` form still works when no `devices:` block
+    exists. canair **migrates it into `devices:` on the next run**. The migration keeps comments
+    and prints a one-line notice. Once a `devices:` block exists, canair ignores
+    `wican_addresses`, and setting it prints a warning.
 
 ## Auto-fallback across devices
 
-When the selected device is unreachable at connect time, canair tries the other
-configured devices instead of failing. It's on by default; a configurable probe
-timeout decides how long each candidate gets to answer.
+When the selected device is unreachable at connect time, canair tries the other configured devices
+instead of failing. This is on by default. A configurable probe timeout sets how long each
+candidate has to answer.
 
 ```yaml
 transport:
@@ -117,41 +117,46 @@ transport:
   reconnect_max_wait: 60.0         # seconds — bounded mid-session reconnect window
 ```
 
-- The explicitly selected device (`--wican X`, else `transport.host`, else
-  `default_wican`) is always tried **first**; `fallback_order` only sequences the
-  rest.
-- `--no-fallback` disables it for a single command; `transport.fallback: false`
-  disables it globally.
-- A `wican-ws` device is skipped as a fallback on a `classic` WiCAN (it can't use
-  that transport).
+- canair always tries the explicitly selected device **first**. That is `--wican X`, else
+  `transport.host`, else `default_wican`. `fallback_order` sequences only the other devices.
+- `--no-fallback` turns off the fallback for one command. `transport.fallback: false` turns it off
+  globally.
+- canair skips a `wican-ws` device as a fallback on a `classic` WiCAN, because that device cannot
+  use the transport.
 - Set the order from the CLI with a comma-separated value:
   `canair config set transport.fallback_order home,vpn,ap`.
-- **`canair status` runs the same probe**, so it reports the device a live command
-  would actually use — it says *ready* when the selected device is down but
-  another one answers, and names the device it fell back to.
-- **`connect_timeout` is paid once per candidate**, so it trades "never call a
-  reachable device dead" against "skip a dead one quickly". The `5.0` default is
-  sized for a mobile link: a cellular radio's idle-to-connected transition can
-  burn a second or two before the SYN even leaves. Lower it on a LAN.
+- **`canair status` runs the same probe.** It reports the device that a live command would use.
+  When the selected device is down but another one answers, it says *ready* and names the device
+  it fell back to.
+- **canair applies `connect_timeout` once per candidate.** The value trades two risks. A high
+  value means canair never calls a reachable device dead. A low value means canair skips a dead
+  device quickly. The `5.0` default suits a mobile link. A cellular radio can need a second or two
+  to change from idle to connected, before the first connection packet (SYN) leaves. On a LAN,
+  lower the value.
 
 ### Mid-session reconnect & `--wait`
 
-`canair monitor` re-homes a session that drops **mid-run**: it re-probes the reachable
-**same-transport** devices (raw↔raw, ws↔ws), reconnects, re-opens sessions and resumes. A
-`--save` recording simply continues, with the gap visible in the timestamps. This is bounded by
-`transport.reconnect_max_wait` seconds (default `60.0`); `--wait` retries **forever**
-(Ctrl-C to stop).
+`canair monitor` recovers a session that drops **mid-run**. It probes the reachable
+**same-transport** devices again (raw↔raw, ws↔ws), reconnects, opens the sessions again and
+resumes. A `--save` recording continues, and the gap shows in the timestamps.
+`transport.reconnect_max_wait` limits this wait to that many seconds (default `60.0`). `--wait`
+retries **forever** (press Ctrl-C to stop).
 
-`--wait` also governs the *initial* connect of every live command: it blocks until the device
-comes online, so `canair monitor @driving --save --wait` starts recording the moment the WiCAN
-appears. Only the initial connect can cross transports, via `fallback_order`.
+`--wait` also controls the *initial* connect of every live command. The command blocks until the
+device comes online. For example, `canair monitor @driving --save --wait` starts to record the
+moment the WiCAN appears. Only the initial connect can cross transports, through `fallback_order`.
 
 ### Link-health watchdogs
 
-A session can stop being usable while nothing raises. A half-open socket (mobile NAT eviction,
-VPN re-key) keeps accepting writes, and a desynchronised ELM327 pipe keeps returning
-well-formed replies — to the *previous* request. Both look like "the car isn't answering", so
-without a watchdog the monitor would show every signal as `stale` until restarted by hand.
+A session can stop working while nothing raises an error. Two cases are common:
+
+- A half-open socket (mobile network address translation (NAT) eviction, VPN re-key) keeps
+  accepting writes.
+- A desynchronised ELM327 pipe keeps returning well-formed replies, but to the *previous*
+  request.
+
+Both look like "the car isn't answering". Without a watchdog, the monitor shows every signal as
+`stale` until you restart it by hand.
 
 ```yaml
 transport:
@@ -159,54 +164,59 @@ transport:
   stale_cycles_before_reconnect: 3  # all-stale poll cycles before reconnecting (0 = off)
 ```
 
-- **`ws_ping_interval`** turns a silently dead `wican-ws` link into a real `ConnectionError`,
-  which the mid-session reconnect handles. The WiCAN's HTTP server answers the ping itself, so
-  no firmware support is needed. Lower it on a flaky mobile link; `0` disables.
-- **`stale_cycles_before_reconnect`** is the backstop: after this many consecutive poll cycles
-  in which *nothing* answered coherently, the monitor reconnects even though nothing raised. A
-  negative response (NRC) counts as answering. It's a cycle count, not a duration, so it scales
-  with the poll rate.
+- **`ws_ping_interval`** turns a silently dead `wican-ws` link into a real `ConnectionError`. The
+  mid-session reconnect handles that error. The HTTP server of the WiCAN answers the ping itself,
+  so no firmware support is needed. On a flaky mobile link, lower the value. `0` turns the ping
+  off.
+- **`stale_cycles_before_reconnect`** is the backstop. After this many consecutive poll cycles in
+  which *nothing* answered coherently, the monitor reconnects, even though nothing raised an
+  error. A negative response code (NRC) counts as an answer. The value is a cycle count, not a
+  duration, so it scales with the poll rate.
 
-On the ELM327 transports canair also realigns the pipe itself before escalating: a reply that
-fails its echo check triggers a drain-and-probe resync, tallied as `resync` on the monitor's
-health line. A rising `stale`/`resync` count is how a marginal link looks while it is still coping.
+On the ELM327 transports, canair also realigns the pipe itself before it escalates. A reply that
+fails its echo check triggers a drain-and-probe resync. The health line of the monitor tallies it
+as `resync`. A rising `stale` or `resync` count shows a marginal link that still copes.
 
-canair also **measures** the link and adds that allowance to its ISO-TP and per-request budgets,
-so these are the only latency-related keys you should need to touch. See
-[Remote & cellular links](../concepts/remote-and-cellular.md) for which transport to pick and
+canair also **measures** the link. It adds that allowance to its ISO-TP and per-request budgets.
+These are the only latency-related keys you should need to change. See
+[Remote & cellular links](../concepts/remote-and-cellular.md) to choose a transport and to see
 what `slcan-tcp` costs in data.
 
 ### Expected response counts (ELM327 transports)
 
-An ELM327 adapter can't tell that a multi-frame reply has ended, so by default it waits out its
-whole `ATST` budget after the last frame. That wait is the dominant per-request cost on
-`wican-ws` and `elm327-tcp`.
+An ELM327 adapter cannot tell that a multi-frame reply has ended. By default it waits out its
+whole `ATST` budget after the last frame. That wait is the largest per-request cost on `wican-ws`
+and `elm327-tcp`.
 
-The escape hatch: a request with an *odd* hex length has its final nibble read as the number of
-response frames to expect, so the adapter returns the moment the reply is whole. On a WiCAN Pro
-this is about **4x faster per read** (~206 ms → ~53 ms) and far less variable.
+The fix: canair reads the final nibble of a request with an *odd* hex length as the number of
+response frames to expect. The adapter then returns the moment the reply is whole. On a WiCAN Pro
+this is about **4x faster per read** (~206 ms → ~53 ms), and the timing varies much less.
 
 ```yaml
 transport:
   expected_responses: true   # default true
 ```
 
-canair **never guesses the count.** The first read of a request goes out in plain form, and the
-count is learned from a reply that already passed its echo and ISO-TP length checks. Asking for
-too few frames is the unsafe move (the unread frames stay queued and come back as the *next*
-request's answer), so a reply that doesn't match makes canair realign the pipe, retry in plain
-form and stop optimizing that request for the session. The retry isn't charged to the caller's
-retry budget: a wrong count can cost latency, never a reading.
+canair **never guesses the count.** The first read of a request goes out in plain form. canair
+learns the count from a reply that already passed its echo and ISO-TP length checks. Asking for
+too few frames is the unsafe error. The unread frames stay queued and come back as the answer to
+the *next* request. So when a reply does not match, canair takes these steps:
 
-Leave it on. Set it `false` to rule it out while debugging an adapter, or if a clone rejects the
-extra nibble. It has no effect on `slcan-tcp`.
+1. It realigns the pipe.
+2. It retries in plain form.
+3. It stops optimizing that request for the rest of the session.
+
+The retry does not count against the retry budget of the caller. A wrong count can cost latency,
+but never a reading.
+
+Leave this key on. Set it to `false` to rule it out while you debug an adapter, or if a clone
+rejects the extra nibble. It has no effect on `slcan-tcp`.
 
 
 ## The `transport` block
 
-Transport is chosen explicitly, never auto-detected. `type` and `host` are
-overridden per-command by `--transport`/`--wican`; `port` and `bitrate` are
-config-only.
+You choose the transport explicitly. canair never detects it automatically. `--transport` and
+`--wican` override `type` and `host` per command. `port` and `bitrate` are config-only.
 
 ```yaml
 transport:
@@ -216,32 +226,33 @@ transport:
   bitrate: 500000      # slcan-tcp only; overrides all else (falls back to profile can_bitrate)
 ```
 
-When `transport` is omitted, canair defaults to `slcan-tcp` using
-`devices`/`default_wican` for the host. A per-device `transport:` (see above)
-overrides `transport.type` for that device. See
-[Architecture](../concepts/architecture.md) for what the transports are.
+When you omit `transport`, canair defaults to `slcan-tcp` and takes the host from
+`devices`/`default_wican`. A per-device `transport:` (see above) overrides `transport.type` for
+that device. See [Architecture](../concepts/architecture.md) for what the transports are.
 
-The **`elm327-tcp`** transport talks to a generic ELM327 adapter (WiFi clones, or
-the [ELM327-Emulator](../development/offline-testing.md)) over a plain TCP
-socket — no WiCAN, so its HTTP-only affordances (device mode, `wican`
-subcommands, `--reboot`) don't apply; reachability is a direct probe of the ELM
-socket port, and the firmware check is opt-in (`firmware_check: always`).
+The **`elm327-tcp`** transport talks to a generic ELM327 adapter over a plain TCP socket. The
+adapter can be a WiFi clone or the [ELM327-Emulator](../development/offline-testing.md). This
+transport uses no WiCAN. The HTTP-only features do not apply: device mode, `wican` subcommands and
+`--reboot`. Reachability is a direct probe of the ELM socket port. The firmware check is opt-in
+(`firmware_check: always`).
 
-`canair wican mode set MODE` keeps `transport.type` in step with the device's
-mode: switching to `slcan` sets `slcan-tcp`, switching to `elm327` sets
-`wican-ws` (it prints the `old -> new` change, or says it's already aligned).
-Pass `--no-transport` to switch the device mode without touching the config.
+`canair wican mode set MODE` keeps `transport.type` in step with the device mode:
+
+- Switching to `slcan` sets `slcan-tcp`.
+- Switching to `elm327` sets `wican-ws`.
+
+The command prints the `old -> new` change, or says that the two are already aligned. Pass
+`--no-transport` to switch the device mode and leave the config unchanged.
 
 ### Firmware generation check
 
-Before a live command uses a WiCAN interface that only firmware 4.x has, canair
-asks the device which firmware generation it runs, and refuses or warns on
-firmware v6 (see
-[Firmware compatibility](../getting-started/connect-device.md#firmware-compatibility)).
-The probe is side-effect-free: `GET /api/info`, then `GET /check_status` unless
-the first answer was v6, each bounded by `transport.connect_timeout`. It runs
-once per device per command, after the fast reachability check, so an offline
-device fails without waiting on it.
+Some WiCAN interfaces exist only in firmware 4.x. Before a live command uses one, canair asks the
+device which firmware generation it runs. It refuses or warns on firmware v6 (see
+[Firmware compatibility](../getting-started/connect-device.md#firmware-compatibility)). The probe
+has no side effects. It sends `GET /api/info`, then `GET /check_status` unless the first answer
+was v6. `transport.connect_timeout` bounds each request. The probe runs once per device per
+command, after the fast reachability check. So an offline device fails without waiting for the
+probe.
 
 ```yaml
 transport:
@@ -254,8 +265,8 @@ transport:
 | `always` | those, plus `elm327-tcp` hosts (usually clones with no HTTP server, so off by default) |
 | `false` | nothing; live commands neither refuse nor warn |
 
-`canair status` is the diagnostic, so it reports a WiCAN transport's firmware
-whatever this is set to, and notes when live commands would skip the check.
+`canair status` is the diagnostic command. It reports the firmware of a WiCAN transport whatever
+this key says. It also notes when live commands would skip the check.
 
 ## Example
 

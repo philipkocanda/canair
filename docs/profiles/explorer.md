@@ -5,9 +5,10 @@ hide:
 
 # Profile explorer
 
-Browse a bundled profile's ECUs, PIDs, signals and IO controls, or switch to **Data** to plot
-what the car actually reported. Nothing here talks to a device, and the data is generated from
-[`profiles/`](index.md) whenever this site is built.
+Browse the electronic control units (ECUs), parameter identifiers (PIDs), signals and IO controls
+of a bundled profile. Or switch to **Data** to plot what the car actually reported. Nothing here
+talks to a device. The build generates the data from [`profiles/`](index.md) whenever it builds
+this site.
 
 <div id="explorer" class="cx-explorer">
   <noscript>The explorer needs JavaScript. The same data is in
