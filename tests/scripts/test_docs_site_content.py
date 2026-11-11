@@ -148,13 +148,16 @@ def test_other_pages_get_no_description():
     assert _env_for("concepts/profiles.md").page.meta == {}
 
 
-def test_write_all_replaces_the_generated_directories(tmp_path):
+def test_write_all_replaces_the_generated_directories(tmp_path, monkeypatch):
+    # The explorer export of every profile takes half a minute and has its own tests.
+    index = f"{data.EXPLORER_DATA_DIR}/index.json"
+    monkeypatch.setattr(data, "explorer_files", lambda commit=None: {index: "[]"})
     stale = tmp_path / data.SCHEMA_DIR / "gone.json"
     stale.parent.mkdir()
     stale.write_text("{}")
     count = data.write_all(tmp_path)
     assert not stale.exists()
-    assert (tmp_path / data.EXPLORER_DATA_DIR / "index.json").is_file()
+    assert (tmp_path / index).read_text() == "[]"
     assert (tmp_path / data.SCHEMA_DIR / "profile.json").is_file()
     assert count == sum(1 for p in tmp_path.rglob("*") if p.is_file())
 

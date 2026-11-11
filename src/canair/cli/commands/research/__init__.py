@@ -409,15 +409,14 @@ def run(args) -> int:
                 f"({', '.join(sorted(allowed_states(profile=active())))})"
             )
 
-    filtered = filter_records(
-        records,
-        ecu=args.ecu,
-        rtype=args.rtype,
-        status=args.status,
-        priority=args.priority,
-        state=args.state,
-        include_done=args.all,
-    )
+    criteria = {
+        "ecu": args.ecu,
+        "rtype": args.rtype,
+        "status": args.status,
+        "priority": args.priority,
+        "state": args.state,
+    }
+    filtered = filter_records(records, **criteria, include_done=args.all)
 
     if args.json:
         ordered = sorted(filtered, key=_sort_key)
@@ -431,7 +430,8 @@ def run(args) -> int:
         return 0
 
     if args.summary:
-        cmd_summary(filtered)
+        # The summary counts done items too; only the list view hides them.
+        cmd_summary(filter_records(records, **criteria, include_done=True))
     else:
         # Count done items suppressed by the default view (not when the user
         # explicitly asked for --all or filtered on a specific status).

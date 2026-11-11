@@ -192,4 +192,5 @@ class TestRunLimit:
 
     def test_summary_counts_every_item(self, pids_dir, capsys):
         out = self._run(pids_dir, capsys, "--summary", "--limit", "1").out
-        assert "3 total" in out
+        # The done item counts too, though the list view hides it without --all.
+        assert "4 total (3 open, 1 done)" in out
