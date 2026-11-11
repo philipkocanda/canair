@@ -58,7 +58,8 @@ error, and the caller prints it.
   Never accept a flag and ignore it (`monitor` and `repl` take no `--json`).
 - Exit codes: **0** success. **1** failure, or the user declined a prompt. **2** a usage error, or
   a guard refused (the safety blocklist, a read-only profile, a prompt with no terminal and no
-  flag).
+  flag). **141** the reader closed stdout early (`| head`): `cli/__init__.py::main` ends the
+  command quietly, as SIGPIPE would. Never catch `BrokenPipeError` in a command for that.
 
 ### Messages
 

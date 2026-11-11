@@ -16,7 +16,9 @@ Imports: every package below it. It is the only code that imports ``argparse``.
 from __future__ import annotations
 
 import argparse
+import os
 import re
+import signal
 import sys
 from typing import NoReturn
 
@@ -330,7 +332,49 @@ def _print_unsafe_banner() -> None:
     print(ansi.cerr("\n".join(lines), ansi.raw.BOLD + ansi.raw.YELLOW), file=sys.stderr)
 
 
+# What a shell reports for a process that SIGPIPE ended, as `yes | head -1` does.
+EXIT_BROKEN_PIPE = 128 + signal.SIGPIPE
+
+
 def main(argv: list[str] | None = None) -> int:
+    """Run one canair command. A reader that closes stdout early (`| head`) ends it quietly.
+
+    Python ignores SIGPIPE, so a write to a closed pipe raises ``BrokenPipeError``. Only a
+    stdout that fails to flush counts as the reader leaving: the same error from a device socket
+    is a real failure and propagates. Restoring SIGPIPE instead would kill the process on a
+    dropped device link, before a session could release its actuators.
+    """
+    try:
+        code = _run(argv)
+        sys.stdout.flush()
+    except BrokenPipeError:
+        if not _stdout_closed():
+            raise
+        _discard_stdout()
+        return EXIT_BROKEN_PIPE
+    return code
+
+
+def _stdout_closed() -> bool:
+    try:
+        sys.stdout.flush()
+    except BrokenPipeError:
+        return True
+    return False
+
+
+def _discard_stdout() -> None:
+    """Point stdout at the null device, so the flush at interpreter exit cannot fail again."""
+    try:
+        fd = sys.stdout.fileno()
+    except (AttributeError, OSError, ValueError):
+        return
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, fd)
+    os.close(devnull)
+
+
+def _run(argv: list[str] | None) -> int:
     parser = build_parser()
 
     if argv is None:
