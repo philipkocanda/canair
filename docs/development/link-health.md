@@ -57,13 +57,15 @@ not bypass them.
    call. An unvalidated request ignores a desync. It returns the bytes of the wrong parameter
    identifier (PID) as the value of the right PID. Keepalives are validated too (`3E00` with
    `expected_sid=0x3E`). An unvalidated keepalive consumes the orphaned reply and clears the
-   dirty-pipe flag. That is how the offset once became permanent.
+   dirty-pipe flag. It leaves its own reply for the next reader, so the offset becomes permanent.
 2. **The ELM327 engine repairs itself.** A stale response (`CAT_STALE`) triggers
    `Elm327Terminal._resync()`.
 
-    - It drains for a window that comes from the `ATSThh` budget of the adapter plus the measured
-      link latency. The window never comes from a hardcoded value.
-    - A drain that is shorter than the ECU wait of the adapter cannot discard the reply it chases.
+    - It drains until the pipe stays quiet for a window. The window is the `ATSThh` budget of the
+      adapter plus the measured link latency. A fixed margin is only a floor, and a fixed maximum
+      caps the window.
+    - The window must be longer than the ECU wait of the adapter. A shorter window can end before
+      the late reply arrives. That reply then survives the drain and keeps the pipe offset.
     - It then probes with `ATI` and raises `ConnectionError` if the adapter itself is silent.
     - Each repair counts as `resyncs` on `TransportStats`.
     - The prompt ledger that normally prevents the need for a resync is

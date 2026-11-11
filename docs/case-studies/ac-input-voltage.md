@@ -126,7 +126,7 @@ canair decode OBC 2101 --try "V=[B14:B15]/100" --state charging --stats  # ~222 
 canair decode OBC 2101 --try "V=[B14:B15]/100" --state ready    --stats  # ~8.5 V idle
 ```
 
-(B14 stepped 85→88 with the voltage. The mean sat ~3 V below the grid. This was the IR drop, which
+(B14 stepped 85→88 with the voltage. The mean sat ~3.7 V below the grid. This was the IR drop, which
 now *confirmed* Trap 2 instead of hiding the signal.)
 
 **Define & close.**
@@ -207,10 +207,10 @@ fact:
 | **Plausible value** | 218–228 V root mean square (RMS). This is mains voltage, not the ~370 V high-voltage (HV) rails or 12 V |
 | **On/off by state** | ~222 V charging, **idles ~8.5 V in READY** (EVSE disconnected). This is exactly how the other OBC senses behave |
 | **Integer byte steps** | `B14` marches 85→86→87→88 with voltage. It is not a stuck status byte |
-| **IR-drop consistency** | mean 221.8 V vs calibrated grid 225.5 V ⇒ ~3 V drop at ~15 A ⇒ R≈0.2 Ω. This is physically sane, and it *explains Trap 2* |
+| **IR-drop consistency** | mean 221.8 V vs calibrated grid 225.5 V ⇒ ~3.7 V drop at ~15 A ⇒ R≈0.25 Ω. This is physically sane, and it *explains Trap 2* |
 
 The final confirmation ran `--try "[B14:B15]/100"` across *all* charging history (mean 221.8 V,
-218–228 V active) and in READY (~9.4 V idle). So the finding was not overfit to a single drive.
+218–228 V active) and in READY (~8.5 V idle). So the finding was not overfit to a single drive.
 (The exact commands are in the trail above.)
 
 ## Takeaways

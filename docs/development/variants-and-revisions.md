@@ -60,9 +60,9 @@ revisions that the config pinned or a detection remembered.
 
 `ecus/pids.py::load_pids(profile)` returns definitions that canair has **already filtered and
 overridden** for the selected variant and for the revision of each ECU. `load_raw_pids(profile)`
-returns them as written. The variant-aware readers use the raw loader: `validate`, the editors and
-anything that must see every revision. A profile without revisions or presence gets its raw
-objects back untouched.
+returns them as written. Code that works on one car reads `load_pids`. Code that must see every
+car reads `load_raw_pids`: `validate`, the editors and anything that handles variants and revisions
+itself. A profile without revisions or presence gets its raw objects back untouched.
 
 canair resolves the revision of an ECU in this order, most authoritative first
 (`variants/revisions.py::resolve`):
@@ -121,7 +121,8 @@ signal to `[R]`.
 
     - With a named car, it returns the sessions of that car plus the untagged ones.
     - With no car, it returns every tagged session and no untagged one. A once-per-process stderr
-      note says which.
+      note says how many untagged sessions canair left out. It also names the fix: `captures
+      migrate-variants`.
 
     Analysis drops sessions that are tagged with another revision of a determined ECU
     (`variants/tags.py::revisions_in_scope`). The byte-level analyses refuse a scope that spans two

@@ -27,10 +27,10 @@ as locked and leaves it alone.
   their diagnostic stack allows. They refuse the rest with `requestOutOfRange`.
 - **The default space.** With no `--range`, `scan memory` and `memory image` map the whole space of
   the memory format of the ECU when its addresses are 3 bytes or fewer. This covers every KWP2000
-  ECU (`0x000000-0xFFFFFF`, 16 MiB) and a UDS ECU whose ALFID has a 1- to 3-byte address (see
-  [The memory format](#the-memory-format)). The probes are then about 256, 64 KiB apart across
-  16 MiB. A UDS ECU with 4-byte addresses (4 GiB) still needs `--range`. `memory dump` has no
-  default range. The confirmation names the range.
+  ECU (`0x000000-0xFFFFFF`, 16 MiB) and a UDS ECU whose addressAndLengthFormatIdentifier (ALFID)
+  has a 1- to 3-byte address (see [The memory format](#the-memory-format)). The probes are then
+  about 256, 64 KiB apart across 16 MiB. A UDS ECU with 4-byte addresses (4 GiB) still needs
+  `--range`. `memory dump` has no default range. The confirmation names the range.
 - **Every command that reads memory asks first.** Pass `--yes` to skip the question. Without a
   terminal, these commands refuse unless you pass `--yes`.
 - **The scan reads one byte at a time** until it finds a region that answers. Only inside a region
@@ -83,7 +83,7 @@ ECU answers: UDS `F189`, `F195`, `F1A0` or `F194`, KWP2000 `95`, `88`, `8D` or `
 
 ## The memory format
 
-A UDS memory request carries an addressAndLengthFormatIdentifier (ALFID). Its high nibble is the
+A UDS memory request carries the ALFID. Its high nibble is the
 width of the size field, and its low nibble is the width of the address (`24` = a 2-byte size and
 a 4-byte address). A KWP2000 request has a fixed 3-byte address and 1-byte size. So a KWP2000 ECU
 needs no format, and it reaches only the low 16 MiB.
@@ -151,7 +151,8 @@ The block stays within the `max_block` of the ECU and `--block-limit`. On an ELM
 run prefers 61-byte blocks. A 62-byte reply fits the 9 Controller Area Network (CAN) frames that
 the expected-frame-count digit of the adapter can ask for. The adapter then answers without
 waiting out its `ATST` budget ([frame counts](../development/frame-counts.md)). Two errors within
-50 reads halve the block and add 20 ms of throttle. 500 clean reads reverse one step.
+50 reads halve the block (down to 16 bytes) and add 20 ms of throttle. After 500 clean reads, the
+block doubles (up to the preferred size) and the throttle drops by 20 ms.
 
 ### Pause and resume
 
@@ -197,7 +198,8 @@ dump them this way. What each one gives:
   It refuses its code flash. Other windows answer with zeros and are not memory.
 - **VCU:** its flash (`0x000000`-`0x3FFFFF`), not its RAM.
 - **OBC:** its flash (`0x000000`-`0x3FFFFF`), read with that `--range` while charging.
-- **Climate unit:** no memory. It ignores the address and returns its transmit buffer.
+- **Climate unit:** no memory. It ignores the low 16 address bits and returns its transmit buffer.
+  An address with a high byte of `01`-`FF` draws NRC `0x52`.
 - **MCU:** do not read it while the car charges. A survey of its address space ended an AC charge
   on 2026-11-08.
 

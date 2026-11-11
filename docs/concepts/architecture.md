@@ -50,8 +50,8 @@ The device runs **one protocol at a time**. Run `canair status` to check which o
 - **`elm327-tcp`** — a **generic ELM327 adapter** over a plain TCP socket. Examples are the $10
   WiFi clones (Kiwi, vLinker, OBDLink, no-name dongles) and the `-n` mode of the
   [ELM327-Emulator](../development/offline-testing.md). This transport needs no WiCAN and no HTTP
-  configuration API. It needs only the ELM327 terminal on a TCP port (usually 35000). The *dongle*
-  runs ISO-TP.
+  configuration API. It needs only the ELM327 terminal on a TCP port. The default port is 35000,
+  which most WiFi clones use. The *dongle* runs ISO-TP.
 
 `slcan-tcp` is the default because it runs on both WiCAN hardware variants. Select a transport
 with `--transport` or the `transport:` block of the config.

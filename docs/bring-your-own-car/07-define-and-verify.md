@@ -103,8 +103,8 @@ canair validate all           # schema + duplicate-name checks
 | `PAST END` | a signal that reads beyond the end of the payload — a short reply, or a wrong offset |
 | `MAP` | the PID declares a [support map](../concepts/analysis-techniques.md#support-maps-which-bits-are-signals-at-all): its own bytes, and any covered bytes that carry no signal, are not data to decode |
 | `OUTSIDE MAP` | a signal reads a bit or byte that the declared support map does not mark (a bit just above a mark is shown dimmed as `FIELD CONTINUATION`) |
-| `FIELDS` | a field map: how many parameters it marks, against how many the bytes hold and how many signals define (`FIELDS BROKEN` when no split fits) |
-| `OPEN FIELDS` | the parameters of a field map that no signal reads, as byte ranges |
+| `FIELDS` | a field map: how many fields it marks, against how many the bytes hold and how many signals define (`FIELDS BROKEN` when no split fits) |
+| `OPEN FIELDS` | the marked fields of a field map that no signal reads, as byte ranges |
 | `NO CAPTURE` | no positive reply recorded (`in scope` when a scope flag such as `--until` is set) |
 | `NEGATIVE RESPONSE ONLY` | the electronic control unit (ECU) only ever answered with a negative response. The negative response code (NRC) is shown |
 
@@ -131,8 +131,10 @@ declare it with `canair pids set-support-map`. `coverage` then stops counting bi
 signals as gaps. `BITS … missing{…}` lists only the bits that the map marks. It shows the rest
 as `(+N not signals)`.
 
-Do the same on a powertrain page (service 21). There the map counts parameters. An `EXACT` split
-names each parameter that nobody has decoded yet.
+Do the same on a powertrain page (service 21). There the map marks one bit per *field*. A field is
+one value of the page, and it becomes a signal when you define it. An `EXACT` split names each
+field that nobody has decoded yet. See
+[field maps](../concepts/analysis-techniques.md#field-maps-one-bit-per-parameter).
 
 Unmapped bytes are your next research leads. Loop back to [capture](05-capture.md) and
 [analyze](06-analyze.md).

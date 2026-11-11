@@ -15,9 +15,10 @@
 
 ## Provenance — grounded in current `wican-fw` truth
 
-The file and line references on this page are to `wican-fw` **v4.52p** (commit `fab54ad`), the
-version canair is tested against. Line numbers move between firmware releases, so read them as
-pointers to the named function.
+The file and line references on this page are to the `wican-fw` ESP32 firmware **v4.52p** (commit
+`fab54ad`), the version canair is tested against. They are not about the firmware of the OBD
+co-processor chip. Line numbers move between firmware releases, so read them as pointers to the
+named function.
 
 ## TL;DR
 

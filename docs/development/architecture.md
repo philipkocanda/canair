@@ -7,10 +7,10 @@ new code goes. The rules behind it are in
 The same plan describes the migration that moves the tree to this layout.
 
 !!! note "Migration state"
-    The code lives in `src/canair/`. The 52 loose modules that sat at its root now live in
-    packages, and the Textual apps are in `tui/apps/`. Library code takes the profile as an
-    argument. Only the CLI holds the active profile (`cli/profile_context.py`). The plans list the
-    remaining work.
+    The code lives in `src/canair/`. The plan counted 52 loose modules at the root of the old
+    `canlib/` package. They now live in packages, and the Textual apps are in `tui/apps/`. Library
+    code takes the profile as an argument. Only the CLI holds the active profile
+    (`cli/profile_context.py`). The plans list the remaining work.
 
 ## Layers
 
@@ -43,20 +43,21 @@ Top to bottom. A package imports only from the layers below its own.
 
 <!-- END GENERATED: layers -->
 
-The first three layers are the interface and the live operations. The profile editors
-(`yaml_edit/`) sit below them. The validators that the editors run after each write
-(`validation/`) sit below the editors. Both sit above everything that they read. Below these come,
-in order:
+The first four layers are the interface (`cli/`, `tui/`), the upstream contribution flow
+(`contribute/`) and the live operations (`live/`). The profile editors (`yaml_edit/`) sit below
+them. The validators that the editors run after each write (`validation/`) sit below the editors.
+Both sit above everything that they read. Below these come, in order:
 
-- the packages that compute over the store and the definitions
-- the store and the transport
+- the packages that compute over the store and the definitions (layer 7)
+- the store and the transport (layer 8)
+- the packages for states, queries and rendering (layer 9), then `privacy/` (layer 10)
 - the definitions themselves
 
 The definitions are three layers: `ecus/` (the loaded definitions) above `variants/` (which car
 the profile describes) above `profile/` (the bundle on disk). `profile/` does not know what a
 variant is. The CLI therefore applies the variant and holds the active profile
-(`cli/profile_context.py`). Every layer has a fixed order, and `lint-imports` fails on a wrong-way
-import.
+(`cli/profile_context.py`). The layers have a strict order. A layer with several packages lets them
+import from the layers below and never from each other. `lint-imports` fails on a wrong-way import.
 
 `render/` sits below `live/` and not beside the CLI, because live operations print through it.
 

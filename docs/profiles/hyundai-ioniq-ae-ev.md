@@ -84,9 +84,9 @@ you are building toward for your own car.
   rear left and rear right: FL/FR/RL/RR, from the ESC) and the steering angle. canair reads the
   steering angle independently on both the ESC and the EPS.
 - **Charging (BMS / OBC / IGPM)** — alternating current (AC) and direct current (DC) charging state
-  (Combined Charging System (CCS) for DC), AC input and pilot values, and the charge-port lock.
-  The charge control module (CCM) handles power line communication (PLC) for DC fast charging.
-  canair identifies the CCM on the bus, but it exposes no live data.
+  (Combined Charging System (CCS) for DC), AC input and pilot values, and the charge-port lock. The
+  charge control module (CCM) handles power line communication (PLC) for DC fast charging. canair
+  identifies the CCM on the bus, but it exposes no live data.
 - **Climate & body (HVAC / BCM / IGPM)** — climate state (heating, ventilation and air
   conditioning (HVAC)), tyre pressures and temperatures (tire pressure monitoring system (TPMS)),
   and body controls (locks, trunk, lights, indicators).
@@ -96,13 +96,14 @@ you are building toward for your own car.
 Never send `0x30` to the OBC. On the OBC, `0x30` is the factory sensor calibration, and it drives
 the power stage. See the OBC research entries in `canair research`.
 
-The profile defines **107 IOControl data identifiers (DIDs)** (UDS `0x2F`) for hardware that you
-can toggle from the CLI: lights, horn, locks, charge-cable lock, mirrors, wipers and seat motors.
+The profile defines IOControl data identifiers (DIDs) (UDS `0x2F`) for hardware that you can
+toggle from the CLI: lights, horn, locks, charge-cable lock, mirrors, wipers and seat motors. The
+[At a glance](#at-a-glance) table gives the count.
 The IGPM actuators release when the diagnostic session ends. They work from deep sleep with
 `--wake`. Other actuators differ. For example, the power-seat motors run until told to stop. Read
 the notes of an actuator before you drive it.
 
-The KWP2000 ECUs (BMS, VCU, MCU, OBC, AAF) have no actuators defined yet. Nobody knows which
+The KWP2000 ECUs (BMS, VCU, MCU, OBC, AAF, EWP) have no actuators defined yet. Nobody knows which
 `0x30` request hands each output back. `canair io` refuses to switch a `0x30` actuator on without
 such a request.
 
@@ -117,7 +118,7 @@ canair monitor IGPM:BC03 --actuate IGPM   # switch outputs while you watch IGPM 
 
 ## ECUs on the bus
 
-The profile registers 30 ECUs. The most decoded are:
+The [At a glance](#at-a-glance) table gives the number of registered ECUs. The most decoded are:
 
 | ECU | TX | Role |
 |-----|----|------|

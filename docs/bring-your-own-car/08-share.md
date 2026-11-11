@@ -66,12 +66,13 @@ the device**, your own PIDs included. To load the file by hand:
 
 ### Making the device's reads faster
 
-By default, the ELM327 co-processor of the WiCAN waits out its full ~614 ms budget for the
-electronic control unit (ECU) on every PID. It does this to be sure that no further response frame
-is coming. canair can record how many frames a PID answers with. It learns this count
-automatically while you read the car, and it stores the count as `response_frames:` in `ecus/`.
-By default, canair appends that count to each request. The adapter then returns as soon as the
-reply is whole:
+By default, the ELM327 co-processor of the WiCAN waits out its full response timeout for the
+electronic control unit (ECU) on every PID. The bundled profiles set `ATST96`, which is about
+614 ms. The adapter waits that long to be sure that no further response frame is coming. canair
+can record how many frames a PID answers with. It learns this count automatically while you read
+the car, and it stores the count as `response_frames:` in `ecus/`. By default, canair appends that
+count to each request. The adapter then returns as soon as the reply
+is whole:
 
 ```bash
 canair wican autopid stats                           # which PIDs have a count (Frames column)
@@ -100,10 +101,10 @@ merely sees two lengths clears a stored count instead.
 ### Streaming a signal at its poll rate
 
 The WiCAN publishes AutoPID results to MQTT as one batch snapshot, which holds the latest value of
-every signal. It publishes on the timer of the destination. The timer is 10 s unless you changed
-it in the AutoPID settings of the device. Polling a PID faster does **not** make the broker see it
-more often. When you need every sample of one signal (to average power draw, say), give that
-signal its own topic with `send_to`:
+every signal. It publishes once per `cycle` of the batch destination. The `cycle` is 10 s, unless
+you changed it in the AutoPID settings of the device. Polling a PID faster does **not** make the
+broker see it more often. When you need every sample of one signal (to average power draw, say),
+give that signal its own topic with `send_to`:
 
 ```bash
 canair pids upsert-param BMS 2101 BATTERY_POWER "<expression>" \
@@ -158,8 +159,9 @@ anything, canair does these checks:
   therefore gets checked too. canair does not flag a masked VIN (`KMHCXXXXXXXXXXXXX`) again. It
   leaves per-unit **ECU serials** alone, because they name a module, not you.
 - It **leaves out every reply to a
-  [sensitive PID](../concepts/captures-and-states.md#sensitive-pids-and-signals)** (such as the
-  EVCCID of the CCM), whatever your captures hold.
+  [sensitive PID](../concepts/captures-and-states.md#sensitive-pids-and-signals)**, whatever your
+  captures hold. An example is the EVCCID, the identifier that the charge control module (CCM)
+  sends to a Combined Charging System (CCS) charger.
 - It **warns if your profile looks stale** and asks you to confirm. A profile looks stale in two
   cases:
 

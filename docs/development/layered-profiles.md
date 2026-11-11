@@ -64,9 +64,11 @@ Two commands make a profile writable. Both live in `profile/scaffold.py` and car
 assembles the `Profile`. It raises an error in two cases:
 
 - a **dangling** overlay (nothing underneath)
-- `extends:` that names a *different* profile. That case is deferred to
-  `plans/2026-07-30-profile-variant-inheritance.md`, and `extends:` is deliberately the key of that
-  plan.
+- `extends:` that names a different profile. Today an overlay must extend the profile that has its
+  own name (or an old name of that profile), and it layers only `captures/`. A profile that
+  inherits the definitions of another profile with a different name is not built.
+  `plans/2026-07-30-profile-variant-inheritance.md` is the design for that definition merge. It is
+  not started, and it keeps the `extends:` key for this case.
 
 ## What a layered `Profile` looks like
 

@@ -5,7 +5,7 @@ Hyundai Ioniq Electric (AE). Cars inside one profile still differ in ways that a
 Examples are a 28 kWh pack or the 38 kWh facelift, and a market with different diagnostics. These
 differences are the **variants** of the profile. The profile declares them in its `variants.yaml`.
 
-!!! note "What variants do so far"
+!!! note "What variants do"
     Variants record *which* versions of the car exist and what canair knows about each version.
     You [name yours](#choosing-your-car) once. canair
     [tags captures](#tagging-captures-with-the-car) with the variant they came from.
@@ -14,10 +14,10 @@ differences are the **variants** of the profile. The profile declares them in it
     which of these revisions its car carries. It can also say which ECUs the car has and which
     `profile.yaml` settings differ for it.
 
-    canair can also [detect](#which-revision-your-car-has) the revision of an ECU from the car
-    itself. Pin the revision when detection cannot settle it.
+    canair [detects](#which-revision-your-car-has) the revision of an ECU from the car itself.
+    You can pin the revision when detection cannot settle it.
 
-    The design for what follows is in
+    The design and the record of each build phase are in
     [`plans/2026-10-30-profile-variants-and-rename.md`](https://github.com/philipkocanda/canair/blob/main/plans/2026-10-30-profile-variants-and-rename.md).
 
 ## What is a variant, and what is not
@@ -143,6 +143,9 @@ commands do nothing and say how to pick:
 - every command that records a capture
 - every command that generates the AutoPID profile
 
+The words after `so canair won't` name the blocked action. This example is for a command that
+talks to the car:
+
 ```text
 error: hyundai-ioniq-ae-ev describes 2 variants and none is selected, so canair won't talk to the car.
 
@@ -256,8 +259,9 @@ VCU:
   shows no identity. It does not show the values of the other revision. Only `description`, `alias`
   and `id_protocol` carry over.
 - **Gating:** `revisions:` on a PID or signal lists the revisions that it applies to. If the list
-  is absent, the PID or signal applies to every revision. The list of a signal must be within the
-  list of its PID.
+  is absent, the PID or signal applies to every revision. A signal can apply only to revisions
+  that its PID also lists. `canair validate` reports an error when a signal lists a revision that
+  is not in the `revisions:` list of its PID (`a signal can only apply where its PID does`).
 - Two PIDs of one ECU may ship the same signal name when their revisions are disjoint. This is how
   `VCU.VEHICLE_SPEED` stays one name across a protocol change, for state predicates and Home
   Assistant.

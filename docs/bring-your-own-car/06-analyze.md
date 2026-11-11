@@ -218,7 +218,7 @@ and interpretation on the PID. It correlates each one against the reference. It 
 fit with a guess at the physical unit:
 
 ```bash
-canair hunt uds MyECU:2101 --against ESC:22C101:REAL_SPEED_KMH
+canair hunt uds MyECU 2101 --against ESC:22C101:REAL_SPEED_KMH
 # → B12  r=0.99  y = 1.00·x + 0.3   (looks like km/h)
 ```
 
@@ -232,7 +232,7 @@ global positioning system (GPS) speed track or a grid-voltage export. The file i
 an on-bus reference. This is the only way to hunt a signal that has *no* correlate on the bus:
 
 ```bash
-canair hunt uds MyECU:2101 --against-file gps_speed.csv    # vs an external track
+canair hunt uds MyECU 2101 --against-file gps_speed.csv    # vs an external track
 canair correlate uds --against-file grid_voltage.csv       # rank every byte vs it
 ```
 
@@ -287,7 +287,7 @@ cases. The [AC input voltage case study](../case-studies/ac-input-voltage.md) sh
 ```bash
 # Confounder control: rank by the PARTIAL correlation, with a nuisance signal
 # regressed out — surfaces a link hidden behind a dominant driver.
-canair hunt uds OBC:2101 --against-file grid_v.csv --control OBC:2101:OBC_DC_A
+canair hunt uds OBC 2101 --against-file grid_v.csv --control OBC:2101:OBC_DC_A
 
 # Physical plausibility: no reference at all — flag bytes whose scaled value
 # lands in a named band (mains RMS/peak, line freq, 12V rail, HV pack).

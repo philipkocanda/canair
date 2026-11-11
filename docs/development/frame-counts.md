@@ -85,8 +85,9 @@ The ELM327 transports produce `confirm()` evidence. The raw `slcan-tcp` path pro
 
 `parse_uds_response` counts response lines, and the raw stack hands it one reassembled message.
 `raw/terminal.py::send_uds` therefore computes `frames_for_payload(len(resp_bytes))`. Without that
-call, every raw read would report `isotp_frame_count: 1`. The function counts classic CAN only,
-because CAN FD (flexible data-rate) carries up to 64 bytes per frame.
+call, every raw read would report `isotp_frame_count: 1`, even for a multi-frame reply. The
+function counts classic CAN only, because CAN FD (flexible data-rate) carries up to 64 bytes per
+frame.
 
 ## Persistence: the count belongs to the car
 

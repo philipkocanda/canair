@@ -122,8 +122,15 @@ different rule carry their own `rx_id`:
 - VSP `0x73F → 0x761`
 - TCU `0x746 → 0x783`
 
-The LBC, VCM, HVAC and BCM speak **Keyword Protocol 2000 (KWP2000)**. So the battery PIDs are
-service `0x21` reads (`2101`), while the PIDs of the VCM are `0x22` reads (`221156`). See
+The profile records `id_protocol: KWP2000` for the LBC, VCM, HVAC and BCM. Their identity notes
+cite poll lists that show positive replies to service `0x21` reads. The battery PIDs of the LBC are
+`0x21` reads (`2101`).
+
+The VCM answers both services. Its PID `2181` is a `0x21` read, and its other 25 PIDs are `0x22`
+reads (`221156`). The profile notes say that a public poll list shows the VCM answering both. So a
+`0x22` PID can sit in an ECU that is marked KWP2000. canair sends the prefix of a PID as written.
+
+The METER, ABS and INVERTER have only `0x22` PIDs and no recorded `id_protocol`. See
 [ECU protocols & PID prefixes](../concepts/ecu-protocols.md).
 
 ## Sleep behaviour
@@ -131,8 +138,8 @@ service `0x21` reads (`2101`), while the PIDs of the VCM are `0x22` reads (`2211
 Most ZE1 modules answer only while the car is on. The first captures show that the gate is **per
 module, not port-wide**:
 
-- **Car off:** The VCM answered 16 of its 25 defined reads. The METER answered 6 of 7 (not the
-  odometer). Some of those answers are placeholders (dashboard SOC 100 %, range 2047, motor RPM
+- **Car off:** The VCM answered 16 of its 25 defined `0x22` reads. The METER answered 6 of 7 (not
+  the odometer). Some of those answers are placeholders (dashboard SOC 100 %, range 2047, motor RPM
   16383). The ABS, INVERTER, HVAC and BCM stayed silent. The LBC answered for a few minutes after
   the car was last active, then went quiet. `read --wake` did not revive it. The LBC is a
   fast-sleeping ECU.
@@ -140,9 +147,9 @@ module, not port-wide**:
 - **Charging (car off, AC):** The LBC, VCM, METER, INVERTER and BCM answered every defined read.
   The ABS and HVAC stayed silent.
 
-So a read of a real PID is a better liveness test than a `10 01` discovery sweep. With the car
-asleep, the KWP2000 ECUs do not answer a Unified Diagnostic Services (UDS) session request. The
-`vehicle_states:` of each PID lists the states in which it answered.
+So a read of a real PID is a better liveness test than a `10 01` discovery sweep. In the READY
+sweep, the BCM answered `10 01` with a negative response code (NRC) `0x12`. The `vehicle_states:` of
+each PID lists the states in which it answered.
 
 ## Vehicle states
 

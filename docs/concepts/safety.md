@@ -61,8 +61,8 @@ canair keeps a command blocklist and enforces it on **every** transport. canair 
       Hyundai/Kia (`0211`–`0213`, `0220`, `0301`, `0410`–`0440`).
 
     Reading the results of a routine (`31 03`) stays allowed. The Hyundai/Kia ids are
-    manufacturer-range values. On another make they may be unrelated routines. The refusal is then
-    only a prompt.
+    manufacturer-range values. On another make they may be unrelated routines. canair still refuses
+    them there, but `--unsafe` can turn the refusal into a prompt (see below).
 
 - Start or stop a **safety-system routine** (`31 01`/`31 02` with `E200`–`E2FF`). ISO 14229-1
   reserves these ids for ISO 26021, which deploys or disables airbags and seatbelt pretensioners
@@ -76,7 +76,8 @@ canair keeps a command blocklist and enforces it on **every** transport. canair 
     - `31 F3` starts a board self-test loop on the VCU. The loop runs until the VCU is reset.
 
     All four need only the `10 90` session, which asks for no key. On another make they may be
-    unrelated routines. The refusal is then only a prompt.
+    unrelated routines. canair still refuses them there, but `--unsafe` can turn the refusal into
+    a prompt (see below).
 
 - Send the manufacturer-specific service `99`. The Hyundai/Kia OBC erases its stored VIN on it, in
   any diagnostic session.
@@ -90,8 +91,8 @@ reading is stricter.
   It also refuses the suppress-bit form of anything but the default and extended sessions (`81`,
   `83`).
 - **KWP2000:** canair refuses session types in the manufacturer-defined `0x80`–`0xFF` range,
-  except the well-known diagnostic sessions `81`, `82` and `83`. On an unknown car, any other type
-  in that range may be a development or programming mode.
+  except the well-known diagnostic sessions `81`, `82` and `83`. canair cannot tell which of the
+  other types in that range is a development or programming mode, so it refuses all of them.
 
 A profile can permit the diagnostic session of its own make through a quirk.
 
@@ -260,10 +261,12 @@ canair monitor IGPM:BC03 --actuate IGPM --save --label "rear defogger toggle"
   and the pane. `?` lists the keys of the pane. A routine start asks first.
 - canair sends each request between two poll requests, not after the poll cycle. On `slcan-tcp`,
   it waits only for the poll request to the same ECU. The other ECUs keep polling.
-- A request opens the session mode that its entry declares, on the session of the monitor itself.
-  When the mode differs, the ECU switches. The previous mode comes back once nothing on that ECU
-  is held (no output on, no routine started and not stopped). The session-type picker (`t`)
-  refuses an ECU that holds something.
+- A request opens the session mode that its entry declares. The monitor opens it with its own
+  session manager, the one that keeps the other sessions of the monitor alive. When that mode
+  differs from the current mode of the ECU, the ECU switches. Once nothing on that ECU is held
+  (no output on, no routine started and not stopped), the previous mode comes back. If the ECU
+  had no session before, canair closes the session. The session-type picker (`t`) refuses an ECU
+  that holds something.
 - Hiding the pane releases nothing. The status line shows how many outputs are on. The monitor
   releases every output that is still on when it exits, and again after a reconnect. A dropped
   link may or may not have ended the session of the ECU, and a release is safe to repeat.
@@ -309,9 +312,10 @@ An action can also drive an output, read while it is driven, and hand it back:
   alive to the end, as an IOControl needs. The session rules above check a hold, so a hold can
   never be a programming session.
 - **`then:`** waits (`wait:`, 0–60 s). It then reads its selectors through the same path as
-  `canair read`. They run only when every request was answered. `canair action run NAME --save`
-  keeps them in `captures/`, labelled `action NAME` unless you pass `--label`. So nothing is asked
-  while the output is driven.
+  `canair read`. They run only when every request was answered (or, for a request that expects no
+  reply, was sent). The reads never open the REPL that `canair read --repl` opens. So no prompt
+  waits while the output is driven. `canair action run NAME --save` keeps the reads in
+  `captures/`, labelled `action NAME` unless you pass `--label`.
 - **`release:`** is sent at the end whatever happened: after a refused request, after an error,
   and on Ctrl-C. Only then does canair close the held sessions. canair refuses at load time an
   IOControl request that drives an output, unless a release on the same ECU and identifier hands
@@ -319,14 +323,13 @@ An action can also drive an output, read while it is driven, and hand it back:
 
 The `ig3-read` action of the Ioniq profile closes the IG3 relay of the IGPM (`2F BC44 03`) with
 the ignition off. It waits 3 s, reads the VCU, BMS, OBC, MCU, AAF and HVAC, and releases the relay
-(`2F BC44 00`). It requires the same state as `sleep` below, because IG3 also powers the OBC. The
-rail stays up for about 75–110 s after the release. A follow-up `canair read` in that window still
-reaches those ECUs.
+(`2F BC44 00`). It requires the same state as `sleep` below, because IG3 also powers the OBC. In
+the test, the rail still held 75 s after the release and was off about 110 s after it. A
+follow-up `canair read` within about 75 s still reached those ECUs.
 
 The `sleep` action of the Ioniq profile requires IGN1 and IGN2 off, the IG3 relay of the IGPM off
 (no 12 V top-up in progress), and the charge port unlocked (not charging). The request expects no
-reply, so canair can only report that it sent the request. Anything that talks to the car
-afterwards wakes it again, including the AutoPID polling of the WiCAN.
+reply, so canair can only report that it sent the request.
 
 ### Injecting a broadcast frame
 

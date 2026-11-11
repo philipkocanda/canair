@@ -131,7 +131,9 @@ each other. Two very different things look identical on disk:
   `READY, DRIVING, PARKED, PLUGGED, CHARGING`, but no single instant was all of those.
 
 Left alone, the second case corrupts filtering. `--state charging` returns the whole session,
-driving captures included (17.7% of what `--state CHARGING` returned on the Ioniq's history).
+driving captures included. In the Ioniq history (96,086 captures, measured in August 2026), 17.7% of
+the captures that `--state CHARGING` returned were not in the charging state. The plan
+`plans/2026-08-09-vehicle-state-temporal-scope.md` has the measurement.
 
 So a session whose payloads show the car changing state carries a **timeline** alongside the
 union:

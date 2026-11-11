@@ -59,8 +59,8 @@ doors locked and every door shut, `DOOR_STATUS` would render as
 `rear_left_locked|rear_right_locked`.
 
 `--value` and `--bit` are repeatable `KEY=LABEL` pairs. `KEY` may be decimal or `0x`-hex. If you
-pass only `--value`, canair infers `--type enum`. If you pass only `--bit`, canair infers
-`--type bitmask`.
+omit `--type`, canair infers it. `--value` sets the type to `enum`. `--bit`, without `--value`,
+sets it to `bitmask`. If you pass both, `--value` wins and the type is `enum`.
 
 You currently define `struct` signals (ordered `fields:`) in the YAML directly. Each sub-field is
 itself a typed mini-signal over the same payload.

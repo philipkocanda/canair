@@ -154,8 +154,9 @@ recorded over a flaky link are the reason that historical captures became suspec
     transport had to realign a desynchronised ELM327 pipe. A resync is a recovery, not a lost
     payload. Several resyncs mark a marginal link.
 
-`canair captures uds --sessions` shows all three per session (flagging any drops). canair also
-writes every error to the central log. Inspect it with `canair logs`.
+`canair captures uds --sessions` prints the `transport` and the `version` of each session. It adds a
+quality line only when the session recorded drops or errors. `--json` carries all three fields in
+full. canair also writes every error to the central log. Inspect it with `canair logs`.
 
 ### Gaps: `link_events`
 

@@ -76,9 +76,10 @@ field is optional and has a default.
       sleep request. It is not a session allowance (see
       [Safety](safety.md#profile-actions-guarded-make-specific-requests)).
 
-    The retired `hk_f1xx_minus_one` does nothing. It let the Hyundai/Kia identity DIDs answer one
-    lower. Those answers were ECUs that repeated their previous reply. `canair validate` warns
-    about it.
+    The quirk `hk_f1xx_minus_one` is retired. canair still accepts it in `quirks:`, ignores it and
+    lets `canair validate` pass with a warning. Remove it. It once let canair accept an identity
+    reply that carried a DID one lower than the DID that it asked for. Those replies came from ECUs
+    that repeat their previous reply to a DID they lack.
 
 `isotp` (map)
 :   Client-side ISO-TP tuning for `slcan-tcp` (see below). `stmin` also sets the ELM327

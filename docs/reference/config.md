@@ -128,11 +128,12 @@ transport:
 - **`canair status` runs the same probe.** It reports the device that a live command would use.
   When the selected device is down but another one answers, it says *ready* and names the device
   it fell back to.
-- **canair applies `connect_timeout` once per candidate.** The value trades two risks. A high
-  value means canair never calls a reachable device dead. A low value means canair skips a dead
-  device quickly. The `5.0` default suits a mobile link. A cellular radio can need a second or two
-  to change from idle to connected, before the first connection packet (SYN) leaves. On a LAN,
-  lower the value.
+- **canair applies `connect_timeout` once per candidate.** The probe tries to open a Transmission
+  Control Protocol (TCP) connection to the device. The value trades two risks. A high value means
+  canair never calls a reachable device dead. A low value means canair skips a dead device
+  quickly. The `5.0` default suits a mobile link. A cellular radio can need one to two seconds to
+  change from idle to connected. That delay comes before the first packet of the connection (the
+  SYN packet) leaves. On a LAN, lower the value.
 
 ### Mid-session reconnect & `--wait`
 

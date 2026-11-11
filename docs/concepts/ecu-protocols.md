@@ -29,8 +29,9 @@ service differently. The service number is the service ID (SID).
     DID) a "PID".
 
     This follows the convention of WiCAN. Profiles compile to the WiCAN AutoPID format (see
-    [`canair wican`](../reference/cli/wican.md)). That format keys **every** group of signals under
-    `pid`, whatever the diagnostic service is.
+    [`canair wican`](../reference/cli/wican.md)). That format has one entry for each request. The
+    entry holds the request under a `pid` key, whatever the diagnostic service is. Its signals sit
+    under a `parameters` key.
 
 The prefix **is** the SID, which is the literal first byte of the request:
 

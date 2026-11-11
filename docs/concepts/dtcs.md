@@ -30,7 +30,8 @@ Like reads (see [ECU protocols & PID prefixes](ecu-protocols.md)), DTC access is
 | **KWP2000** (ISO 14230) | `0x18` — *readDTCByStatus* | `0x14` (2-byte group) | 3 bytes: 2-byte DTC + 1-byte status |
 
 You do not choose the service. canair reads `id_protocol` and sends the right one, as it does for
-a normal read. To override the auto-selection, force a protocol with `--protocol uds|kwp`.
+a normal read. To override the auto-selection, force a protocol with `--protocol uds|kwp`
+(the default is `--protocol auto`).
 
 ## Anatomy of a code
 
@@ -49,7 +50,7 @@ A UDS DTC prints as `Lxxxx-yy`, e.g. `B2915-11`:
   `P` Powertrain · `C` Chassis · `B` Body · `U` Network.
 - **Generic vs manufacturer-specific** — from the SAE J2012 second-character convention. For `P`
   codes, digits `0`/`2` are generic (ISO/SAE-defined) and `1`/`3` are manufacturer-specific. For
-  `C`/`B`/`U`, digit `0` is generic and `1`/`2` are manufacturer-specific.
+  `C`/`B`/`U`, digit `0` is generic, `1`/`2` are manufacturer-specific and `3` is reserved.
 - **Failure-type byte (FTB)** — the `-yy` suffix (UDS only, from ISO 14229-1 Annex D.3 / SAE
   J2012-DA). It refines *how* the circuit failed. For example, `-11` = short to ground, `-13` =
   open circuit, `-1C` = voltage out of range. canair knows the whole standard table. Only the
@@ -105,7 +106,8 @@ may select 2-byte hex DTCs rather than SAE J2012 ones. In that case, the printed
 letters are not meaningful.
 
 `canair dtc BMS --supported` sends a different request, `18 03 FF 00`. It lists every DTC that a
-KWP2000 ECU can report, whatever its status. That is a catalogue, not a fault list (a healthy ECU
+KWP2000 ECU can report, whatever its status. The flag works only on a KWP2000 ECU, and you cannot
+combine it with `--all` or `--clear`. The list is a catalogue, not a fault list (a healthy ECU
 returns a long one). So it is never a fallback. It runs only on request and prints raw hex codes
 with their raw status byte. canair never writes it to the DTC log.
 

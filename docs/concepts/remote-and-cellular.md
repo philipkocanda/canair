@@ -164,8 +164,8 @@ log afterwards.
 ### Why canair can't filter this on the device
 
 In principle, the dongle could send only the ECU response addresses that the profile uses. This
-would cut the idle cost to near zero. The WiCAN firmware (v2.3.24, the version we read) does not
-allow it:
+would cut the idle cost to near zero. The WiCAN ESP32 firmware does not allow it. The firmware
+read here is 4.52p (commit `fab54ad`):
 
 - **The SLCAN `M` (acceptance code) and `m` (acceptance mask) commands are accepted but have no
   effect.** They store a filter and a mask (`can_set_filter`/`can_set_mask` in
@@ -178,9 +178,10 @@ allow it:
 To avoid the bus-wide stream on a metered link, use `wican-ws`. There the dongle runs ISO-TP and
 sends only the replies to your requests.
 
-This could change if a firmware release re-enables the filter. Firmware v6 was not checked. If a
-release re-enables it, the earlier design notes are in
-`plans/2026-08-08-high-latency-link-hardening.md`, item 9. They say:
+This could change if a firmware release re-enables the filter. The v6 firmware does not do it
+either: its SLCAN codec ignores `M` and `m` with no reply (see
+`plans/2026-10-20-wican-fw-v6-compatibility.md`). If a release re-enables the filter, the earlier
+design notes are in `plans/2026-08-08-high-latency-link-hardening.md`, item 9. They say:
 
 - Set the filter while the channel is closed.
 - A mask bit of `1` means "don't care".

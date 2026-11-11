@@ -114,10 +114,12 @@ the IGPM is one 2-bit field).
 ### Field maps: one bit per parameter
 
 The service-21 pages (BMS, VCU, MCU, OBC) lead with constant bytes too. Each bit marks one *field*
-of the page, in order, whatever its width. That is how Hyundai's own diagnostics spec defines the
-bitmap. The per-bit and per-byte layouts above are its special cases, where every field is one bit
-or one byte. A record with more than 32 fields carries a further bitmap as field 32, 64, and so
-on.
+of the page, in order, whatever its width. A *field* is a span of bytes that the map marks. It is
+not a *signal*, because the map can mark a field that no signal reads yet.
+
+Hyundai's own diagnostics spec defines the bitmap this way. The per-bit and per-byte layouts above
+are its special cases, where every field is one bit or one byte. A record with more than 32 fields
+carries a further bitmap as field 32, 64, and so on.
 
 The map gives the number of fields, not their widths. `--support-map` therefore splits the bytes
 using the defined signals:
@@ -135,7 +137,8 @@ using the defined signals:
 What this gives you on a new car:
 
 - **open, marked**: a marked field that no signal reads yet. On the Ioniq, BMS `2101` (32 fields)
-  has exactly one, and VCU `2101` (11) has one.
+  has exactly one open field, and VCU `2101` (11 fields) has one open field. Run
+  `canair investigate ECU PID --support-map` to list them.
 - **unsupported / fill**: the bytes of an unmarked field are fill on this unit, not a signal that
   never moved. On the Kona, the fill of BMS `220101` is a fifth module temperature and the
   battery-fan fields, which a liquid-cooled pack lacks.
