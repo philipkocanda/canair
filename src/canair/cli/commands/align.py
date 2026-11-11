@@ -38,7 +38,7 @@ from canair.cli.args.scope import add_scope_args, resolve_scope_bounds
 from canair.cli.commands._analysis_warning import warn_analysis
 from canair.cli.profile_context import active
 from canair.ecus.pids import build_ecu_index, load_pids
-from canair.render import ansi, glyphs, messages
+from canair.render import ansi, messages
 
 NAME = "align"
 
@@ -290,7 +290,7 @@ def _emit_table(
         f"{ansi.DIM}(nearest-join ≤{tol}s; c1 is the reference){ansi.RESET}"
     )
     if keep_changes:
-        print(f"  {ansi.YELLOW}{glyphs.WARN} {CHANGES_BANNER}{ansi.RESET}")
+        messages.note(CHANGES_BANNER)
     for h, lbl in zip(handles, labels, strict=True):
         st = (fills or {}).get(lbl)
         note = ""

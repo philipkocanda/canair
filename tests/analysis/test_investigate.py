@@ -180,9 +180,9 @@ class TestInvestigateBitsEvents:
     def test_keep_changes_banner(self, tmp_path, monkeypatch, capsys):
         _write_events(tmp_path, keep_mode="changes")
         _run(tmp_path, monkeypatch, ["IGPM", "22BC03", "--bits", "--all"], [("IGPM", "22BC03")])
-        out = capsys.readouterr().out
-        assert "keep:changes" in out
-        assert "keep:unique" not in out
+        captured = capsys.readouterr()
+        assert "note: scope includes keep:changes" in captured.err
+        assert "keep:unique" not in captured.out + captured.err
 
     def test_events_edges_with_note(self, tmp_path, monkeypatch, capsys):
         _write_events(tmp_path)

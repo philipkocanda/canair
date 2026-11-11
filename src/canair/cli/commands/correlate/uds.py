@@ -95,7 +95,7 @@ def run(args) -> int:
                 f"gaps are dedup artifacts, not real sampling intervals."
             )
         if keep_changes:
-            caveats.append(f"{CHANGES_BANNER}.")
+            messages.note(CHANGES_BANNER)
             if transform_caveat:
                 caveats.append(
                     f"{what} on keep:changes data is unreliable — stored rows are "

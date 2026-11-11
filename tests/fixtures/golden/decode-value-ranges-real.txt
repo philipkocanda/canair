@@ -1,5 +1,5 @@
 
-BMS PID 2105 — 24 parameters (18 verified, 6 unverified), 1896 captures
+BMS PID 2105 — 24 signals (18 verified, 6 unverified), 1896 captures
 
   scope: earliest .. 2026-08-02
 

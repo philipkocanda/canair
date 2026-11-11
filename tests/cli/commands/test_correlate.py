@@ -106,7 +106,7 @@ class TestCrossMirrors:
         _write(tmp_path, keep_mode="changes")
         _run(tmp_path, monkeypatch, ["IGPM", "--min-n", "3"])
         captured = capsys.readouterr()
-        assert "warning: scope includes keep:changes" in captured.err
+        assert "note: scope includes keep:changes" in captured.err
         assert "keep:unique" not in captured.out + captured.err
 
 

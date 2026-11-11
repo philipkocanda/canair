@@ -258,7 +258,7 @@ def _print_header(args, ecu_key, pid_key, parameters, candidate_names, captures,
     )
     print(
         f"\n{ansi.BOLD}{ecu_key} PID {pid_key}{ansi.RESET} — "
-        f"{n_total} parameters ({n_verified} verified, {n_total - n_verified} unverified){try_note}, "
+        f"{n_total} signals ({n_verified} verified, {n_total - n_verified} unverified){try_note}, "
         f"{len(captures)} captures\n"
     )
     banner = scope_banner(since, until, args.state, args.label, args.first, args.last)
@@ -266,20 +266,17 @@ def _print_header(args, ecu_key, pid_key, parameters, candidate_names, captures,
         print(f"  {ansi.DIM}scope: {banner}{ansi.RESET}\n")
 
     if scope_is_keep_unique(captures) and args.corr_transform in ("delta", "cumsum"):
-        print(
-            f"  {ansi.YELLOW}⚠ --corr-transform {args.corr_transform} on keep:unique data is "
-            f"unreliable — the time gaps between stored rows are dedup artifacts, not "
-            f"real sampling intervals.{ansi.RESET}"
+        messages.warning(
+            f"--corr-transform {args.corr_transform} on keep:unique data is unreliable — the "
+            f"time gaps between stored rows are dedup artifacts, not real sampling intervals"
         )
-        print()
     if scope_is_keep_changes(captures):
-        print(f"  {ansi.YELLOW}⚠ {CHANGES_BANNER}.{ansi.RESET}")
+        messages.note(CHANGES_BANNER)
         if args.corr_transform in ("delta", "cumsum"):
-            print(
-                f"  {ansi.YELLOW}  ⚠ --corr-transform {args.corr_transform} on keep:changes data is "
-                f"unreliable — stored rows are value-transitions, not fixed-rate samples.{ansi.RESET}"
+            messages.warning(
+                f"--corr-transform {args.corr_transform} on keep:changes data is unreliable — "
+                f"stored rows are value-transitions, not fixed-rate samples"
             )
-        print()
 
 
 def _print_discriminate_section(

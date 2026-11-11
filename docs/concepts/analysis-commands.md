@@ -142,11 +142,12 @@ All of these commands share the scope flags (`--since`/`--until`/`--date`, `--st
     - The retired `keep:unique` was **global** dedup. Return-to-previous transitions and
       durations are therefore absent.
 
-    `align`/`decode`/`correlate`/`investigate` print a banner when `keep:changes` sessions are in
-    scope, because a **stored-row count then measures volatility, not sampling**. An ECU that
-    canair polls every cycle but that rarely changes looks "barely polled". `keep:unique` gets no
-    blanket banner (many historical captures use it). The commands flag it only where it changes
-    a reading: the `investigate --events` dwell classes, the `--transform`/`--lag-scan` time-gap
-    warnings and a forced `--fill hold`. Rate and `delta` analysis is unreliable on either mode.
+    `align`/`decode`/`correlate`/`investigate` print a `note:` on stderr when `keep:changes`
+    sessions are in scope, because a **stored-row count then measures volatility, not sampling**.
+    An ECU that canair polls every cycle but that rarely changes looks "barely polled".
+    `keep:unique` gets no blanket note (many historical captures use it). The commands flag it
+    only where it changes a reading: the `investigate --events` dwell classes, the
+    `--transform`/`--lag-scan` time-gap warnings and a forced `--fill hold`. Rate and `delta`
+    analysis is unreliable on either mode.
     Record with the default keep-all when you need the real sampling cadence.
 

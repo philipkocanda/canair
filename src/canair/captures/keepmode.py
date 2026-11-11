@@ -95,10 +95,11 @@ def persisted_keep_mode(mode: str | None) -> PersistedKeepMode | None:
 # Deliberately *not* phrased as "this data is degraded". A run-length row is a
 # value-transition, which is strictly more informative than a sample: the value is
 # known to hold until the next row, which is what lets the time-aligned joins carry
-# it forward (see :mod:`canair.analysis.fill` and ``--fill``). The banner exists to name what
-# genuinely is *not* recorded, so a reader doesn't mistake stored-row counts for a
-# sampling rate — the misreading that once produced a wrong "barely polled"
-# conclusion about an ECU that was polled every cycle and simply rarely changed.
+# it forward (see :mod:`canair.analysis.fill` and ``--fill``). The note exists so a reader
+# doesn't mistake stored-row counts for a sampling rate — the misreading that once produced a
+# wrong "barely polled" conclusion about an ECU that was polled every cycle and simply rarely
+# changed. It goes to stderr as a ``note:`` and stays one short line, because nearly every
+# report over recent captures prints it.
 #
 # There is deliberately no blanket ``keep:unique`` counterpart: most historical
 # captures were recorded that way, so a scope banner fired on nearly every report
@@ -107,10 +108,8 @@ def persisted_keep_mode(mode: str | None) -> PersistedKeepMode | None:
 # ``--transform``/``--lag-scan`` time-gap warnings in ``decode``/``correlate``, and
 # a forced ``--fill hold``.
 CHANGES_BANNER = (
-    "scope includes keep:changes sessions — stored rows are value-transitions "
-    "(run-length), so each value holds until the next row and time joins carry it "
-    "forward (--fill); a stored-row count measures volatility, not sampling. Not "
-    "recorded: the intra-run polling cadence, and the final run's end"
+    "scope includes keep:changes sessions: each stored row is a value change, so a row "
+    "count measures volatility, not the polling rate (joins carry values forward: --fill)"
 )
 
 

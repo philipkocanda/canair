@@ -81,8 +81,10 @@ def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limi
 
     # Show the ECU column only when the results span more than one ECU.
     show_ecu = len({e["ecu"] for e in shown}) > 1
+    capped: set[tuple[str, str]] = set()
     for e in shown:
-        _print_entry(e, show_ecu=show_ecu)
+        if _print_entry(e, show_ecu=show_ecu):
+            capped.add((str(e["ecu"]), str(e["pid"])))
     print()
     if truncated:
         # Loud, always-printed (not TTY-gated) so an agent sees hidden history.
@@ -92,6 +94,7 @@ def cmd_list(entries: Sequence[CaptureEntry], query, as_json: bool = False, limi
             f"Use {ansi.BOLD}--limit 0{ansi.RESET} for all, or narrow with "
             f"--since/--last-session/--state.\n"
         )
+    _hint_full_decode(capped)
     if sys.stdout.isatty():
         messages.hint("add --step to step through these captures one at a time")
 
@@ -132,6 +135,7 @@ def cmd_latest(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
 
     print(f"\n  {ansi.BOLD}Latest payloads{ansi.RESET} — {len(latest)} PIDs\n")
 
+    capped: set[tuple[str, str]] = set()
     for (ecu, pid), e in ordered:
         payload = e["payload"] or ""
         date = e["date"]
@@ -141,9 +145,10 @@ def cmd_latest(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
         print(f"  {ansi.CYAN}{ecu:<10}{ansi.RESET} {pid!s:<10} {ansi.DIM}{date}{state}{ansi.RESET}")
         print(f"    {trunc}")
         decoded = decoded_preview(e, profile=active())
-        if decoded:
-            _print_decoded_preview(decoded, limit=5, ecu=str(ecu), pid=str(pid))
+        if decoded and _print_decoded_preview(decoded, limit=5):
+            capped.add((str(ecu), str(pid)))
     print()
+    _hint_full_decode(capped)
 
 
 # ---------------------------------------------------------------------------
@@ -151,32 +156,37 @@ def cmd_latest(entries: Sequence[CaptureEntry], as_json: bool = False) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _print_decoded_preview(
-    decoded: dict, *, limit: int, ecu: str = "", pid: str = "", indent: str = "    "
-) -> None:
-    """Print decoded signals capped at ``limit``, with a visible hint for any hidden.
+def _print_decoded_preview(decoded: dict, *, limit: int, indent: str = "    ") -> int:
+    """Print decoded signals capped at ``limit``; return how many it hid.
 
-    The capture views show only a preview of a PID's decoded parameters to stay
-    compact; without a marker a busy PID silently drops signals (e.g. a mode/enum
-    defined late in the file). Emit a "+N more" line so the cap is never silent,
-    pointing at ``canair decode`` (which renders every param, enum labels and all).
+    The capture views show only a preview of a PID's decoded signals to stay compact.
+    Without a marker a busy PID silently drops signals (e.g. a mode/enum defined late in
+    the file), so each capped entry ends in a short "+N more" line. The pointer to
+    ``canair decode`` (which renders every signal) is printed once per view by
+    :func:`_hint_full_decode`, not after every entry.
     """
     items = list(decoded.items())
     for k, v in items[:limit]:
         print(f"{indent}{ansi.DIM}{k}: {v}{ansi.RESET}")
     hidden = len(items) - limit
     if hidden > 0:
-        where = (
-            f"canair decode {ecu} {pid}".strip() if (ecu and pid) else "canair decode <ECU> <PID>"
-        )
-        print(
-            f"{indent}{ansi.DIM}… +{hidden} more signal(s) not shown — "
-            f"`{where}` for all{ansi.RESET}"
-        )
+        print(f"{indent}{ansi.DIM}… +{hidden} more signal(s){ansi.RESET}")
+    return max(hidden, 0)
 
 
-def _print_entry(e: dict, show_ecu: bool = False) -> None:
-    """Print a single capture entry."""
+def _hint_full_decode(capped: set[tuple[str, str]]) -> None:
+    """Point at ``canair decode`` once when a preview hid signals of the PIDs in ``capped``."""
+    if not capped:
+        return
+    if len(capped) == 1:
+        ecu, pid = next(iter(capped))
+        messages.hint(f"`canair decode {ecu} {pid}` shows every signal")
+    else:
+        messages.hint("`canair decode ECU PID` shows every signal of a PID")
+
+
+def _print_entry(e: dict, show_ecu: bool = False) -> int:
+    """Print a single capture entry; return how many decoded signals its preview hid."""
     ecu_prefix = f"{ansi.CYAN}{e['ecu']:<10}{ansi.RESET} " if show_ecu else ""
     date = e["date"]
     time_str = e.get("time", "")
@@ -185,8 +195,7 @@ def _print_entry(e: dict, show_ecu: bool = False) -> None:
     state = f"  ({_st})" if _st else ""
     label = f"  [{e['label']}]" if e.get("label") else ""
 
-    print(f"  {ecu_prefix}{ansi.DIM}{ts}{state}{label}{ansi.RESET}")
-    print(f"    PID: {e['pid']}")
+    print(f"  {ecu_prefix}{e['pid']}  {ansi.DIM}{ts}{state}{label}{ansi.RESET}")
 
     if e["payload"]:
         print(f"    Payload: {truncate_text(e['payload'], _text_width('    Payload: '))}")
@@ -202,11 +211,9 @@ def _print_entry(e: dict, show_ecu: bool = False) -> None:
         print()
 
     decoded = decoded_preview(e, profile=active())
-    if decoded:
-        _print_decoded_preview(
-            decoded, limit=3, ecu=str(e.get("ecu", "")), pid=str(e.get("pid", ""))
-        )
+    hidden = _print_decoded_preview(decoded, limit=3) if decoded else 0
 
     if e.get("notes"):
         notes_str = truncate_text(str(e["notes"]).strip(), _text_width("    Notes: "))
         print(f"    {ansi.DIM}Notes: {notes_str}{ansi.RESET}")
+    return hidden

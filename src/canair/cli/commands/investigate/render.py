@@ -44,7 +44,7 @@ def print_keep_banner(captures) -> None:
     reading (the dwell classes, and the ``--transform`` time-gap warnings).
     """
     if scope_is_keep_changes(captures):
-        print(f"    {ansi.YELLOW}⚠ {CHANGES_BANNER}.{ansi.RESET}")
+        messages.note(CHANGES_BANNER)
 
 
 def print_report(

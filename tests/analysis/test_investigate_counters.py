@@ -302,8 +302,7 @@ class TestCountersCli:
         _write_odometer(tmp_path, days=_DAYS, keep_mode="changes")
         rc = _run(tmp_path, monkeypatch, ["CLU", "22B002", "--counters", "--min-bits", "4"])
         assert rc == 0
-        out = capsys.readouterr().out
-        assert "keep:changes" in out
+        assert "note: scope includes keep:changes" in capsys.readouterr().err
 
     def test_too_few_captures_errors(self, tmp_path, monkeypatch, capsys):
         _write_odometer(tmp_path, days=_DAYS[:1])
