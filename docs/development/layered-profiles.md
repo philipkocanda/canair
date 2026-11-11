@@ -10,7 +10,7 @@ user-facing view is [Profiles](../concepts/profiles.md) and its
 
 Because more than one profile ships, canair selects none for you. The precedence is:
 
-1. `--profile NAME|PATH` (a global flag, before the subcommand)
+1. `--profile NAME|PATH` (a global flag, before or after the subcommand)
 2. `CANAIR_PROFILE`
 3. `default_profile` in the user config
 4. a single discovered profile

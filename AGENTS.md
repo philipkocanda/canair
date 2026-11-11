@@ -359,7 +359,7 @@ once, in `profile/bundle.py`. The repo bundles several under `profiles/`
 `load_pids(profile)` returns the definitions for exactly that car, and anything that must see every
 car reads `load_raw_pids(profile)`.
 
-**None is auto-selected**: `--profile NAME|PATH` (a global flag, before the subcommand) >
+**None is auto-selected**: `--profile NAME|PATH` (a global flag, before or after the subcommand) >
 `CANAIR_PROFILE` > `default_profile` in config > a single discovered profile. Names follow
 `make-model-code-drivetrain`, never a year (`profile/names.py`; see **profile-variants**).
 `canair profile list/show/path/use/create/adopt/overlay` manage them. Discovery, layering and

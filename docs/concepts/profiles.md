@@ -142,7 +142,7 @@ not resolve. `canair validate` checks that the list is text with no repeats.
 
 canair selects a profile with this precedence. The first match wins:
 
-1. `--profile NAME|PATH` (global flag, before the subcommand)
+1. `--profile NAME|PATH` (global flag, before or after the subcommand)
 2. `CANAIR_PROFILE` environment variable
 3. `default_profile` in your config (set it with `canair profile use NAME`)
 4. the single discovered profile, if only one exists

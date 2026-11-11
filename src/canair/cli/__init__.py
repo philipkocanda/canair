@@ -4,7 +4,9 @@
 
 A single entry point dispatching to subcommands (query, scan, decode,
 captures, coverage, research, pids, validate, wican, bix, ...). Run
-``canair <command> --help`` for command-specific help.
+``canair <command> --help`` for command-specific help. The global options
+(--profile, --profiles-dir, --variant, --revision) may come before or after
+the command.
 
 Belongs: the interface: the argument parser, the subcommand modules under ``cli/commands/`` (flags,
 output and glue only) and the live runtime that connects a device and runs a command's operation.
@@ -27,6 +29,7 @@ from canair.cli.args.categories import CategorizedHelpFormatter
 from canair.cli.args.domain import apply_domain_tags
 from canair.cli.commands import iter_command_modules
 from canair.cli.first_run import run_first_run_setup, should_offer
+from canair.cli.global_options import hoist_global_options, skip_leading_globals
 from canair.cli.lock_notice import warn_if_connection_held
 from canair.cli.profile_context import set_active
 from canair.config.file import ALLOW_UNSAFE_KEY, ensure_config_dir, unsafe_allowed
@@ -40,9 +43,6 @@ from canair.profile.model import ProfileError
 from canair.render import ansi, glyphs, messages
 from canair.safety.blocklist import SafetyBlocked
 
-# Global options (before the subcommand) that consume a following value. Used by
-# _inject_default_subcommand to find the command token.
-_GLOBAL_OPTS_WITH_VALUE = {"--profile", "--profiles-dir", "--variant", "--revision"}
 # Command groups that default to a kind when the token after them isn't a known
 # sub-kind. Maps command -> (known kinds, default kind).
 #
@@ -127,7 +127,16 @@ def _relocation_hint(message: str) -> str | None:
 
 
 class _CanairParser(argparse.ArgumentParser):
-    """Top-level parser that points a relocated command to its real home."""
+    """canair's parser class: every subcommand parser is one too (argparse reuses the class).
+
+    It turns off abbreviated long options, so ``--lab`` is not silently read as ``--label``
+    and a flag added later cannot change what an existing command line means. The top-level
+    parser also points a relocated command to its real home.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs.setdefault("allow_abbrev", False)
+        super().__init__(*args, **kwargs)
 
     def error(self, message: str) -> NoReturn:
         hint = _relocation_hint(message)
@@ -174,18 +183,8 @@ def _rewrite_help_tokens(argv: list[str]) -> list[str]:
     if not argv or any(tok in ("-h", "--help") for tok in argv):
         return argv
 
-    # Skip leading global options to find the first meaningful token.
-    i = 0
+    i = skip_leading_globals(argv)
     n = len(argv)
-    while i < n:
-        tok = argv[i]
-        if tok in _GLOBAL_OPTS_WITH_VALUE:
-            i += 2
-            continue
-        if tok.startswith("--") and "=" in tok:  # --profile=NAME
-            i += 1
-            continue
-        break
 
     # Leading `help [rest...]` -> `[rest...] -h` (rest may be empty = top-level).
     if i < n and argv[i] == "help":
@@ -209,18 +208,8 @@ def _inject_default_subcommand(argv: list[str]) -> list[str]:
     This keeps the pre-group muscle memory (`canair scan/ecu <ECU>`) working now
     that those are command groups.
     """
-    i = 0
+    i = skip_leading_globals(argv)
     n = len(argv)
-    # Skip leading global options to find the command token.
-    while i < n:
-        tok = argv[i]
-        if tok in _GLOBAL_OPTS_WITH_VALUE:
-            i += 2
-            continue
-        if tok.startswith("--") and "=" in tok:  # --profile=NAME
-            i += 1
-            continue
-        break
     if i >= n:
         return argv
     group = _GROUP_DEFAULTS.get(_GROUP_ALIASES.get(argv[i], argv[i]))
@@ -381,6 +370,7 @@ def _run(argv: list[str] | None) -> int:
         argv = sys.argv[1:]
     argv = _rewrite_help_tokens(argv)
     argv = _inject_default_subcommand(argv)
+    argv = hoist_global_options(parser, argv)
 
     try:
         import argcomplete
