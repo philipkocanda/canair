@@ -36,23 +36,6 @@
     },
     {
       "date": "2026-11-12",
-      "label": "Unknown-7C0 first probe 1001",
-      "version": "5.4.0+main.f8d8830.dirty",
-      "vehicle_states": [
-        "READY"
-      ],
-      "notes": "Identify Unknown-7C0 (charge LED hypothesis)",
-      "transport": "slcan-tcp",
-      "variant": "28kwh",
-      "attribution": {
-        "variant": "selected"
-      },
-      "captures": [
-        {"rx":"0x7C8","pid":"1001","response":"No response from ECU (NO DATA)"}
-      ]
-    },
-    {
-      "date": "2026-11-12",
       "label": "discover 7B0-7D8 around 7C0",
       "version": "5.4.0+main.f8d8830.dirty",
       "vehicle_states": [

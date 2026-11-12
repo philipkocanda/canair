@@ -835,7 +835,6 @@
         {"rx":"0x79E","pid":"2324","response":"No response from ECU (NO DATA)"},
         {"rx":"0x7DA","pid":"2324","response":"No response from ECU (NO DATA)"},
         {"rx":"0x78B","pid":"2324","response":"NRC 0x11 (serviceNotSupported)"},
-        {"rx":"0x7C8","pid":"2324","response":"No response from ECU (NO DATA)"},
         {"rx":"0x7EA","pid":"23","response":"NRC 0x79 (incorrectByteCountDuringBlockTransfer)"},
         {"rx":"0x7EB","pid":"23","response":"NRC 0x79 (incorrectByteCountDuringBlockTransfer)"},
         {"rx":"0x7EC","pid":"23","response":"NRC 0x11 (serviceNotSupported)"},

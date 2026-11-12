@@ -21,9 +21,10 @@ PROFILES = sorted(
 )
 
 
-# Identity fields that identify one physical car or part. Free-text notes can mention a public
-# software id; these must never appear anywhere in the export.
-PII_IDENTITY_FIELDS = ("vin", "serial", "part_number", "diag_address", "mfg_date")
+# Identity fields that identify one physical car or unit. Free-text notes can mention a public
+# software id or a part number (it names a model of part, which many cars share); these must never
+# appear anywhere in the export.
+PII_IDENTITY_FIELDS = ("vin", "serial", "diag_address", "mfg_date")
 
 
 def _ids(paths):

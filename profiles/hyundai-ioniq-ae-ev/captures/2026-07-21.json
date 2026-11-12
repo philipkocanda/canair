@@ -788,22 +788,6 @@
       "captures": [
         {"rx":"0x7CE","pid":"scan 22 B001-B010","scan_results":{"responding":[{"did":"B001","response":"8 bytes","notes":"Raw: 62B0010000000000"},{"did":"B002","response":"15 bytes","notes":"Raw: 62B002E000000000AD011D16000000"},{"did":"B003","response":"8 bytes","notes":"Raw: 62B0038800000001"}],"rejected":"13 DIDs returned 13 errors"}}
       ]
-    },
-    {
-      "date": "2026-07-21",
-      "label": "Head-unit 0x7C0 22 B001-B005 probe (READY)",
-      "vehicle_states": [
-        "ready",
-        "parked"
-      ],
-      "notes": "Retry with power on; was NO DATA in deep sleep",
-      "variant": "28kwh",
-      "attribution": {
-        "variant": "migrated"
-      },
-      "captures": [
-        {"rx":"0x7C8","pid":"scan 22 B001-B005","scan_results":{"rejected":"5 DIDs returned 5 errors"}}
-      ]
     }
   ]
 }

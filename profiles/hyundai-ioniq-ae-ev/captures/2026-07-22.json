@@ -4357,21 +4357,6 @@
     },
     {
       "date": "2026-07-22",
-      "label": "Unknown-7C0 live-data probe",
-      "vehicle_states": [
-        "ready"
-      ],
-      "notes": "Dormant module (session-only, no identity). Probe 22 01xx for any data. [migrated state: ready, ignition on]",
-      "variant": "28kwh",
-      "attribution": {
-        "variant": "migrated"
-      },
-      "captures": [
-        {"rx":"0x7C8","pid":"scan 22 0100-010F","scan_results":{"rejected":"16 DIDs returned 16 errors"}}
-      ]
-    },
-    {
-      "date": "2026-07-22",
       "label": "BMS 21F2 new page (discovered via 21 sweep)",
       "vehicle_states": [
         "ready"
