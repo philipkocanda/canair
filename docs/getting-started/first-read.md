@@ -71,6 +71,22 @@ The monitor colors the payload bytes by what reads them:
 
 Press **`?`** for the keys and a color legend.
 
+### Find your way around the monitor
+
+- **The menu bar** at the top has every command. Press **`f10`**, press `alt` and the underlined
+  letter, or click a title. Each item shows its key, so the menus also teach the keys. On a small
+  screen, such as a phone, the titles get shorter but none disappears.
+- **The command palette** finds a command by name. Press **`ctrl+p`** and type part of it, for
+  example `ruler` or `pause`.
+- **The status line** has four zones: the link (device, transport, faults), polling (`LIVE` or
+  `PAUSED`, the cycle, the rate), the recording (`● REC`, its duration, the frames), and the car
+  (the vehicle state, the open diagnostic sessions). Only a problem is highlighted, for example
+  `✗ 3 drops` or `PAUSED`. Click a zone to open its detail: the event log, the Poll menu, the
+  recording info or the diagnostic session picker.
+- **The bottom line** shows the last message. An error stays until you press a key. Every message
+  is also kept in the event log (**`E`**). With no message, the bottom line shows the selected
+  signal and the keys of the pane that has focus.
+
 ### How often each PID refreshes
 
 By default, each PID refreshes at its own rate. The rate is twice as often as the `period:` that
@@ -116,10 +132,10 @@ A group ticks its member ECUs and pre-selects the PIDs that it names. An ECU tha
 own starts from its default sweep. `escape` clears the filter. A second press steps back. canair
 prints the equivalent command before the monitor starts, so you can reuse it.
 
-To change the selection while the monitor runs, press **`p`**. The header and the status bar both
-show this key. The same picker opens on the PIDs that canair polls now. Add or remove ECUs and
-PIDs, then press `enter` twice to apply the change without a restart. `escape` or `q` keeps the
-selection as it was.
+To change the selection while the monitor runs, press **`p`**, or choose **Poll › Select ECUs and
+PIDs…**. The bottom line shows this key while no signal is selected. The same picker opens on the
+PIDs that canair polls now. Add or remove ECUs and PIDs, then press `enter` twice to apply the
+change without a restart. `escape` or `q` keeps the selection as it was.
 
 ## On a different car
 

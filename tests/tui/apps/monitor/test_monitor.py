@@ -17,6 +17,20 @@ def _plain(renderable) -> str:
     return renderable.plain if hasattr(renderable, "plain") else str(renderable)
 
 
+def _status(app) -> str:
+    return _plain(app.query_one("#status").render())
+
+
+def _context(app) -> str:
+    """The bottom line: the message, or the context, and the routes to every command."""
+    return _plain(app.query_one("#context").render())
+
+
+def _title(app) -> str:
+    """The menu bar's document title: the recording's label, states and notes."""
+    return _plain(app.query_one("#menu-doc").render())
+
+
 class TestMonitorApp:
     @pytest.mark.asyncio
     async def test_renders_and_polls(self):
@@ -25,10 +39,11 @@ class TestMonitorApp:
         async with app.run_test(size=(80, 20)) as pilot:
             await pilot.pause(0.25)
             body = _plain(app.query_one("#body").render())
-            status = _plain(app.query_one("#status").render())
-            assert "Monitor cycle" in body
             assert "BMS 2100" in body
-            assert "cycle" in status and "quit" in status
+            # The body is fitted to its pane, and the status line carries the cycle.
+            assert isinstance(ctrl.render_width, int) and ctrl.render_width < 80
+            assert f"#{ctrl.cycle}" in _status(app) and "LIVE" in _status(app)
+            assert "? help" in _context(app)
             assert ctrl.cycle >= 1
             await pilot.press("q")
 
@@ -75,12 +90,11 @@ class TestMonitorApp:
             await pilot.press("r")  # enable rulers
             await pilot.pause(0.1)
             assert ctrl.show_rulers is True
+            assert "ruler" in _context(app)  # a mode that is not the default shows
             await pilot.press("r")  # disable again
             await pilot.pause(0.1)
             assert ctrl.show_rulers is False
-            # The status line advertises the shortcut.
-            status = _plain(app.query_one("#status").render())
-            assert "r byte ruler" in status
+            assert "ruler" not in _context(app)
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -107,18 +121,20 @@ class TestMonitorApp:
         assert "f" not in {b.key for b in MonitorApp.BINDINGS}
 
     @pytest.mark.asyncio
-    async def test_status_bar_survives_a_phone_width(self):
-        """A 45-column terminal must still show the way out and to the help."""
+    async def test_the_bars_survive_a_phone_width(self):
+        """A 45-column terminal (a phone in portrait) keeps every menu, the help and REC."""
         ctrl = FakeController(journal=object())
         app = MonitorApp(ctrl)
-        async with app.run_test(size=(45, 16)) as pilot:
+        async with app.run_test(size=(45, 22)) as pilot:
             await pilot.pause(0.2)
-            status = _plain(app.query_one("#status").render())
-            assert "? help" in status and "q quit" in status
+            status = _status(app)
             assert "REC" in status  # an active recording is never shed
-            # Two composed lines, neither wrapped out of the docked region.
+            # The zones take two lines, neither wrapped out of the docked region.
             assert len(status.splitlines()) == 2
             assert all(len(ln) <= 45 for ln in status.splitlines())
+            assert "? help" in _context(app)
+            titles = [_plain(t.render()) for t in app.query("MenuTitle")]
+            assert titles == ["Record", "Poll", "View", "Signal", "Help"]
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -152,9 +168,7 @@ class TestMonitorApp:
             await pilot.pause(0.1)
             assert ctrl.recorder.saved is not None
             assert ctrl.recorder.saved[0] == "BMS:2101"
-            status = app.query_one("#status").render()
-            plain = status.plain if hasattr(status, "plain") else str(status)
-            assert "Saved" in plain
+            assert "Saved" in _context(app)
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -283,9 +297,9 @@ class TestMonitorApp:
             await pilot.pause(0.1)
             assert isinstance(app.screen, SaveDialog)
             title = _plain(app.screen.query_one("#save-title", Label).render())
-            assert "Edit current session" in title
+            assert "Edit current recording" in title
             caption = _plain(app.screen.query_one("#save-caption", Static).render())
-            assert "does not start a new session" in caption
+            assert "does not start a new recording" in caption
             assert app.screen.query_one("#save-label", Input).value == "door open"
             assert app.screen.query_one("#save-notes", Input).value == "front left, twice"
             btn = app.screen.query_one("#save", Button)
@@ -321,8 +335,7 @@ class TestMonitorApp:
         app = MonitorApp(ctrl)
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(0.1)
-            plain = _plain(app.query_one("#status").render())
-            assert "REC" in plain
+            assert "REC" in _status(app)
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -331,8 +344,7 @@ class TestMonitorApp:
         app = MonitorApp(ctrl)
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(0.1)
-            plain = _plain(app.query_one("#status").render())
-            assert "REC" not in plain
+            assert "REC" not in _status(app)
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -357,12 +369,14 @@ class TestMonitorApp:
             await pilot.press("q")
 
     @pytest.mark.asyncio
-    async def test_status_line_advertises_help(self):
+    async def test_the_bottom_line_advertises_every_route(self):
         ctrl = FakeController()
         app = MonitorApp(ctrl)
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(0.1)
-            assert "? help" in _plain(app.query_one("#status").render())
+            context = _context(app)
+            assert "f10 menu" in context and "ctrl+p commands" in context
+            assert "? help" in context
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -371,8 +385,8 @@ class TestMonitorApp:
         app = MonitorApp(ctrl)
         async with app.run_test(size=(120, 30)) as pilot:
             await pilot.pause(0.2)
-            status = _plain(app.query_one("#status").render())
-            assert "captured" in status and "uniq" in status
+            status = _status(app)
+            assert "frames" in status and "unique" in status
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -384,10 +398,10 @@ class TestMonitorApp:
         app = MonitorApp(ctrl)
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(0.2)
-            header = _plain(app.query_one("#header").render())
-            assert "test drive" in header
-            assert "ready, parked" in header
-            assert "heater on high" in header
+            title = _title(app)
+            assert "test drive" in title
+            assert "ready, parked" in title
+            assert "heater on high" in title
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -397,8 +411,7 @@ class TestMonitorApp:
         app = MonitorApp(ctrl)
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(0.2)
-            header = _plain(app.query_one("#header").render())
-            assert "BCM VCU:2101" in header
+            assert "BCM VCU:2101" in _title(app)
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -439,8 +452,7 @@ class TestMonitorApp:
             await pilot.press("V")  # full -> ecus (wraps)
             await pilot.pause(0.05)
             assert ctrl.view_mode == "ecus"
-            status = _plain(app.query_one("#status").render())
-            assert "ecus" in status
+            assert "View: ecus" in _context(app)
             await pilot.press("V")  # ecus -> ranges
             await pilot.pause(0.05)
             assert ctrl.view_mode == "ranges"
@@ -463,7 +475,8 @@ class TestMonitorApp:
             text = "\n".join(_plain(s.render()) for s in app.screen.query(Static))
             assert "test drive" in text
             assert "retain mode" in text
-            assert "Finished segments" in text
+            assert "Finished recordings" in text
+            assert "captures uds --sessions" in text
             # Where the write-ahead journal is streaming to (what --recover reads).
             assert "journal (WAL)" in text
             assert "20260806T101010-42.jsonl" in text
@@ -594,7 +607,7 @@ class TestMonitorEditing:
             await pilot.press("down")
             await pilot.pause(0.05)
             assert ed.selected == ("BMS (0x7E4)", "2101", "TEMP")
-            status = _plain(app.query_one("#status").render())
+            status = _context(app)
             assert "BMS 2101 TEMP" in status
             await pilot.press("q")
 
@@ -607,7 +620,7 @@ class TestMonitorEditing:
             await pilot.press("F")
             await pilot.pause(0.05)
             assert ed.filter_mode == "verified"
-            status = _plain(app.query_one("#status").render())
+            status = _context(app)
             assert "verified" in status
             await pilot.press("q")
 
@@ -635,7 +648,7 @@ class TestMonitorEditing:
             await pilot.press("v")  # nothing selected
             await pilot.pause(0.05)
             assert ed.verified_toggles == 0
-            status = _plain(app.query_one("#status").render())
+            status = _context(app)
             assert "Select a signal" in status
             await pilot.press("q")
 
@@ -669,7 +682,7 @@ class TestMonitorEditing:
             assert ed.applied is not None
             assert ed.applied["expression"] == "B4/4"
             assert app.paused is False  # restored
-            status = _plain(app.query_one("#status").render())
+            status = _context(app)
             assert "Saved" in status
             await pilot.press("q")
 
@@ -746,7 +759,7 @@ class TestMonitorEditing:
             await pilot.press("escape")
             await pilot.pause(0.05)
             assert ed.selected is None
-            status = _plain(app.query_one("#status").render())
+            status = _context(app)
             assert "Selection cleared" in status
             await pilot.press("q")
 

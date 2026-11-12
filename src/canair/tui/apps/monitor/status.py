@@ -1,45 +1,49 @@
-"""Status bar and header content for the monitor screen: what each line says.
+"""What the monitor's bars say: the status zones, the menu bar's title and the bottom line.
 
-Each function takes the controller (and the app flags that are not its state) and returns
-:class:`~canair.tui.status.StatusItem` rows or the header markup. They read the controller
-and never touch the widget tree, so a test passes a stub.
+Each function reads the controller (and the app flags that are not its state) and returns
+:class:`~canair.tui.status.StatusItem` facts or :class:`~canair.tui.shell.statusline.Zone`
+groups of them; the shell lays them out for the terminal's width. They never touch the widget
+tree, so a test passes a stub.
+
+The status line has four zones, always in this order:
+
+* **link** — the link's verdict (``✓ link``, ``⚠ 2 resync``, ``✗ 3 drops``, ``RECONNECTING``),
+  the device host, the transport and a round trip worth knowing about;
+* **poll** — ``LIVE`` or ``PAUSED``, the cycle, the schedule, the PIDs polled less often;
+* **recording** — ``● REC`` and how long it has run, the frames captured;
+* **car** (pinned right) — an output left on, the vehicle state, the diagnostic sessions.
+
+Only an exception is a badge (a reversed block); the normal state is plain text.
 """
 
 from __future__ import annotations
 
 import time
+from datetime import datetime
 
 from rich.markup import escape
 
 from canair.live.monitor.backoff import summarize_slowed
-from canair.render.glyphs import CURSOR, ELLIPSIS, WARN
+from canair.render.glyphs import CURSOR, FAIL, OK, WARN
 from canair.tui import styles
-from canair.tui.keys import ARROWS, PAGE_HINT, arrows_hint, key_hint
-from canair.tui.status import (
-    P_ESSENTIAL,
-    P_HIGH,
-    P_LOW,
-    P_NORMAL,
-    StatusItem,
-    hint_item,
-)
+from canair.tui.keys import ARROWS, arrows_hint, key_hint
+from canair.tui.shell.statusline import Zone, badge
+from canair.tui.status import P_ESSENTIAL, P_HIGH, P_LOW, P_NORMAL, StatusItem, hint_item
+from canair.uds.services import DIAGNOSTIC_SESSION_CONTROL
+from canair.uds.subfunctions import parse_session_type, subfunction_name
 
-#: The hint for the ECU/PID picker key, shown in the header and the status bar.
-PICK_HINT = key_hint("pick", "select ECUs/PIDs")
 SELECT_FIRST = f"Select a signal first with {ARROWS}"
 
-
-# Round trip above which the health line reports it. Below this the link is not
-# what is limiting a poll cycle and the number is only noise; above it, latency is
-# the explanation for a slow or drop-prone session and the driver should see it.
+# Round trip above which the link zone reports it. Below this the link is not what is limiting a
+# poll cycle and the number is only noise; above it, latency is the explanation for a slow or
+# drop-prone session and the driver should see it.
 RTT_NOTABLE_S = 0.05
 
 
+# -- link ---------------------------------------------------------------------------------
 def link_items(controller) -> list[StatusItem]:
-    """Measured link round trip, once there is enough evidence to show one.
+    """Measured link round trip, once there is enough evidence and it is slow enough to matter.
 
-    Only shown when the link is slow enough to matter: on a LAN the number is
-    noise, and every always-on segment costs a column a real signal could use.
     Tolerates a controller with no estimator (the raw client has none yet).
     """
     link_fn = getattr(controller, "link", None)
@@ -47,81 +51,18 @@ def link_items(controller) -> list[StatusItem]:
     rtt = getattr(link, "rtt", None) if link is not None else None
     if rtt is None or rtt < RTT_NOTABLE_S:
         return []
-    return [StatusItem(f"[dim]rtt[/] [{styles.WARNING}]{rtt * 1000:.0f}ms[/]", P_NORMAL)]
-
-
-def metric_items(c, *, paused: bool, flash: StatusItem | None) -> list[StatusItem]:
-    """First status line: what the run is doing right now, most vital first."""
-    items: list[StatusItem] = []
-
-    # Reconnecting banner (auto-failover / --wait): while a reconnect attempt
-    # is in flight, lead the status line with its live note.
-    if getattr(c, "reconnecting", False):
-        note = getattr(c, "reconnect_note", "") or f"reconnecting{ELLIPSIS}"
-        items.append(StatusItem(f"[b {styles.WARNING}]⟳ {note}[/]", P_ESSENTIAL))
-    # Blinking ● REC while a --save journal is active. The dot pulses ~1s
-    # on / 1s off, derived from wall-clock time so the rate is independent of
-    # the status tick (0.25s); the label stays put so it doesn't jump layout.
-    # Bold, not red: red means an error.
-    if c.recorder.journal is not None:
-        dot_style = styles.RECORDING if int(time.monotonic()) % 2 == 0 else styles.MUTED
-        items.append(StatusItem(f"[{dot_style}]●[/] [{styles.RECORDING}]REC[/]", P_ESSENTIAL))
-    # An output this run switched on is the car's state, not the monitor's: always shown.
-    actuation = getattr(c, "actuation", None)
-    on = actuation.on_count() if actuation is not None else 0
-    if on:
-        items.append(StatusItem(f"[{styles.WARNING}]{WARN} {on} ON[/]", P_ESSENTIAL))
-    if paused:
-        items.append(StatusItem("[reverse] PAUSED [/]", P_ESSENTIAL))
-    items.append(StatusItem(f"[dim]cycle[/] {c.cycle}", P_NORMAL))
-    items.append(StatusItem(f"{c.schedule.describe()}", P_NORMAL))
-    backoff = getattr(c, "backoff", None)
-    slowed = backoff.slowed() if backoff is not None else {}
-    if slowed:
-        items.append(
-            StatusItem(f"[dim]slow[/] [{styles.WARNING}]{summarize_slowed(slowed)}[/]", P_HIGH)
-        )
-    items.append(StatusItem(f"{c.elapsed:.1f}[dim]s[/]", P_LOW))
-    # ELM path reports commands + time spent in the ELM327; the raw path
-    # reports UDS requests (no ELM involved).
-    if getattr(c, "raw", False):
-        items.append(StatusItem(f"{c.last_cmds}[dim] req[/]", P_LOW))
-    else:
-        items.append(
-            StatusItem(f"{c.last_cmds}[dim] cmds ·[/] {c.last_elm_time:.1f}[dim]s ELM[/]", P_LOW)
-        )
-    # Captured (all fresh payloads) vs unique (distinct values kept) — the two
-    # differ from the on-screen row count (one row per polled PID).
-    captured = c.recorder.total_frames
-    uniq = c.recorder.unique_frames
-    items.append(StatusItem(f"[dim]captured[/] {captured}[dim]/uniq[/] {uniq}", P_NORMAL))
-    items.extend(health_items(c))
-    items.extend(session_items(c))
-    # Live auto-suggested vehicle state (from decoded values), if any. One slot,
-    # so this is the MOST SPECIFIC matching state (DRIVING, not the READY it
-    # implies) — see MonitorStateSuggester.suggested_state.
-    try:
-        state = c.state.suggested_state()
-    except Exception:
-        state = None
-    if state:
-        items.append(StatusItem(f"[dim]state[/] [b]{state}[/]", P_HIGH))
-    if flash is not None:
-        items.append(flash)
-    return items
+    return [StatusItem(f"[{styles.WARNING}]rtt {rtt * 1000:.0f}ms[/]", P_NORMAL)]
 
 
 def health_items(controller) -> list[StatusItem]:
-    """Transport-health segments: dropped frames, pipe desyncs, other errors.
+    """Transport-health facts: dropped frames, pipe desyncs, other errors, a slow round trip.
 
-    Drops are the data-integrity headline (the reassembly corruption that
-    silently poisoned historical captures), so a live burst also shows a
-    per-cycle ``+N`` spike. ``stale`` is broken out rather than folded into
-    drops because it means something different and actionable — replies
-    landing in the wrong request's slot — and ``resync`` next to it shows the
-    transport realigning itself, which is how a marginal link looks while it
-    is still coping. All are omitted when zero, keeping a clean run
-    uncluttered.
+    Drops are the data-integrity headline (the reassembly corruption that silently poisoned
+    historical captures), so they are badges, and a live burst also shows the cycle's ``+N``.
+    ``stale`` is broken out rather than folded into drops because it means something different
+    and actionable — replies landing in the wrong request's slot — and ``resync`` next to it
+    shows the transport realigning itself, which is how a marginal link looks while it is still
+    coping. All are omitted when zero, keeping a clean run uncluttered.
     """
     diag_fn = getattr(controller, "diag", None)
     diag = diag_fn() if callable(diag_fn) else None
@@ -136,60 +77,167 @@ def health_items(controller) -> list[StatusItem]:
     items: list[StatusItem] = []
     if drops:
         spike = max(getattr(controller, "last_drops", 0) - last_stale, 0)
-        spike_txt = f" [b {styles.ERROR}]+{spike}[/]" if spike else ""
-        items.append(StatusItem(f"[dim]drops[/] [b {styles.ERROR}]{drops}[/]{spike_txt}", P_HIGH))
+        text = f"{FAIL} {drops} drops" + (f" +{spike}" if spike else "")
+        items.append(StatusItem(badge(text, styles.ERROR), P_ESSENTIAL))
     if stale:
-        spike = last_stale
-        spike_txt = f" [b {styles.ERROR}]+{spike}[/]" if spike else ""
-        items.append(StatusItem(f"[dim]stale[/] [b {styles.ERROR}]{stale}[/]{spike_txt}", P_HIGH))
+        text = f"{FAIL} {stale} stale" + (f" +{last_stale}" if last_stale else "")
+        items.append(StatusItem(badge(text, styles.ERROR), P_ESSENTIAL))
     if resyncs:
-        items.append(StatusItem(f"[dim]resync[/] [{styles.WARNING}]{resyncs}[/]", P_HIGH))
+        items.append(StatusItem(f"[{styles.WARNING}]{WARN} {resyncs} resync[/]", P_HIGH))
     if errs:
-        items.append(StatusItem(f"[dim]errs[/] [{styles.WARNING}]{errs}[/]", P_HIGH))
+        items.append(StatusItem(f"[{styles.WARNING}]{WARN} {errs} errs[/]", P_HIGH))
     items.extend(link_items(controller))
     return items
 
 
-def session_items(controller) -> list[StatusItem]:
-    """Diagnostic session-type segment: which ECUs have a ``10 xx`` session open.
+def link_zone(c) -> Zone:
+    items: list[StatusItem] = []
+    if getattr(c, "reconnecting", False):
+        items.append(StatusItem(badge("⟳ RECONNECTING", styles.WARNING), P_ESSENTIAL))
+        note = getattr(c, "reconnect_note", "")
+        if note:
+            items.append(StatusItem(f"[{styles.WARNING}]{escape(note)}[/]", P_LOW))
+    health = health_items(c)
+    if not items and not any(it.priority >= P_HIGH for it in health):
+        items.append(StatusItem(f"[{styles.OK}]{OK} link[/]", P_HIGH))
+    items.extend(health)
+    host_fn = getattr(c, "device_host", None)
+    host = host_fn() if callable(host_fn) else None
+    if host:
+        items.append(StatusItem(f"[{styles.NAME}]{escape(host)}[/]", P_LOW + 2))
+    transport = getattr(c, "transport_type", None)
+    if transport:
+        items.append(StatusItem(f"[{styles.MUTED}]{escape(transport)}[/]", P_LOW))
+    return Zone("link", tuple(items))
 
-    One combined item (not one per ECU) to stay compact on a multi-ECU
-    query. Omitted entirely when nothing is tracked — e.g. before any
-    ``session`` step has run at all. Press ``t`` to view/switch.
+
+# -- poll ---------------------------------------------------------------------------------
+def poll_zone(c, *, paused: bool) -> Zone:
+    items = [
+        StatusItem(badge("PAUSED", styles.WARNING), P_ESSENTIAL)
+        if paused
+        else StatusItem(f"[{styles.OK}]LIVE[/]", P_HIGH),
+        StatusItem(f"[{styles.MUTED}]#[/]{c.cycle}", P_NORMAL + 2),
+    ]
+    schedule = c.schedule.describe()
+    fixed = getattr(c.schedule, "schedule", "fixed") == "fixed"
+    items.append(
+        StatusItem(f"[{styles.MUTED}]every[/] {schedule}" if fixed else schedule, P_NORMAL)
+    )
+    backoff = getattr(c, "backoff", None)
+    slowed = backoff.slowed() if backoff is not None else {}
+    if slowed:
+        items.append(
+            StatusItem(f"[{styles.WARNING}]slow {escape(summarize_slowed(slowed))}[/]", P_HIGH)
+        )
+    # The ELM path reports commands and time spent in the ELM327; the raw path UDS requests.
+    if getattr(c, "raw", False):
+        cost = f"{c.last_cmds}[{styles.MUTED}] req[/]"
+    else:
+        cost = f"{c.last_cmds}[{styles.MUTED}] cmds ·[/] {c.last_elm_time:.1f}[{styles.MUTED}]s[/]"
+    items.append(StatusItem(f"{c.elapsed:.1f}[{styles.MUTED}]s ·[/] {cost}", P_LOW - 1))
+    return Zone("poll", tuple(items))
+
+
+# -- recording ----------------------------------------------------------------------------
+def _duration(since: object) -> str:
+    if not isinstance(since, datetime):
+        return ""
+    secs = max(0, int((datetime.now() - since).total_seconds()))
+    hours, rest = divmod(secs, 3600)
+    mins, secs = divmod(rest, 60)
+    return f"{hours}:{mins:02d}:{secs:02d}" if hours else f"{mins:02d}:{secs:02d}"
+
+
+def record_zone(c) -> Zone:
+    r = c.recorder
+    items: list[StatusItem] = []
+    if r.journal is not None:
+        # The dot pulses ~1s on / 1s off from wall-clock time, so the rate does not follow the
+        # status tick, and the label stays put so the line does not jump. Bold, not red: red
+        # means an error.
+        dot = styles.RECORDING if int(time.monotonic()) % 2 == 0 else styles.MUTED
+        items.append(StatusItem(f"[{dot}]●[/] [{styles.RECORDING}]REC[/]", P_ESSENTIAL - 1))
+        elapsed = _duration(getattr(r, "segment_started_at", None))
+        if elapsed:
+            items.append(StatusItem(elapsed, P_NORMAL))
+    else:
+        items.append(StatusItem(f"[{styles.MUTED}]not recording[/]", P_LOW))
+    # Captured (all fresh payloads) vs unique (distinct values kept): both differ from the
+    # on-screen row count (one row per polled PID).
+    items.append(
+        StatusItem(
+            f"{r.total_frames:,}[{styles.MUTED}] frames ·[/] {r.unique_frames:,}"
+            f"[{styles.MUTED}] unique[/]",
+            P_LOW,
+        )
+    )
+    return Zone("record", tuple(items))
+
+
+# -- car ----------------------------------------------------------------------------------
+def session_word(mode: str) -> str:
+    """``81`` → ``81 standard``: a session type with the short form of its UDS/KWP name."""
+    try:
+        name = subfunction_name(DIAGNOSTIC_SESSION_CONTROL, parse_session_type(mode)) or ""
+    except ValueError:
+        return mode
+    short = name.removesuffix("DiagnosticSession").removesuffix("Session")
+    return f"{mode} {short}" if short else mode
+
+
+def car_zone(c) -> Zone:
+    items: list[StatusItem] = []
+    # An output this run switched on is the car's state, not the monitor's: it outlives every
+    # other fact on the line.
+    actuation = getattr(c, "actuation", None)
+    on = actuation.on_count() if actuation is not None else 0
+    if on:
+        items.append(StatusItem(badge(f"{WARN} {on} ON", styles.WARNING), P_ESSENTIAL + 5))
+    # One slot, so the MOST SPECIFIC matching state (DRIVING, not the READY it implies).
+    try:
+        state = c.state.suggested_state()
+    except Exception:
+        state = None
+    if state:
+        items.append(StatusItem(f"[{styles.HEADING}]{escape(state)}[/]", P_HIGH))
+    modes = c.sessions.active_modes()
+    if modes:
+        sessions = " [dim]·[/] ".join(
+            f"[{styles.NAME}]{escape(ecu)}[/] {escape(session_word(mode))}"
+            for ecu, mode in sorted(modes.items())
+        )
+        items.append(StatusItem(sessions, P_NORMAL - 2))
+    return Zone("car", tuple(items))
+
+
+def status_zones(c, *, paused: bool) -> tuple[list[Zone], Zone]:
+    """The left zones in order, and the zone pinned to the right edge."""
+    return [link_zone(c), poll_zone(c, paused=paused), record_zone(c)], car_zone(c)
+
+
+# -- the menu bar's title -------------------------------------------------------------------
+def document_items(c) -> list[StatusItem]:
+    """The recording's label, its states and notes, the profile: what the menu bar shows right.
+
+    The menu bar joins them with ``·`` and drops the least important first.
     """
-    modes = controller.sessions.active_modes()
-    if not modes:
-        return []
-    parts = ", ".join(f"{ecu}:{mode}" for ecu, mode in sorted(modes.items()))
-    return [StatusItem(f"[dim]sess[/] [b]{parts}[/]", P_NORMAL)]
-
-
-def header_text(c, width: int) -> str:
-    """The top bar: current segment title, selected states and the picker hint, plus an optional note.
-
-    The title is the user-set label (falling back to the polled-selectors summary), so it is
-    meaningful even without --save. The note line is omitted when empty, keeping the header a
-    single line by default.
-    """
-    title = c.view.segment_title()
+    items = [StatusItem(f"[b]{escape(c.view.segment_title() or 'Monitor')}[/]", P_HIGH)]
     states = c.recorder.session_states
-    notes = c.recorder.session_notes.replace("\n", " ").strip()
-
-    line1 = f"[b]{escape(title or 'Monitor')}[/]"
     if states:
-        line1 += f"  [dim]· {', '.join(states)}[/]"
-    line1 += f"  [dim]·[/] [b]{PICK_HINT}[/]"
-    lines = [line1]
+        items.append(StatusItem(escape(", ".join(states)), P_NORMAL))
+    notes = (c.recorder.session_notes or "").replace("\n", " ").strip()
     if notes:
-        width = max(20, (width or 80) - 4)
-        if len(notes) > width:
-            notes = notes[: width - 1] + "…"
-        lines.append(f"[dim]{notes}[/]")
-    return "\n".join(lines)
+        items.append(StatusItem(f"[{styles.MUTED}]{escape(notes)}[/]", P_LOW))
+    profile = getattr(getattr(c, "profile", None), "name", None)
+    if profile:
+        items.append(StatusItem(f"[{styles.MUTED}]{escape(profile)}[/]", P_LOW - 1))
+    return items
 
 
-def actuator_hint_items() -> list[StatusItem]:
-    """The hints while the actuator pane has focus: its own keys, then the way back."""
+# -- the bottom line ------------------------------------------------------------------------
+def actuator_context() -> list[StatusItem]:
+    """The keys of the actuator pane while it has focus, then the way back."""
     return [
         hint_item(key_hint("accept", "toggle"), P_HIGH),
         hint_item(key_hint("actuate_off"), P_HIGH),
@@ -197,67 +245,42 @@ def actuator_hint_items() -> list[StatusItem]:
         hint_item(key_hint("start_routine"), P_NORMAL),
         hint_item(key_hint("stop_routine"), P_LOW),
         hint_item(key_hint("block_next", "next pane"), P_NORMAL),
-        hint_item(key_hint("actuators"), P_LOW),
-        hint_item(key_hint("help"), P_ESSENTIAL),
-        hint_item(key_hint("quit"), P_ESSENTIAL),
     ]
 
 
-def hint_items(c, *, actuators: bool = False) -> list[StatusItem]:
-    """Second status line: the current selection/filter plus the key hints.
+def context_items(c, *, actuators: bool = False) -> list[StatusItem]:
+    """The bottom line's left side: modes that are not the default, the selection, its keys.
 
-    Ranked so a narrow terminal keeps the escape hatches (``? help``,
-    ``q quit``), the recording controls and the current context, and drops
-    the browsing hints first — ``?`` is the complete key list either way. While the actuator
-    pane has focus (``actuators``) the hints are its keys.
+    With nothing selected it shows the keys a newcomer most needs and would not guess.
     """
-    if actuators:
-        return actuator_hint_items()
-    # While recording (--save), `s` edits the current session and `n` finishes it and
-    # starts a new one; without --save, `s` is a one-off snapshot and `n` is N/A.
-    recording = c.recorder.journal is not None
     items: list[StatusItem] = []
-
-    ed = getattr(c, "editor", None)
-    label = ed.selection_label() if ed is not None and hasattr(ed, "selection_label") else ""
-    if label:
-        items.append(StatusItem(f"[b]{CURSOR} {escape(label)}[/]", P_HIGH))
-    if ed is not None:
-        filt = getattr(ed, "filter_mode", "all")
-        if filt != "all":
-            items.append(StatusItem(f"[dim]filter[/] [b]{filt}[/]", P_HIGH))
-    # Surface the active view mode when it's not the default full view.
     view = getattr(c, "view_mode", "full")
     if view and view != "full":
-        items.append(StatusItem(f"[dim]view[/] [b]{view}[/]", P_HIGH))
-
-    # Changing what is polled is the key a newcomer most needs and would not
-    # guess, so it leads the hints, undimmed, and outlives the other keys.
-    items.append(StatusItem(f"[b]{PICK_HINT}[/]", P_HIGH))
-    items.append(hint_item(key_hint("session", "label" if recording else "snapshot"), P_HIGH))
-    if recording:
-        items.append(hint_item(key_hint("new", "new session"), P_HIGH))
+        items.append(StatusItem(f"[{styles.MUTED}]view[/] [b]{escape(view)}[/]", P_HIGH))
+    ed = getattr(c, "editor", None)
+    filt = getattr(ed, "filter_mode", "all") if ed is not None else "all"
+    if filt != "all":
+        items.append(StatusItem(f"[{styles.MUTED}]filter[/] [b]{escape(filt)}[/]", P_HIGH))
+    if getattr(c, "show_rulers", False):
+        items.append(StatusItem("[b]ruler[/]", P_NORMAL))
+    if actuators:
+        return items + actuator_context()
+    label = ed.selection_label() if ed is not None and hasattr(ed, "selection_label") else ""
+    if label:
+        items.append(StatusItem(f"[b]{CURSOR} {escape(label)}[/]", P_HIGH + 2))
+        items += [
+            hint_item(key_hint("edit"), P_NORMAL),
+            hint_item(key_hint("verify"), P_NORMAL - 1),
+            hint_item(key_hint("exclude", "toggle ship"), P_LOW),
+            hint_item(key_hint("back", "deselect"), P_LOW - 1),
+        ]
+        return items
+    recording = c.recorder.journal is not None
     if ed is not None:
         items.append(hint_item(arrows_hint("select"), P_NORMAL))
-        items.append(hint_item(key_hint("edit"), P_NORMAL))
-        items.append(hint_item(key_hint("verify"), P_LOW))
-        items.append(hint_item(key_hint("exclude", "toggle ship"), P_LOW))
-        items.append(hint_item(key_hint("filter_cycle"), P_LOW))
-    else:
-        items.append(hint_item(arrows_hint("scroll"), P_LOW))
-        items.append(hint_item(PAGE_HINT, P_LOW))
-    # The keys nothing else hints at (a view/ruler/overlay) rank above the
-    # ones a user would try anyway (space to pause, arrows to scroll).
-    items.append(hint_item(key_hint("view"), P_NORMAL))
-    items.append(hint_item(key_hint("rulers", "byte ruler"), P_NORMAL))
-    items.append(hint_item(key_hint("info", "session info"), P_NORMAL))
-    items.append(hint_item(key_hint("value_type", "session type"), P_NORMAL))
-    if getattr(c, "actuation", None) is not None:
-        items.append(hint_item(key_hint("actuators"), P_HIGH))
-    items.append(hint_item(key_hint("event_log"), P_LOW))
-    items.append(hint_item(key_hint("pause"), P_LOW))
-    if label:
-        items.append(hint_item(key_hint("back", "deselect"), P_LOW))
-    items.append(hint_item(key_hint("help"), P_ESSENTIAL))
-    items.append(hint_item(key_hint("quit"), P_ESSENTIAL))
+    items += [
+        hint_item(key_hint("pick", "select ECUs/PIDs"), P_NORMAL + 1),
+        hint_item(key_hint("session", "label" if recording else "save"), P_LOW + 2),
+        hint_item(key_hint("pause"), P_LOW),
+    ]
     return items

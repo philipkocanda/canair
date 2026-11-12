@@ -1,7 +1,7 @@
 # Monitor: design explorations for an application shell
 
-Status: **EXPLORING** (2026-11-12). Three directions and a combination (D) of the first two,
-built as runnable mockups. D is the direction to refine. No production code changed.
+Status: **DECIDED** (2026-11-12). Three directions and a combination (D) of the first two, built
+as runnable mockups. D is built into the monitor: `plans/2026-11-12-monitor-app-shell.md`.
 
 The monitor TUI (`canair monitor`) is to become a full application: a proper menu or toolbar and a
 redesigned status bar. This document compares three directions for that shell, then describes the

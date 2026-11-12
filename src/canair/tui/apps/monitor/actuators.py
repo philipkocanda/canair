@@ -7,7 +7,7 @@ reads the row under the cursor, asks for a value or a confirmation where one is 
 the request on the monitor's foreground lane, which sends it between two poll requests.
 
 The pane is hidden until ``A`` shows it. It docks on the right when the terminal is at least
-:data:`WIDE_COLUMNS` wide, else at the bottom. Hiding it releases nothing: the header keeps
+:data:`WIDE_COLUMNS` wide, else at the bottom. Hiding it releases nothing: the status line keeps
 showing how many outputs are ON, and the monitor releases them when it exits.
 """
 
@@ -101,7 +101,9 @@ class ActuatorMixin:
 
     if TYPE_CHECKING:
 
-        def _flash(self, msg: str, severity: Severity = "info", secs: float = 5.0) -> None: ...
+        def _flash(
+            self, msg: str, severity: Severity = "info", secs: float | None = None
+        ) -> None: ...
         def _update_status(self) -> None: ...
         def _update_header(self) -> None: ...
 
@@ -122,7 +124,9 @@ class ActuatorMixin:
         return pane is not None and pane.has_class("shown")
 
     def actuators_focused(self) -> bool:
-        focused = self._app.focused
+        # The app's own screen: while a menu or the palette is open, the table keeps the focus
+        # it will get back.
+        focused = self._app.screen_stack[0].focused
         return isinstance(focused, ActuatorTable)
 
     def refresh_actuators(self) -> None:

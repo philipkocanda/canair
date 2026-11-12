@@ -43,8 +43,14 @@ class MonitorView:
         """Advance to the next display view mode (TUI 'V'); returns the new mode."""
         c = self.c
         idx = VIEW_MODES.index(c.view_mode) if c.view_mode in VIEW_MODES else 0
-        c.view_mode = VIEW_MODES[(idx + 1) % len(VIEW_MODES)]
-        return c.view_mode
+        return self.set(VIEW_MODES[(idx + 1) % len(VIEW_MODES)])
+
+    def set(self, mode: str) -> str:
+        """Switch to one of :data:`VIEW_MODES` (the TUI's View menu); returns it."""
+        if mode not in VIEW_MODES:
+            raise ValueError(f"unknown view mode {mode!r} (one of {', '.join(VIEW_MODES)})")
+        self.c.view_mode = mode
+        return mode
 
     def history_limit(self) -> int:
         """How many history rows (runs of identical payloads) to render per PID.

@@ -7,6 +7,7 @@ shared filter-and-list picker over ECUs, then over the modes of the chosen ECU.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar
 
@@ -33,6 +34,7 @@ from canair.tui.keys import (
 )
 from canair.tui.modals import KitModal, ListPickerModal
 from canair.tui.scroll import OVERLAY_SCROLL_BINDINGS, OverlayScroll
+from canair.tui.shell.messages import LoggedMessage
 from canair.tui.styles import dialog_css
 
 if TYPE_CHECKING:
@@ -40,7 +42,8 @@ if TYPE_CHECKING:
 
 # Central-log categories mapped to a display colour. Data-integrity faults (frames dropped
 # or corrupted, replies in the wrong slot, bus errors, internal exceptions) are red, as the
-# status bar shows them; the softer non-answers (no-data/decode) are yellow; the rest is dim. Categories are produced by canair.uds.response.classify_response +
+# status line shows them; the softer non-answers (no-data/decode) are yellow; the rest is dim.
+# Categories are produced by canair.uds.response.classify_response +
 # canair.core.eventlog.log_exception ("internal").
 _EVENT_CATEGORY_STYLE = {
     "drop": styles.ERROR,
@@ -53,14 +56,14 @@ _EVENT_CATEGORY_STYLE = {
 
 
 class EventLogModal(OverlayScroll, KitModal[None]):
-    """Scrollable overlay of this monitor session's diagnostics events.
+    """Scrollable overlay of this run's messages, then its diagnostics events.
 
-    Snapshots the last N lines of ``canair logs`` (the same size-rotated file
-    the transport-fault recorder writes drops/stale/timeouts/bus/decode and
-    internal-exception events to) that this process wrote, and colour-codes them
-    by category. Other sessions share the file, so their events are left out.
-    Read-only; reopen to refresh. The full history and management live in
-    ``canair logs``.
+    The messages are every one the bottom line showed this run (:mod:`canair.tui.shell.messages`),
+    so one that expired while the user looked away is still here. The events are the last N
+    lines of ``canair logs`` (the same size-rotated file the transport-fault recorder writes
+    drops/stale/timeouts/bus/decode and internal-exception events to) that this process wrote,
+    colour-coded by category. Other runs share the file, so their events are left out.
+    Read-only; reopen to refresh. The full history and management live in ``canair logs``.
     """
 
     _MAX_LINES = 200
@@ -79,10 +82,15 @@ class EventLogModal(OverlayScroll, KitModal[None]):
         *OVERLAY_SCROLL_BINDINGS,
     ]
 
+    def __init__(self, messages: Sequence[LoggedMessage] = ()) -> None:
+        super().__init__()
+        self._messages = tuple(messages)
+
     def compose(self) -> ComposeResult:
         with Vertical(id="evlog-box"):
-            yield Label("Diagnostics events this session", id="evlog-title")
+            yield Label("Event log", id="evlog-title")
             with VerticalScroll(id="evlog-rows"):
+                yield Static(self._render_messages(), id="evlog-messages")
                 yield Static(self._render_events(), id="evlog-body", markup=False)
             yield Label(
                 f"newest last {SEP} "
@@ -95,11 +103,18 @@ class EventLogModal(OverlayScroll, KitModal[None]):
         # Land on the newest events (the file is oldest→newest).
         self._scroller().scroll_end(animate=False)
 
+    def _render_messages(self) -> str:
+        head = f"[{styles.HEADING}]Messages this run[/]\n"
+        if not self._messages:
+            return head + f"[{styles.MUTED}](none yet)[/]\n"
+        return head + "\n".join(m.markup() for m in self._messages) + "\n"
+
     def _render_events(self) -> Text:
         lines = read_event_log(lines=self._MAX_LINES, run=run_id())
+        out = Text("Diagnostics events this run\n", style=styles.HEADING)
         if not lines:
-            return Text("(no events logged this session)", style=styles.MUTED)
-        out = Text()
+            out.append("(none logged)", style=styles.MUTED)
+            return out
         for line in lines:
             fields = parse_event_line(line)
             category = fields.get("category", "")
@@ -142,13 +157,14 @@ def _fmt_elapsed(start) -> str:
 
 
 class SessionInfoModal(OverlayScroll, KitModal[None]):
-    """Read-only overlay: the run's session summary + closed-segment history.
+    """Read-only overlay: the run's recording summary + the recordings finished this run.
 
-    Shows the current segment's label/states/notes, the run-level counters
+    Shows the current recording's label/states/notes, the run-level counters
     (frames, cycles, retain mode, transport, start time), where captures and the
     ``--save`` write-ahead journal are being written, and a list of the ``--save``
-    segments already finished this run (the ``n`` rotations). It is a read-only
-    snapshot: reopen to refresh, and use ``s`` in the monitor to relabel.
+    recordings already finished this run (the ``n`` rotations). Each recording is saved as a
+    capture *session*, which is what ``canair captures uds --sessions`` lists. It is a
+    read-only snapshot: reopen to refresh, and use ``s`` in the monitor to relabel.
     """
 
     SCROLL_ID: ClassVar[str] = "sess-rows"
@@ -172,7 +188,7 @@ class SessionInfoModal(OverlayScroll, KitModal[None]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="sess-box"):
-            yield Label("Session info", id="sess-title")
+            yield Label("Recording info", id="sess-title")
             with VerticalScroll(id="sess-rows"):
                 yield Static(self._build_body(), id="sess-body", markup=False)
             yield Label(hint(arrows_hint("scroll"), PAGE_HINT, CLOSE_HINT), id="sess-hint")
@@ -190,7 +206,7 @@ class SessionInfoModal(OverlayScroll, KitModal[None]):
         states_txt = ", ".join(states) if states else "(auto-detected on save)"
         notes = (s.get("notes") or "").replace("\n", " ").strip() or EMPTY
 
-        out.append("Current segment\n", style=styles.HEADING)
+        out.append("Current recording\n", style=styles.HEADING)
         row("label", s.get("label") or "Monitor")
         row("recording", rec)
         row("states", states_txt)
@@ -229,12 +245,16 @@ class SessionInfoModal(OverlayScroll, KitModal[None]):
             )
 
         n = len(self._segments)
-        out.append(f"\nFinished segments this run ({n})\n", style=styles.HEADING)
+        out.append(f"\nFinished recordings this run ({n})\n", style=styles.HEADING)
+        out.append(
+            "  each is saved as a capture session: canair captures uds --sessions\n",
+            style=styles.MUTED,
+        )
         if not n:
             new_key = display_key(keys_for("new")[0])
             out.append(
-                f"  (none yet {EMPTY} press {new_key} in the monitor to finish this session "
-                "and start a new one)\n",
+                f"  (none yet {EMPTY} press {new_key} in the monitor to finish this recording "
+                "and start the next)\n",
                 style=styles.MUTED,
             )
         for i, seg in enumerate(self._segments, 1):

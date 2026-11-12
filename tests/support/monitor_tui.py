@@ -83,6 +83,10 @@ class FakeView:
         o.view_mode = VIEW_MODES[(idx + 1) % len(VIEW_MODES)]
         return o.view_mode
 
+    def set(self, mode: str) -> str:
+        self.o.view_mode = mode
+        return mode
+
     def session_summary(self) -> dict:
         from datetime import datetime
 
@@ -119,8 +123,9 @@ class FakeRenderer:
     def __init__(self, owner):
         self.o = owner
 
-    def render(self) -> Text:
+    def render(self, width: int | None = None, *, title: bool = True) -> Text:
         o = self.o
+        o.render_width = width
         t = Text()
         t.append(f"  Monitor cycle {o.cycle}\n", style="dim")
         for i in range(o._n_lines):
@@ -212,6 +217,13 @@ class FakeEditor:
             (self._FILTERS.index(self.filter_mode) + 1) % len(self._FILTERS)
         ]
         return self.filter_mode
+
+    def set_filter(self, mode, _last_queries=None):
+        self.filter_mode = mode
+        return mode
+
+    def selected_flags(self):
+        return None if self.selected is None else (False, True)
 
     def ensure_valid(self, _last_queries):
         pass

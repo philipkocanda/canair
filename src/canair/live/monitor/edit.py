@@ -136,10 +136,31 @@ class MonitorEditor:
 
     def cycle_filter(self, last_queries: list[EcuFrame] | None = None) -> str:
         """Advance to the next display filter; keep the selection valid."""
-        self.filter_mode = FILTERS[(FILTERS.index(self.filter_mode) + 1) % len(FILTERS)]
+        return self.set_filter(
+            FILTERS[(FILTERS.index(self.filter_mode) + 1) % len(FILTERS)], last_queries
+        )
+
+    def set_filter(self, mode: str, last_queries: list[EcuFrame] | None = None) -> str:
+        """Show the signals of one :data:`FILTERS` mode; keep the selection valid."""
+        if mode not in FILTERS:
+            raise ValueError(f"unknown filter {mode!r} (one of {', '.join(FILTERS)})")
+        self.filter_mode = mode
         if last_queries is not None:
             self.ensure_valid(last_queries)
         return self.filter_mode
+
+    def selected_flags(self) -> tuple[bool, bool] | None:
+        """``(verified, ships)`` of the selected signal's definition, or None when none is.
+
+        What a menu's ``[x]`` shows for the verify and ship toggles.
+        """
+        if self.selected is None:
+            return None
+        ecu_label, pid, name = self.selected
+        pdef = self._lookup_pdef(_ecu_name(ecu_label), pid, name)
+        if pdef is None:
+            return None
+        return bool(pdef.get("verified", False)), param_ships(pdef)
 
     # ── definition lookup ─────────────────────────────────────────────────
     def _lookup_pdef(self, ecu_name: str, pid: str, name: str) -> dict | None:
@@ -196,7 +217,7 @@ class MonitorEditor:
         one-line status message (never raises).
         """
         if self.selected is None:
-            return "No parameter selected."
+            return "No signal selected"
         ecu_label, pid, name = self.selected
         ecu = _ecu_name(ecu_label)
 
@@ -235,7 +256,7 @@ class MonitorEditor:
     def _toggle(self, field: str) -> str:
         """Flip a boolean field (``verified``/``ship``) on the selected param."""
         if self.selected is None:
-            return "No parameter selected."
+            return "No signal selected"
         ecu_label, pid, name = self.selected
         ecu = _ecu_name(ecu_label)
         pdef = self._lookup_pdef(ecu, pid, name)

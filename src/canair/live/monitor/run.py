@@ -147,9 +147,9 @@ async def mode_monitor(
 
     TUI keys come from the shared role registry (:mod:`canair.tui.keys`); press
     ``?`` in the app for the live cheat-sheet rather than trusting a copy here. A
-    blinking ``● REC`` in the status line marks an active --save recording; a ``sess``
-    status item shows each ECU's currently-open diagnostic session type; each
-    signal row shows a small circle (green when fresh, grey when stale).
+    blinking ``● REC`` in the status line marks an active --save recording; its car zone
+    shows each ECU's currently-open diagnostic session type; each signal row shows a
+    small circle (green when fresh, grey when stale).
     """
 
     captures_dir = profile.captures_dir
@@ -159,7 +159,7 @@ async def mode_monitor(
         terminal, monitor, pids_data, raw_client=raw_client, profile=profile
     )
     controller.captures_dir = captures_dir
-    # Seed the header's segment metadata from the initial --label/--state/--notes.
+    # Seed the recording's metadata (the menu bar's title) from --label/--state/--notes.
     controller.recorder.session_label = label or ""
     controller.recorder.session_states = list(states or [])
     controller.recorder.session_notes = notes or ""
@@ -181,7 +181,7 @@ async def mode_monitor(
         print(
             f"  --save: journaling to {controller.recorder.journal.path.name} "
             f"(label: {journal_label!r}); auto-saves on stop. "
-            "Press 's' to edit label/states/notes, 'n' to start a new segment.",
+            "Press 's' to edit label/states/notes, 'n' to start the next recording.",
             file=sys.stderr,
         )
 

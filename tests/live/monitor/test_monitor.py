@@ -1436,3 +1436,18 @@ class TestDeviceHost:
 
     def test_a_client_that_does_not_say_gives_none(self):
         assert make_controller(None, [], {}).device_host() is None
+
+
+class TestViewSet:
+    """The View menu picks a mode directly; ``V`` still steps through them."""
+
+    def test_set_picks_a_mode_and_cycle_goes_on_from_it(self):
+        c = make_controller(None, [], {})
+        assert c.view.set("ranges") == "ranges" and c.view_mode == "ranges"
+        assert c.view.cycle() == "signals"
+
+    def test_an_unknown_mode_is_refused(self):
+        import pytest
+
+        with pytest.raises(ValueError, match="unknown view mode"):
+            make_controller(None, [], {}).view.set("bogus")

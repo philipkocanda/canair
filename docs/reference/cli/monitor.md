@@ -129,17 +129,14 @@ poll, so it is polled 2x, 4x, then up to 32x less often until it answers promptl
 (its ECU's other PIDs keep their rate); its row and the status line say so. --no-backoff
 keeps polling it at the normal rate.
 
-In the TUI: mouse wheel / scrollbar / arrows-jk / PgUp-PgDn / g-G scroll,
-space pauses, =/- poll faster/slower (the interval on the fixed schedule, every
-PID's rate by 1.5x on the per-PID one), m switches schedule,
-r toggles the byte-index ruler, E opens this session's errors/diagnostics log,
-V cycles the view mode (ecus / ranges / signals / full),
-i opens the session-info overlay (segment history + summary),
-↑/↓ select a signal (esc deselects), e/v/x/F edit/verify/en-disable/filter,
-A shows the actuator pane (with --actuate), tab moves between the values and it,
-s labels the recording (or saves now when not using --save),
-n finishes the current --save session and starts a fresh one,
-? shows all shortcuts, q quits.
+In the TUI every command is in the menu bar (f10, alt+the underlined letter, or a click)
+and in the command palette (ctrl+p, search by name); each item shows its key. The status
+line has the link, poll, recording and car zones; a click on one opens its detail. The
+bottom line shows the last message (an error stays until the next key), or the selected
+signal and the keys of the focused pane. Most used keys: space pauses, p changes what is
+polled, =/- poll faster/slower, ↑/↓ select a signal, e/v/x/F edit/verify/ship/filter,
+s labels the recording (or saves a snapshot without --save), n finishes the --save
+recording and starts the next, E opens the event log, ? shows every key, q quits.
 
 For a single one-shot read (no live refresh) use `canair read` instead.
 ```

@@ -118,6 +118,20 @@ class TestFilter:
         assert ed.cycle_filter(ed.c.last_queries) == "verified"
         assert ed.cycle_filter(ed.c.last_queries) == "unverified"
 
+    def test_set_filter_picks_one_mode_and_refuses_an_unknown_one(self):
+        ed = self._editor()
+        assert ed.set_filter("no-ship", ed.c.last_queries) == "no-ship"
+        with pytest.raises(ValueError, match="unknown filter"):
+            ed.set_filter("bogus")
+
+    def test_the_selected_signals_flags_come_from_its_definition(self):
+        ed = self._editor()
+        assert ed.selected_flags() is None
+        ed.selected = ("BMS (0x7E4)", "2101", "SOC")
+        assert ed.selected_flags() == (True, True)
+        ed.selected = ("BMS (0x7E4)", "2101", "GUESS")
+        assert ed.selected_flags() == (False, False)
+
     def test_filter_hides_raw_only_entries(self):
         # A PID with no params (raw/unmapped) is dropped under any non-all filter.
         lq = [("VCU (0x7E2)", [{"pid": "2102", "params": [], "raw_hex": "6202FF"}])]
@@ -275,7 +289,7 @@ class TestApplyEdit:
     def test_apply_edit_no_selection(self, ecus_dir):
         ed = _editor_on_disk(ecus_dir)
         ed.selected = None
-        assert "No parameter selected" in ed.apply_edit({"expression": "B4"})
+        assert "No signal selected" in ed.apply_edit({"expression": "B4"})
 
 
 class TestToggles:
@@ -295,7 +309,7 @@ class TestToggles:
     def test_toggle_no_selection(self, ecus_dir):
         ed = _editor_on_disk(ecus_dir)
         ed.selected = None
-        assert "No parameter selected" in ed.toggle_verified()
+        assert "No signal selected" in ed.toggle_verified()
 
     def test_toggle_preserves_expression_quoting(self, ecus_dir):
         """A verified/ship toggle must rewrite only the boolean line.

@@ -195,6 +195,8 @@ class MenuScreen(KitModal["MenuResult | None"]):
         background: $background; color: $text;
     }
     MenuScreen > OptionList > .option-list--option-highlighted { text-style: reverse; }
+    MenuScreen > OptionList > .option-list--option { color: $text; }
+    MenuScreen > OptionList > .option-list--option-disabled { color: $text-disabled; }
     """
 
     BINDINGS: ClassVar[list[BindingType]] = [

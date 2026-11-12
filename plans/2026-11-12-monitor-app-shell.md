@@ -1,6 +1,7 @@
 # Monitor: an application shell (menu bar, palette, zoned status line)
 
-Status: **IN PROGRESS** (2026-11-12) on branch `feat/monitor-app-shell`.
+Status: **DONE** (2026-11-12) on branch `feat/monitor-app-shell`. "As built" records where the
+code differs from the design below.
 
 Builds direction D of `plans/2026-11-12-monitor-app-redesign.md` into the real monitor. That
 document holds the design, the screenshots of the mockups and the reasons. This one holds the build:
@@ -44,7 +45,7 @@ Only the monitor moves now.
    `captures uds --sessions`, and recording info says so once.
 8. **A session type carries its name**: `BMS 81 standard`, from
    `uds/subfunctions.py::subfunction_name`.
-9. **The values table fits its pane.** `render/formatting.py::render_param_table` takes the
+9. **The values table fits its pane.** `render/signal_table.py::render_param_table` takes the
    available width: a name gives way (`…`) so the value and the verified mark stay on the line.
    The TUI passes the pane width; the non-interactive path does not, and is unchanged.
 10. **The device is shown.** The link zone names the device host. The controller reads it from the
@@ -62,7 +63,8 @@ Only the monitor moves now.
 | The app mixin that wires them | `tui/shell/app.py` (`ShellMixin`) |
 | The monitor's catalogue | `tui/apps/monitor/commands.py` |
 | What the monitor's zones and context say | `tui/apps/monitor/status.py` (rewritten) |
-| The width-aware signal table | `render/formatting.py` |
+| The signal cursor and edit keys | `tui/apps/monitor/editing.py` (`EditingMixin`) |
+| The width-aware signal table | `render/signal_table.py` |
 | `device_host` | `live/monitor/controller.py` |
 
 ## Phases
@@ -84,3 +86,22 @@ Only the monitor moves now.
 
 - Moving the other TUIs onto the shell.
 - The inspector and PID-tree panes of direction C.
+
+## As built
+
+- **The signal tables moved first.** `render/formatting.py` was over the module size limit, so
+  the signal and range tables and the two printers of a read's results moved, unchanged, to
+  `render/signal_table.py` before the width change. The parser build loads one more module
+  (ceiling 650 → 651, approved).
+- **The monitor app split.** On the shell `tui/apps/monitor/app.py` passed 500 lines, so the
+  signal cursor and edit keys moved to `tui/apps/monitor/editing.py` (`EditingMixin`), beside the
+  polling and recording mixins.
+- **Menus run the app's actions.** The View menu picks a mode and a filter directly, so
+  `MonitorView.set` and `MonitorEditor.set_filter` join `cycle`/`cycle_filter`, and
+  `MonitorEditor.selected_flags` gives the Signal menu its `[x]` marks.
+- **Messages.** The monitor's `_flash` now hands to `ShellMixin.message`; the old `Flash` object
+  on the app is gone. The event log overlay shows the run's messages above its diagnostics events.
+- **Key roles.** `menu` and `palette` are new. `info`, `new` and `value_type` now say
+  "recording info", "new recording" and "diagnostic session" where they said "session".
+- **Not done here.** The live monitor screenshots (`docs/screenshots/monitor-*.gif`) still show
+  the old bars. They are recorded on the car, so a re-record needs the user's approval.

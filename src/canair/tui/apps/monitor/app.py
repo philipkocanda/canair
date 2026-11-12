@@ -1,63 +1,35 @@
-"""Textual TUI for the live monitor (``canair monitor``).
+"""Textual TUI for the live monitor (``canair monitor``), on the application shell.
 
-The latest values render into a single widget that updates *in place* inside a
-scrollable container. The scroll position is **never** moved by a data refresh:
-values keep updating wherever you are, so a byte you are reading can't be yanked
-out from under you. ``space`` pauses polling; ``G``/``End`` jumps to the newest
-output when you do want the tail.
+Three rows of chrome around the values, built from :mod:`canair.tui.shell`:
 
-The monitor doubles as a lightweight PID editor: the arrow keys move a selection
-cursor over the decoded signal rows, ``e`` opens an in-place edit dialog
-(expression / unit / min / max / notes / verified / ship), ``v`` and ``x``
-quick-toggle the selected signal's verified/ship flags, and ``F`` cycles
-a display filter (all / verified / unverified / ship / no-ship). Edits are
-written through :mod:`canair.yaml_edit.pids` and picked up on the next poll.
-Those keys belong to the values pane (:class:`~canair.tui.apps.monitor.panes.ValuesPane`):
-each pane declares the keys that act on it, and the app only the ones that mean the same
-wherever focus is.
+* the **menu bar** (``f10``, ``alt+letter`` or a click): every command, with its key and its
+  state, from the catalogue in :mod:`.commands`; the recording's label on the right;
+* the **status line**: the link, poll, recording and car zones of :mod:`.status`, each a click
+  away from its detail (the event log, the Poll menu, recording info, the session picker);
+* the **bottom line**: a message, or the selection, the keys of the focused pane and the modes
+  that are not the default; ``f10 menu · ctrl+p commands · ? help`` on its right.
 
-With ``--save`` a blinking ``● REC`` (bold, never red: red means an error) marks the active
-recording. Because every payload is journaled and written to a capture file automatically on
-exit, ``s`` only *edits* the current session (label / state / notes, pre-filled with the
-existing values): it writes no file and starts no new session. ``n`` **finishes** the current
-session (writing it to a capture file now) and starts a fresh, separately-labelled one, so a
-single run can yield several sessions. Without ``--save``, ``s`` performs a one-off write of the
-payloads captured so far and ``n`` is unavailable.
+``ctrl+p`` searches every command. ``?`` is the full key list. A message replaces the context
+for a few seconds; an error stays until the next key, and every message is kept in the event log.
 
-``V`` cycles the display view mode (``ecus`` → ``ranges`` → ``signals`` →
-``full``): a bare ECU list, each signal's captured value span, the decoded
-signals only, or the signals plus raw byte payloads (the default). ``i`` opens a
-read-only session-info overlay showing the current segment's label/state/notes,
-the run's frame/cycle counters and retain mode, where the ``--save`` journal is
-being written, and the history of finished ``--save`` segments this run.
+The values render into a single widget that updates *in place* inside a scrollable container,
+fitted to the pane's width. A data refresh **never** moves the scroll position, so a byte you are
+reading cannot be yanked out from under you; ``G``/``End`` jumps to the newest output.
 
-With ``--actuate``, ``A`` shows the actuator pane
-(:mod:`canair.tui.apps.monitor.actuators`): the named ECUs' outputs and routines, beside the
-values on a wide terminal and below them otherwise, switched while polling goes on.
+The monitor doubles as a light PID editor: the arrows move a cursor over the signal rows, ``e``
+opens the edit dialog, ``v`` and ``x`` toggle verified and ship, ``F`` cycles the filter. Edits go
+through :mod:`canair.yaml_edit.pids` and show on the next poll. Those keys belong to the values
+pane (:class:`~canair.tui.apps.monitor.panes.ValuesPane`); the app holds the keys that mean the
+same wherever focus is.
 
-``p`` opens the ECU → PID picker — the same screen a bare ``canair monitor``
-shows — on what is polled now; applying it swaps the live poll's selectors
-without restarting the session. ``t``
-opens the diagnostic session-type switcher: pick an ECU, then a session mode —
-preferring the ECU's own known-good modes from ``canair scan sessions`` history,
-falling back to the safe fixed list (01/03/81/82/83; 02 programmingSession and
-85 are never offered). The status bar's ``sess`` item shows each ECU's currently
-open session type, since a monitor session is **not** always a plain ``10 03``
-(extendedDiagnosticSession) — KWP2000 ECUs need ``10 81`` instead, and the
-session-info overlay/status item make the active mode explicit rather than
-assumed. Each signal row also shows a small circle before its code: green when
-the value was refreshed this cycle, dim when it's stale (cached from an earlier
-successful read).
+With ``--save`` the recording is journaled as it goes and written on exit; ``s`` labels it and
+``n`` finishes it and starts the next. Without ``--save`` ``s`` writes a one-off snapshot. With
+``--actuate``, ``A`` shows the actuator pane (:mod:`.actuators`). ``p`` swaps what is polled
+without a restart; ``t`` opens a diagnostic session type on one ECU.
 
-The dialogs (label a recording, edit a signal) are :mod:`canair.tui.apps.monitor.dialogs`;
-the overlays and the session-type picker are :mod:`canair.tui.apps.monitor.overlays`; what the
-status bar and the header say is :mod:`canair.tui.apps.monitor.status`; the poll loop and the
-save keys are the mixins of :mod:`canair.tui.apps.monitor.polling` and
-:mod:`canair.tui.apps.monitor.recording`.
-
-The bottom bar is built from :mod:`canair.tui.status`, so it fits itself to the
-terminal width instead of clipping its tail on a narrow screen; ``?`` remains
-the authoritative key list.
+The dialogs are :mod:`.dialogs`; the overlays and the session-type picker :mod:`.overlays`; the
+poll loop, the save keys and the signal editing the mixins of :mod:`.polling`, :mod:`.recording`
+and :mod:`.editing`.
 """
 
 from __future__ import annotations
@@ -72,38 +44,47 @@ from textual.css.query import NoMatches
 from textual.widgets import Static
 
 from canair.core.stop_signals import graceful_stop_async
+from canair.live.monitor.render import MONITOR_LEGEND
+from canair.render.glyphs import ELLIPSIS
 from canair.tui.apps.monitor.actuators import (
+    NO_ACTUATE,
     PANE_CSS,
     ActuatorMixin,
     ActuatorPane,
     ActuatorTable,
 )
+from canair.tui.apps.monitor.commands import (
+    ACTUATOR_COMMANDS,
+    SIGNAL_COMMANDS,
+    monitor_catalogue,
+)
 from canair.tui.apps.monitor.dialogs import EditParamDialog, SaveDialog
+from canair.tui.apps.monitor.editing import EditingMixin
 from canair.tui.apps.monitor.overlays import EventLogModal, SessionInfoModal, SessionPickerScreen
 from canair.tui.apps.monitor.panes import ValuesPane
 from canair.tui.apps.monitor.polling import PollingMixin
 from canair.tui.apps.monitor.recording import RecordingMixin
 from canair.tui.apps.monitor.status import (
     SELECT_FIRST,
-    header_text,
-    hint_items,
-    metric_items,
+    context_items,
+    document_items,
+    status_zones,
 )
 from canair.tui.apps.monitor_select.app import LiveMonitorSelectScreen
-from canair.tui.flash import Flash, Severity, severity_of
+from canair.tui.flash import Severity, severity_of
 from canair.tui.help import HelpMixin
-from canair.tui.keys import bind
-from canair.tui.scroll import APP_BASE_CSS, reveal_marker
-from canair.tui.status import (
-    StatusBar,
-)
+from canair.tui.keys import bind, key_hint
+from canair.tui.scroll import APP_BASE_CSS
+from canair.tui.shell.app import SHELL_BINDINGS, ShellMixin
+from canair.tui.shell.commands import Catalogue, Command
+from canair.tui.shell.contextline import ContextLine
+from canair.tui.shell.menubar import MenuBar
+from canair.tui.shell.messages import Messages
+from canair.tui.shell.palette import ShellCommands
+from canair.tui.shell.statusline import StatusLine
 
 if TYPE_CHECKING:
     from canair.live.monitor.controller import MonitorController
-
-
-from canair.live.monitor.render import MONITOR_LEGEND
-from canair.render.glyphs import ELLIPSIS
 
 __all__ = [
     "EditParamDialog",
@@ -114,34 +95,35 @@ __all__ = [
     "SessionPickerScreen",
 ]
 
+#: The status zone a click opens, by zone name (the poll zone opens its menu instead).
+ZONE_ACTIONS = {"link": "event_log", "record": "session_info", "car": "session_type"}
 
-class MonitorApp(PollingMixin, RecordingMixin, ActuatorMixin, HelpMixin, App):
+
+class MonitorApp(
+    ShellMixin, PollingMixin, RecordingMixin, EditingMixin, ActuatorMixin, HelpMixin, App
+):
     """Scrollable, in-place live-value monitor."""
 
     HELP_TITLE = "canair monitor — keyboard shortcuts"
     HELP_LEGEND = MONITOR_LEGEND
     HELP_PANES = (ValuesPane, ActuatorTable)
 
-    # canair uses no command-palette commands; disable Textual's ctrl+p palette.
-    ENABLE_COMMAND_PALETTE = False
+    # The palette lists the monitor's own commands (tui/shell/palette.py), nothing of Textual's.
+    ENABLE_COMMAND_PALETTE = True
+    COMMANDS: ClassVar = {ShellCommands}
 
-    CSS = (
-        APP_BASE_CSS
-        + PANE_CSS
-        + """
-    #header { dock: top; height: auto; max-height: 3; padding: 0 1; background: transparent; }
-    """
-    )
+    CSS = APP_BASE_CSS + PANE_CSS
 
     BINDINGS: ClassVar[list[BindingType]] = [
         *bind("quit", "quit"),
         *bind("quit_force", "quit", show=False, priority=True),
         *bind("help", "help"),
+        *SHELL_BINDINGS,
         *bind("session", "save", desc="save / label"),
-        *bind("new", "new_segment", desc="new session"),
+        *bind("new", "new_segment", desc="new recording"),
         *bind("rulers", "toggle_rulers", desc="byte ruler"),
         *bind("event_log", "event_log"),
-        *bind("info", "session_info", desc="session info"),
+        *bind("info", "session_info", desc="recording info"),
         *bind("view", "cycle_view"),
         *bind("pause", "toggle_pause"),
         *bind("increase", "faster", desc="poll faster"),
@@ -152,7 +134,7 @@ class MonitorApp(PollingMixin, RecordingMixin, ActuatorMixin, HelpMixin, App):
         *bind("back", "stay", desc="back", show=False),
         *bind("reconnect", "force_reconnect"),
         *bind("pick", "pid_picker", desc="select ECUs/PIDs"),
-        *bind("value_type", "session_type", desc="session type"),
+        *bind("value_type", "session_type", desc="diagnostic session"),
         *bind("actuators", "toggle_actuators"),
         *bind("block_next", "focus_pane(1)", desc="next pane", show=False),
         *bind("block_prev", "focus_pane(-1)", desc="prev pane", show=False),
@@ -164,39 +146,89 @@ class MonitorApp(PollingMixin, RecordingMixin, ActuatorMixin, HelpMixin, App):
         self.paused = False
         # Set when the user asks to quit, so an in-flight reconnect aborts cleanly.
         self._stopping = False
-        self.flash = Flash()
+        self.shell_messages = Messages()
+        self.catalogue = monitor_catalogue(
+            recording=controller.recorder.journal is not None,
+            actuate=controller.actuation is not None,
+        )
 
     # -- layout ------------------------------------------------------------
     def compose(self) -> ComposeResult:
-        yield Static("", id="header", markup=True)
+        yield MenuBar(self.catalogue.menus, self.SHELL_NAME, id="menubar")
         with Container(id="panes"):
             with ValuesPane(id="scroll"):
-                yield Static(self.controller.renderer.render(), id="body", markup=False)
+                yield Static("", id="body", markup=False)
             if self.controller.actuation is not None:
                 yield ActuatorPane(id="actuators")
-        yield StatusBar(id="status")
+        yield StatusLine(id="status")
+        yield ContextLine(id="context")
 
     def on_mount(self) -> None:
-        # Use the terminal's own palette + default background (ansi_default)
-        # rather than Textual's remapped truecolor theme + grey surface. Keeps
-        # byte colours matching the plain output and readable on any themed
-        # terminal (iTerm2, Termius, …). CSS `background: transparent` covers the
-        # background regardless; the theme fixes the colour mapping.
+        # Use the terminal's own palette + default background (ansi_default) rather than
+        # Textual's remapped truecolor theme + grey surface. Keeps byte colours matching the
+        # plain output and readable on any themed terminal (iTerm2, Termius, …).
         if "ansi-dark" in self.available_themes:
             self.theme = "ansi-dark"
         self.query_one("#scroll", VerticalScroll).focus()
-        # Let the controller repaint mid-cycle as each PID resolves, so a slow /
-        # timing-out PID never freezes the whole view (only its own row lags).
+        # Let the controller repaint mid-cycle as each PID resolves, so a slow / timing-out
+        # PID never freezes the whole view (only its own row lags).
         self.controller.on_partial = self._refresh_body
         self.run_worker(self._poll_loop(), name="poll", exclusive=True)
         self.set_interval(0.25, self._update_status)
         self.set_interval(0.25, self.refresh_actuators)
         self.layout_panes(self.size.width)
-        self._update_status()
+        self.call_after_refresh(self._refresh_body)
         self._update_header()
 
     def on_resize(self, event: events.Resize) -> None:
         self.layout_panes(event.size.width)
+        self.call_after_refresh(self._refresh_body)
+
+    # -- the shell -----------------------------------------------------------
+    def shell_catalogue(self) -> Catalogue:
+        return self.catalogue
+
+    def shell_changed(self) -> None:
+        self._update_status()
+
+    def command_unavailable(self, cmd: Command) -> str | None:
+        c = self.controller
+        if cmd.id == "new" and c.recorder.journal is None:
+            return "Starting a new recording needs --save (nothing is being recorded)"
+        if cmd.id in SIGNAL_COMMANDS and getattr(self._editor(), "selected", None) is None:
+            return SELECT_FIRST
+        if cmd.id in ACTUATOR_COMMANDS and not self.actuators_focused():
+            if c.actuation is None:
+                return NO_ACTUATE
+            return f"Show the actuator pane ({key_hint('actuators')}) and pick a row first"
+        if cmd.id == "reconnect" and getattr(c, "reconnect", None) is None:
+            return "Reconnect unavailable (no reconnector for this session)"
+        return None
+
+    def command_state(self, cmd: Command) -> bool | None:
+        c = self.controller
+        if cmd.id.startswith("view:"):
+            return c.view_mode == cmd.id.split(":", 1)[1]
+        if cmd.id.startswith("filter:"):
+            return getattr(self._editor(), "filter_mode", "all") == cmd.id.split(":", 1)[1]
+        flags = None
+        if cmd.id in ("verify", "ship"):
+            ed = self._editor()
+            flags = ed.selected_flags() if hasattr(ed, "selected_flags") else None
+        return {
+            "pause": self.paused,
+            "schedule": getattr(c.schedule, "schedule", "fixed") != "fixed",
+            "rulers": bool(c.show_rulers),
+            "actuators": self.actuators_shown(),
+            "verify": bool(flags and flags[0]),
+            "ship": bool(flags and flags[1]),
+        }.get(cmd.id)
+
+    def on_status_line_zone_clicked(self, event: StatusLine.ZoneClicked) -> None:
+        if event.zone == "poll":
+            self.open_menu_above("Poll", x=event.x, bottom=event.y)
+        elif event.zone in ZONE_ACTIONS:
+            self.call_next(self.run_action, ZONE_ACTIONS[event.zone])
 
     # -- polling -----------------------------------------------------------
     async def action_quit(self) -> None:
@@ -205,37 +237,38 @@ class MonitorApp(PollingMixin, RecordingMixin, ActuatorMixin, HelpMixin, App):
         self.exit()
 
     def _refresh_body(self) -> None:
-        """Repaint the body in place, never moving the user's scroll position."""
-        # The poll worker can fire mid-teardown (after quit); ignore if the DOM
-        # is already gone.
+        """Repaint the body in place, fitted to the pane, never moving the scroll position."""
+        # The poll worker can fire mid-teardown (after quit); ignore if the DOM is gone.
         try:
-            body = self.query_one("#body", Static)
-        except NoMatches:
+            scroll = self.screen_stack[0].query_one("#scroll", VerticalScroll)
+            body = self.screen_stack[0].query_one("#body", Static)
+        except (NoMatches, IndexError):
             return
-        body.update(self.controller.renderer.render())
+        width = scroll.content_size.width - 2 if scroll.content_size.width else None
+        body.update(self.controller.renderer.render(width, title=False))
         self._update_status()
 
     def _update_status(self) -> None:
         try:
-            status = self.query_one("#status", StatusBar)
-        except NoMatches:
+            base = self.screen_stack[0]
+            status = base.query_one("#status", StatusLine)
+            context = base.query_one("#context", ContextLine)
+        except (NoMatches, IndexError):
             return
-        status.set_lines(
-            metric_items(self.controller, paused=self.paused, flash=self.flash.item()),
-            hint_items(self.controller, actuators=self.actuators_focused()),
+        left, right = status_zones(self.controller, paused=self.paused)
+        status.set_zones(left, right)
+        context.set_line(
+            context_items(self.controller, actuators=self.actuators_focused()),
+            self.shell_messages.item(),
         )
 
-    def _editor(self):
-        """The controller's edit collaborator, or None (older/fake controllers)."""
-        return getattr(self.controller, "editor", None)
-
     def _update_header(self) -> None:
-        """Render the top bar (see :func:`~canair.tui.apps.monitor.status.header_text`)."""
+        """The recording's label and states on the menu bar's right."""
         try:
-            header = self.query_one("#header", Static)
-        except NoMatches:
+            bar = self.shell_menu_bar()
+        except (NoMatches, IndexError):
             return
-        header.update(header_text(self.controller, self.size.width))
+        bar.set_document(document_items(self.controller))
 
     # -- actions -----------------------------------------------------------
     def action_scroll(self, delta: int) -> None:
@@ -251,10 +284,9 @@ class MonitorApp(PollingMixin, RecordingMixin, ActuatorMixin, HelpMixin, App):
         self.paused = not self.paused
         self._update_status()
 
-    # Live poll-rate control, delegated to the controller's PollScheduler: the
-    # interval on the fixed schedule, a multiplier on every PID's period on the
-    # per-PID one. The poll loop re-asks the schedule while it waits, so a change
-    # takes effect at once. Clamped by the scheduler.
+    # Live poll-rate control, delegated to the controller's PollScheduler: the interval on the
+    # fixed schedule, a multiplier on every PID's period on the per-PID one. The poll loop
+    # re-asks the schedule while it waits, so a change takes effect at once.
     def action_faster(self) -> None:
         self._flash(f"Poll rate: {self.controller.schedule.faster()}", secs=2.0)
 
@@ -263,7 +295,6 @@ class MonitorApp(PollingMixin, RecordingMixin, ActuatorMixin, HelpMixin, App):
 
     def action_toggle_schedule(self) -> None:
         self._flash(f"Poll schedule: {self.controller.schedule.toggle()}", secs=2.0)
-        self._update_status()
 
     def action_toggle_rulers(self) -> None:
         """Toggle the byte-index ruler + the per-signal byte-reference column."""
@@ -271,25 +302,26 @@ class MonitorApp(PollingMixin, RecordingMixin, ActuatorMixin, HelpMixin, App):
         self._refresh_body()
 
     def action_event_log(self) -> None:
-        """Open the scrollable diagnostics event-log overlay."""
+        """Open the event log: this run's messages, then its diagnostics events."""
         if self._modal_active():
             return
-        self.push_screen(EventLogModal())
+        self.push_screen(EventLogModal(list(self.shell_messages.history)))
 
     def action_session_info(self) -> None:
-        """Open the session summary + segment-history overlay."""
+        """Open the recording summary + recording-history overlay."""
         if self._modal_active():
             return
         c = self.controller
-        summary = c.view.session_summary()
-        segments = list(c.recorder.segments)
-        self.push_screen(SessionInfoModal(summary, segments))
+        self.push_screen(SessionInfoModal(c.view.session_summary(), list(c.recorder.segments)))
 
     def action_cycle_view(self) -> None:
-        """Cycle the display view mode (ecus → ranges → signals → full)."""
         if self._modal_active():
             return
-        mode = self.controller.view.cycle()
+        self.action_set_view(self.controller.view.cycle())
+
+    def action_set_view(self, mode: str) -> None:
+        """Show the values in one view mode (``ecus``, ``ranges``, ``signals``, ``full``)."""
+        self.controller.view.set(mode)
         self._refresh_body()
         self._flash(f"View: {mode}")
 
@@ -317,8 +349,8 @@ class MonitorApp(PollingMixin, RecordingMixin, ActuatorMixin, HelpMixin, App):
     def action_session_type(self) -> None:
         """Open the diagnostic session-type picker (view/switch per ECU).
 
-        The picker itself only *chooses* an (ecu, mode) pair — the ``10 xx``
-        send is async, so it runs here as a worker after the modal closes.
+        The picker only *chooses* an (ecu, mode) pair: the ``10 xx`` send is async, so it
+        runs here as a worker after the modal closes.
         """
         if self._modal_active():
             return
@@ -336,18 +368,14 @@ class MonitorApp(PollingMixin, RecordingMixin, ActuatorMixin, HelpMixin, App):
         self.push_screen(SessionPickerScreen(self.controller), _done)
 
     async def _report_session_switch(self, done) -> None:
-        """Flash what the switch, run on the foreground lane, came to."""
+        """Say what the switch, run on the foreground lane, came to."""
         try:
             msg = await done
         except Exception as exc:  # a transport failure the switch did not turn into text
             msg = f"Session switch failed: {exc}"
         self._flash(msg, severity_of(msg))
-        self._update_status()
 
-    # -- selection / in-place editing --------------------------------------
-    def _last_queries(self):
-        return getattr(self.controller, "last_queries", [])
-
+    # -- the view's state -----------------------------------------------------
     def _modal_active(self) -> bool:
         """True when a dialog owns the screen (don't act on the view beneath it)."""
         return len(self.screen_stack) > 1
@@ -355,52 +383,11 @@ class MonitorApp(PollingMixin, RecordingMixin, ActuatorMixin, HelpMixin, App):
     def action_stay(self) -> None:
         """Escape outside a pane: nothing to back out of, and never a quit."""
 
-    def action_select(self, delta: int) -> None:
-        """Move the signal-selection cursor and scroll it into view.
-
-        Falls back to plain scrolling when there is no editor or nothing is
-        selectable, so the arrow keys never feel dead.
-        """
-        if self._modal_active():
-            return
-        ed = self._editor()
-        if ed is None or ed.move(self._last_queries(), delta) is None:
-            self.action_scroll(delta)
-            return
-        self._refresh_body()
-        self._scroll_to_selection()
-        self._update_status()
-
-    def action_clear_selection(self) -> None:
-        """Drop the ▶ signal cursor so ↑/↓ resume plain scrolling.
-
-        No-ops (letting escape fall through) when a modal owns the screen or
-        nothing is selected, so it never steals escape from a dialog.
-        """
-        if self._modal_active():
-            return
-        ed = self._editor()
-        if ed is None or not getattr(ed, "clear_selection", None):
-            return
-        if not ed.clear_selection():
-            return
-        self._refresh_body()
-        self._flash("Selection cleared")
-
-    def action_cycle_filter(self) -> None:
-        ed = self._editor()
-        if ed is None or self._modal_active():
-            return
-        mode = ed.cycle_filter(self._last_queries())
-        self._refresh_body()
-        self._flash(f"Filter: {mode}")
-
     def action_force_reconnect(self) -> None:
         """Ask the poll loop to rebuild the connection after the current cycle.
 
-        Deliberately only sets the flag the loop already watches instead of
-        reconnecting here: an attempt started from a key handler would race the
-        in-flight poll for the same terminal.
+        Only sets the flag the loop already watches instead of reconnecting here: an attempt
+        started from a key handler would race the in-flight poll for the same terminal.
         """
         c = self.controller
         if self._modal_active() or c.reconnecting:
@@ -411,87 +398,29 @@ class MonitorApp(PollingMixin, RecordingMixin, ActuatorMixin, HelpMixin, App):
         c.mark_disconnected("manual")
         self._flash(f"Reconnecting after this poll cycle{ELLIPSIS}")
 
-    def action_verify(self) -> None:
-        ed = self._editor()
-        if ed is None or self._modal_active():
-            return
-        if getattr(ed, "selected", None) is None:
-            self._flash(SELECT_FIRST, "warning")
-            return
-        self._flash_result(ed.toggle_verified())
-        self._refresh_body()
-
-    def action_toggle_ship(self) -> None:
-        ed = self._editor()
-        if ed is None or self._modal_active():
-            return
-        if getattr(ed, "selected", None) is None:
-            self._flash(SELECT_FIRST, "warning")
-            return
-        self._flash_result(ed.toggle_ship())
-        self._refresh_body()
-
-    def action_edit(self) -> None:
-        """Open the edit dialog for the selected signal (polling pauses)."""
-        ed = self._editor()
-        if ed is None or self._modal_active():
-            return
-        target = ed.edit_target() if hasattr(ed, "edit_target") else None
-        if not target:
-            self._flash(SELECT_FIRST, "warning")
-            return
-        # Auto-pause polling while the modal is open; restore prior state after.
-        was_paused = self.paused
-        self.paused = True
-
-        def _done(result: dict | None) -> None:
-            self.paused = was_paused
-            if result is None:
-                self._flash("Edit cancelled")
-                return
-            try:
-                msg = ed.apply_edit(result)
-            except Exception as exc:  # keep the TUI alive on any edit error
-                msg = f"Edit failed: {exc}"
-            self._flash_result(msg)
-            self._refresh_body()
-
-        self.push_screen(EditParamDialog(target), _done)
-
-    def _scroll_to_selection(self) -> None:
-        """Scroll so the ``▶`` selection cursor is within the viewport."""
-        try:
-            scroll = self.query_one("#scroll", VerticalScroll)
-            body = self.query_one("#body", Static)
-        except NoMatches:
-            return
-        reveal_marker(scroll, body)
-
-    def _flash(self, msg: str, severity: Severity = "info", secs: float = 5.0) -> None:
-        """Show a transient message in the status line for ``secs`` seconds."""
-        self.flash.show(msg, severity, secs=secs)
-        self._update_status()
+    def _flash(self, msg: str, severity: Severity = "info", secs: float | None = None) -> None:
+        """Say ``msg`` on the bottom line (see :mod:`canair.tui.shell.messages`)."""
+        self.message(msg, severity, secs=secs)
 
     def _flash_result(self, msg: str) -> None:
-        """Flash the one-line result a controller returned, in the severity its words carry."""
+        """Say the one-line result a controller returned, in the severity its words carry."""
         self._flash(msg, severity_of(msg))
 
 
 async def run_monitor_app(controller: MonitorController) -> None:
     """Run the monitor TUI to completion (returns when the user quits).
 
-    Stop signals (``SIGTERM``/``SIGHUP`` — a `kill`, a vanished terminal, or the
-    lock watchdog standing down) are routed through the app's own quit action, so
-    the TUI tears itself down cleanly (terminal restored, ``--save`` journal
-    reconciled) instead of a ``KeyboardInterrupt`` unwinding through Textual's
-    internals.
+    Stop signals (``SIGTERM``/``SIGHUP`` — a `kill`, a vanished terminal, or the lock watchdog
+    standing down) are routed through the app's own quit action, so the TUI tears itself down
+    cleanly (terminal restored, ``--save`` journal reconciled) instead of a
+    ``KeyboardInterrupt`` unwinding through Textual's internals.
     """
 
     app = MonitorApp(controller)
 
     def _request_quit() -> None:
-        # Runs on the event loop (asyncio signal handler), so the app can be
-        # asked to exit directly; _stopping aborts any in-flight reconnect.
+        # Runs on the event loop (asyncio signal handler), so the app can be asked to exit
+        # directly; _stopping aborts any in-flight reconnect.
         app._stopping = True
         app.exit()
 

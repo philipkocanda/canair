@@ -316,8 +316,8 @@ class TestFailuresLookLikeFailures:
             await pilot.pause(0.1)
             await pilot.press("ctrl+s")
             await pilot.pause(0.1)
-            assert app.flash.severity == "error"
-            markup = app.flash.item().markup
+            assert app.shell_messages.severity == "error"
+            markup = app.shell_messages.item().markup
             assert "red" in markup and "✗" in markup and "green" not in markup
             await pilot.press("q")
 
@@ -330,8 +330,8 @@ class TestFailuresLookLikeFailures:
             await pilot.pause(0.1)
             await pilot.press("v")  # nothing selected
             await pilot.pause(0.1)
-            assert app.flash.severity == "warning"
-            assert not app.flash.message.endswith(".")
+            assert app.shell_messages.severity == "warning"
+            assert not app.shell_messages.current.endswith(".")
             await pilot.press("q")
 
     @pytest.mark.asyncio

@@ -1,4 +1,4 @@
-"""The monitor's save and new-session keys: ``s`` labels or saves, ``n`` rotates the segment.
+"""The monitor's save and new-recording keys: ``s`` labels or saves, ``n`` starts the next.
 
 :class:`RecordingMixin` is mixed into :class:`~canair.tui.apps.monitor.app.MonitorApp`. It
 opens the :class:`~canair.tui.apps.monitor.dialogs.SaveDialog` pre-filled from the controller
@@ -16,6 +16,7 @@ from canair.live.monitor.controller import MonitorController
 from canair.states.tokens import join_states
 from canair.tui.apps.monitor.dialogs import SaveDialog
 from canair.tui.flash import Severity
+from canair.tui.keys import display_key, keys_for
 
 
 class RecordingMixin:
@@ -31,7 +32,9 @@ class RecordingMixin:
     if TYPE_CHECKING:
 
         def _modal_active(self) -> bool: ...
-        def _flash(self, msg: str, severity: Severity = "info", secs: float = 5.0) -> None: ...
+        def _flash(
+            self, msg: str, severity: Severity = "info", secs: float | None = None
+        ) -> None: ...
         def _flash_result(self, msg: str) -> None: ...
         def _update_header(self) -> None: ...
 
@@ -69,7 +72,7 @@ class RecordingMixin:
 
         With --save active every payload is already journaled and written to a
         capture file automatically on exit, so ``s`` only *edits* the current
-        session (label / state / notes). Without --save nothing is recording: ``s``
+        recording (label / state / notes). Without --save nothing is recording: ``s``
         writes the payloads captured since the previous snapshot to a new capture
         file, once, and the dialog says so.
         """
@@ -83,14 +86,15 @@ class RecordingMixin:
         recording = recorder.journal is not None
         current_notes = ""
         if recording:
-            title = "Edit current session"
+            new_key = display_key(keys_for("new")[0])
+            title = "Edit current recording"
             caption = (
-                "This changes the label, state and notes of the [b]current session[/] — "
+                "This changes the label, state and notes of the [b]current recording[/] — "
                 "everything recorded in it, before and after this moment.\n"
-                "[b]It does not start a new session.[/] "
-                "[dim]Press [b]n[/b] to finish this session and start a fresh one.[/]"
+                "[b]It does not start a new recording.[/] "
+                f"[dim]Press [b]{new_key}[/b] to finish this recording and start the next.[/]"
             )
-            save_button = "Update session"
+            save_button = "Update recording"
             suggested = recorder.session_label or suggested
             current_notes = recorder.session_notes
         else:
@@ -130,23 +134,25 @@ class RecordingMixin:
         )
 
     def action_new_segment(self) -> None:
-        """Finish the current --save session (write it now) and start a fresh one."""
+        """Finish the current --save recording (write it now) and start the next one."""
         if self._modal_active():
             return
         if self.controller.recorder.journal is None:
-            self._flash("Start a new session needs --save (nothing is being recorded)", "warning")
+            self._flash(
+                "Starting a new recording needs --save (nothing is being recorded)", "warning"
+            )
             return
         suggested, suggested_state, state_options = self._suggested_metadata(next_segment=True)
 
         def _done(result: tuple[str, str, str] | None) -> None:
             if result is None:
-                self._flash("Cancelled — current session kept recording")
+                self._flash("Cancelled — the current recording goes on")
                 return
             label, state, notes = result
             try:
                 msg = self.controller.recorder.new_segment(label, state, notes)
             except Exception as exc:  # keep the TUI alive on any error
-                msg = f"Could not start new session: {exc}"
+                msg = f"Could not start a new recording: {exc}"
             self._flash_result(msg)
             self._update_header()
 
@@ -155,12 +161,12 @@ class RecordingMixin:
                 suggested,
                 suggested_state,
                 state_options,
-                title="Finish session & start a new one",
+                title="Finish recording & start the next",
                 caption=(
-                    "[b]Writes the current session to a capture file now[/], then "
-                    "starts a fresh recording with the label below.\n"
+                    "[b]Writes the current recording to a capture file now[/], then "
+                    "starts the next one with the label below.\n"
                     "[dim]One monitor run can produce several separately-labelled "
-                    "sessions this way.[/]"
+                    "recordings this way; each is a capture session.[/]"
                 ),
                 save_button="Finish & start new",
             ),

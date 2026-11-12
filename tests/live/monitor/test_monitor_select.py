@@ -441,7 +441,6 @@ class TestLivePicker:
                 assert not isinstance(app.screen, LiveMonitorSelectScreen)
                 assert app.is_running
             assert not hasattr(app.controller, "applied")
-            status = _plain(app.query_one("#status").render())
-            assert "p select ECUs/PIDs" in status
-            assert "p select ECUs/PIDs" in _plain(app.query_one("#header").render())
+            # The bottom line teaches the picker key while nothing is selected.
+            assert "p select ECUs/PIDs" in _plain(app.query_one("#context").render())
             await pilot.press("q")

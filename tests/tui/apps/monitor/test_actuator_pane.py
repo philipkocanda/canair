@@ -165,7 +165,7 @@ async def test_without_actuate_the_key_says_which_flag():
         await _settle(pilot)
         await pilot.press("A")
         await _settle(pilot)
-        assert "--actuate" in app.flash.message
+        assert "--actuate" in app.shell_messages.current
         assert not app.query(ActuatorPane)
         await pilot.press("q")
 

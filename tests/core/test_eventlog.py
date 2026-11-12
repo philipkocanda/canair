@@ -104,7 +104,7 @@ class TestEventLog:
         monkeypatch.setattr(clog, "_RUN_ID", "earlier")
         clog.log_event("drop", "from an earlier session")
         monkeypatch.setattr(clog, "_RUN_ID", "now")
-        assert "no events logged this session" in EventLogModal()._render_events().plain
+        assert "(none logged)" in EventLogModal()._render_events().plain
         clog.log_event("stale", "from this session")
 
         shown = EventLogModal()._render_events().plain
