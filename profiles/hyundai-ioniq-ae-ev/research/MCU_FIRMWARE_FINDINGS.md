@@ -378,3 +378,307 @@ charge. **The MCU, BMS and OBC all went silent on 2026-11-08, which an MCU reset
 explain**; the cause of that event stays open. Keep reads inside `0x000000`-`0x3FFFFF`.
 
 The handler also answers on the functional id `0x7DF` (§4.1): a functional `23` reaches it too.
+
+## 4. The diagnostic server
+
+### 4.1 Transport and intake
+
+The MCU answers on `0x7E3` (response `0x7EB`) and on the functional id `0x7DF`. Mailbox slots 125,
+126 and 127 (CAN C mailboxes 61-63, §7.1) are the three. `FUN_0010D0BC` (10 ms task) reads `0x7DF`
+first, then `0x7E3`, copies the eight data bytes to `0x40013DDC` and sets the pending flag
+`0x40013DE4`. `FUN_00111E18` then calls the dispatcher `FUN_001117C8`. A functional request is
+therefore handled exactly like a physical one: **every service in §4.2 also answers on `0x7DF`**,
+`10 90`, `0x30` and `0x31` included, and canair's functional allow-list is the only guard there.
+
+`FUN_00111F00` reads the ISO-TP byte: a single frame (high nibble 0; length = low nibble, service
+at byte 1), a first frame (`10`; service at byte 2), a consecutive frame (`20`) or a flow-control
+frame (`30`). The response is sent by `FUN_00112284`/`FUN_00112504`, in single frames up to six
+data bytes and in first/consecutive frames above that. The single-frame length is not compared
+with the bytes actually sent: a handler looks only at the length it expects.
+
+### 4.2 Services
+
+`FUN_001117C8` is a switch on the service id with one handler per service (verified, the same
+design as the VCU's `FUN_00192788`):
+
+| SID | service | handler | notes |
+|---|---|---|---|
+| `01`, `02`, `03`, `07`, `09`, `0A` | OBD-II modes | `FUN_0010D528`, `D8C8`, `E0A4`, `E30C`, `E7DC`, `E574` | answer in the profile's tests; `01 00` and `01 20` return their support maps (profile research entry) |
+| `04`, `14` | clear diagnostic information | `FUN_0010F54C` | `04` (OBD-II) needs the stationary test `FUN_00162014`; `14 gg 00` (`gg` = `00`, `40`, `80` or `FF`) sets the clear request `0x40013EC1` (1 all, 2 for `00`, 3 for `40`, 4 for `80`) that the DTC manager carries out |
+| `10` | StartDiagnosticSession | `FUN_0010ED90` | `81`, `85`, `90`, `F1`; none needs a key (§4.3) |
+| `11` | ECUReset | `FUN_0010F408` | `11 01` only; **gated on the vehicle being stationary** (§8) |
+| `12` | ReadFreezeFrameData | `FUN_0011063C` | |
+| `17`, `18` | ReadStatusOfDTC, ReadDTCByStatus | `FUN_0010FA7C`, `FUN_0010FEF8` | `18 ss gg 00`: the status mask `ss` is `00`, `20`, `40` or `60`, the group `gg` is `00`, `40`, `80` or `FF` |
+| `1A` | ReadEcuIdentification | `FUN_0010F818` | table at `0x162200` (§4.4) |
+| `20` | StopDiagnosticSession | `FUN_00110D84` | returns to `81`, drops the key state |
+| `21` | ReadDataByLocalIdentifier | `FUN_00110AAC` | table at `0x1622CC` (§5) |
+| `22`, `2C`, `2E`, `3D` | stubs | `FUN_00111564`, `11111C`, `111584`, `1110FC` | always NRC `0x12` |
+| `23` | ReadMemoryByAddress | `FUN_00110E7C` | §3 |
+| `27` | SecurityAccess | `FUN_0010F048` | **present; not read** (project rule) |
+| `28`, `29` | Disable/EnableNormalMessageTransmission | `FUN_00110840`, `FUN_00110978` | `28 01` stops the MCU's periodic frames (§8) |
+| `30` | InputOutputControlByLocalIdentifier | `FUN_00110BE4` → `FUN_00161B3C` | §4.5 |
+| `31` | StartRoutineByLocalIdentifier | `FUN_001115A4` | §8 |
+| `34`, `36`, `37` | empty cases | none | no reply |
+| `3B` | WriteDataByLocalIdentifier | `FUN_0011113C` | writes only the `1A` entries marked writable: `1A90` (the VIN image at `0x40001FC0`); needs the stationary test for `3B` |
+| `3E` | TesterPresent | `FUN_0010EF0C` | `3E 00` answers `7E 00`; `3E 80` is silent; refused in session `81` |
+| `99` | manufacturer service | `FUN_0010D28C` | **no permission-matrix call in the handler**; erases the VIN image (§8) |
+
+An unknown service below `0x10` gets no reply; any other unknown service gets NRC `0x12`. The
+wire NRC bytes are the ones in the handlers: `0x12` (sub-function not supported), `0x22`
+(conditions not correct), `0x31`, `0x33`, `0x35`, `0x52`, `0x53`, `0x78` (response pending),
+`0x79` (wrong length) and `0x80` (service not supported in this session).
+
+### 4.3 Sessions and the permission matrix
+
+`FUN_00111E98(row)` looks the request's service up in the 24-row matrix at `0x1129E0`, five bytes
+per row (the service id, then the sessions `81`, `85`, `90`, `F1`; the session state is
+`0x40013ED3`). **The matrix is byte-for-byte the VCU's** (VCU doc §2.1). `02` allows, `03`
+refuses (NRC `0x80`), `01` allows only with the security state `0x40013EB9` set:
+
+| SID | `81` | `85` | `90` | `F1` |
+|---|---|---|---|---|
+| `10` | yes | yes | yes | yes |
+| `20` | yes | yes | yes | no |
+| `3E` | **no** | yes | yes | no |
+| `27` | no | yes | yes | yes |
+| `11` | no | secured | **yes** | no |
+| `1A`, `21`, `23` | yes | yes | yes | no |
+| `28`, `29` | no | **yes** | **yes** | no |
+| `3D` (stub) | secured | no | secured | no |
+| `2C` (stub) | yes | no | yes | no |
+| `3B` | no | secured | secured | no |
+| `22`, `2E` (stubs) | no | no | no | no |
+| `34`, `36`, `37` | no | secured | no | no |
+| `12`, `14`, `17`, `18` | yes | no | yes | no |
+| `31` | no | secured | **yes** | secured |
+| `30` | no | no | **yes** | no |
+
+- **`10 85`, `10 90` and `10 F1` need no SecurityAccess** (verified): `FUN_0010ED90` switches the
+  session as soon as it sees the byte. The mcu.yaml `sessions` block says only `81` is supported;
+  `85`, `90` and `F1` were never tried live. canair hard-blocks `10 85`; the profile's
+  `hk_90_session` quirk lets `10 90` through.
+- **In session `90`, `0x30`, `0x31`, `0x11` and `0x28`/`0x29` need no key** (verified).
+- A request with a session byte outside these four is NRC `0x12`.
+- Session `81` is the power-on state and the state `20`/`10 81` return to. The 5 s (session `90`)
+  and 60 s (session `85`) time-outs of the VCU were not traced here (the intake code is the
+  same); treat them as probable.
+
+### 4.4 The 0x1A table
+
+`FUN_0010F818` (read) and `FUN_0011113C` (write) use the 17-entry table at `0x162200`, 12 bytes
+per entry: id, length, two zero bytes, the data pointer, then a read flag (`1` readable, `2` not)
+and a write flag (`1` writable, `2` not). **The seven entries with read flag 2** (`84`, `86`,
+`87`, `88`, `89`, `92`, `94`; all RAM-backed) **are not readable**; the VCU shows the same split
+live (NRC `0x12`).
+
+| 1Axx | length | source | content |
+|---|---|---|---|
+| `80` | 89 | RAM `0x400219AC` | an aggregate of 8A, 8B, 90, 91, 98, 99, 8C, 8D and 8E; **it contains the VIN** (sensitive) |
+| `8A` | 10 | RAM `0x40011510` | ten spaces |
+| `8B` | 4 | flash `0x010054` | `1E 06 0A 14` |
+| `8C` | 8 | flash `0x00FFF6` | `AEEMCU83` (profile ecu_id) |
+| `8D` | 16 | RAM `0x4001151A` | `EAEEHEL-MS2-D000` (profile sw_id) |
+| `8E` | 8 | flash `0x010014` | `00000001` (profile calibration) |
+| `90` | 17 | RAM `0x40001FC0`, **writable** | the VIN (sensitive; never recorded) |
+| `91` | 12 | RAM `0x4001152A` | `36600-0E250` (profile part number) |
+| `98` | 10 | RAM `0x40011536` | ten spaces |
+| `99` | 4 | flash `0x010062` | `1E 06 0A 14` |
+
+`1A80` is not defined in the profile and must stay unread on any shared capture, because it
+embeds the VIN. The four profile identity strings match the image.
+
+### 4.5 IOControl (`30`)
+
+`FUN_00161B3C` handles `30 LID CTRL [PARAM]` in session `90` only. Local id `0x00` returns four
+bytes from flash `0x16210B`. For local ids `0x01`, `0x02`, `0x04`, `0x05`, `0x06`, `0x07` and
+`0x08` a per-LID enable byte at `0x400173B4` must be 1 or the reply is NRC `0x22`. Control `07`
+(short-term adjustment) latches the LID (`0x400173BC+LID` = 1); `30 01 07` also starts a long
+action that the server answers with repeated NRC `0x78`. `30 06 07 xx` and `30 07 07 xx` store `xx`
+in `0x40015E6E`, the trigger of the current-sensor offset calibration state machine
+`FUN_001363CC` (§5.3). Only LIDs `05` and `08` accept control `00` (release); LIDs `02`, `04`,
+`06` and `07` have no release in this handler. Local ids `0x20`, `0x40`, `0x60`, `0x80`, `0xA0`,
+`0xC0` and `0xE0` answer a fixed reply to control `01`. Treat every `30 .. 07` as a latched
+actuation (§8). Whether a session timeout or reset clears the latches was not traced.
+
+## 5. The 0x21 records: the source of every byte
+
+### 5.1 How a record is built
+
+The server reads four records from the table at `0x1622CC` (stride 8: id, data length, two zero
+bytes, RAM pointer; four entries, `bRam001226C8` = 4):
+
+| request | data bytes | response length | RAM record | build |
+|---|---|---|---|---|
+| `21 01` | 28 | 30 | `0x40021A20` | copied from the source buffer at each request |
+| `21 02` | 54 | 56 | `0x40021A66` | as above |
+| `21 03` | 25 | 27 | `0x40021AAC` | **never written**: all zero (the profile's 697 captures) |
+| `21 F2` | 65 | 67 | `0x40021AF2` | copied from the source buffer |
+
+`FUN_00110AAC` first calls `FUN_0016169C(lid)`, which copies the 147 current bytes
+(28 + 54 + 65) from the **source buffer** `0x40015DDA`-`0x40015E6C` into the records, then sends
+the record. So a reply shows the model state as of the last refresh, not the instant of the
+request.
+
+The source buffer is filled by `FUN_00136FE0`, which runs the **record converter**
+`FUN_00136DD0` over three tables in `.data` (RAM `0x4000D6E8`, `0x4000D7D8`, `0x4000D998`; flash
+`0x1632EC`, `0x1633DC`, `0x16359C`). **The task is the 100 ms one** (`FUN_00121994` →
+`FUN_00123A8C` → `FUN_00136FE0`), so all three records refresh every 100 ms (probable: the period
+comes from the scheduler set-up, §2.6). Each table entry is 16 bytes: a type, a source RAM
+pointer, a destination pointer into the source buffer and a float scale. The converter writes
+`source × scale` as follows (verified):
+
+| type | source | output | note |
+|---|---|---|---|
+| 1 | float | unsigned byte | negative values become 0 |
+| 2 | float | signed byte | |
+| 3 | float | unsigned 16-bit, little-endian | |
+| 4 | float | signed 16-bit, little-endian | |
+| 5 | unsigned 16-bit | unsigned byte | |
+| 6 | unsigned byte | unsigned byte | scale 1: a plain copy |
+| 7 | unsigned 16-bit | unsigned 16-bit, little-endian | |
+| 8 | signed 16-bit | signed 16-bit, little-endian | |
+| `0E` | unsigned 32-bit | unsigned 16-bit, little-endian | clipped at `0xFFFF` |
+| `17` | signed byte | unsigned byte | |
+
+The first four data bytes of a record are constants written once by `FUN_00136370`: `00 00 03 FF`
+(2101), `07 FF FF FF` (2102) and `FF FF FF 3F` (21F2). They are support-map-like and are not
+signals. Everything after them is little-endian, which is why the profile says "words are
+little-endian".
+
+WiCAN byte indices below follow `canair bix`: data byte *i* is `B04+i` for *i* < 4, otherwise
+`B05+i+⌊(i−4)/7⌋`, and a two-byte value that straddles a frame boundary skips the PCI byte
+(`B16`, `B24`, `B32`, `B40`, `B48`, `B56`, `B64`). "Obs." is the range in this car's captures.
+The status column compares with the profile: **confirmed** (the profile's signal is read from
+code), **contradicts** (the code shows it differently) or **new** (no profile signal).
+
+### 5.2 Record 2101 (28 data bytes)
+
+| data | WiCAN | form | source (RAM) | → value | what it is | vs profile |
+|---|---|---|---|---|---|---|
+| 0-3 | B05-B08 | constant | `00 00 03 FF` | | header | new (constant) |
+| 4 | B09 | u8 | `0x400166B4` | flags | status byte A. The same byte is `0x523` byte 0. Bit 4 is "any of three sensor checks failed" (`0x40016260`/`61`/`63`); other bits come from the model (not traced). Obs. 8, 12, 140 | new |
+| 5 | B10 | u8 | `0x400166B6` | flags | status byte B (`0x523` byte 1). **Bit 7 = the position sensor is not learned** (§5.3, P0C17). Obs. 56 | new |
+| 6 | B11 | u8 | `0x400166B8` | flags | status byte C (`0x523` byte 7). Bit 3 is the result of `FUN_0012ECE0`. Obs. 0, 1 | new |
+| 7-8 | B12:B13 | u16 | `0x40011D00` (float) | ×100 → V | **DC-link voltage in 0.01 V**. 65535 (655.35 V) means the voltage sensor is flagged faulty. The integer-volt copy goes out as `0x524` bytes 0-1 | **confirmed**, and finer: `MCU_HV_VOLTAGE = B13*2.56` is its high byte (verified live: same mean within 1.2 V over 10,811 captures, max 399.80 V) |
+| 9-10 | B14:B15 | u16 | `0x40015E74` (float) | ×1000 → mV | 12 V supply, first reading: `FUN_001259C4`, the ADC supply channel (raw `0x400152EC`) times a gain plus an offset (calibration `0x10238`/`0x1023C`) | **confirmed** `MCU_SUPPLY_VOLTAGE_1` |
+| 11 | B17 | u8 | `0x4001658A` | flag | bit 0 of `0x40016588` (written by `FUN_001559A0`). Obs. 0 | new |
+| 12-13 | B18:B19 | s16 | `0x40016584` (float) | ×1 | an unnamed float; also in the fault freeze frame (`FUN_0014EFFC`). Obs. 0 | new |
+| 14-15 | B20:B21 | u16 | `0x400117E2` | ×1 | output of a 9-point curve (10-90) driven by an unnamed float (`FUN_0012E26C`); probably a coolant-pump duty request in percent (inferred). Obs. 10, 45, 59, 75 | new |
+| 16-17 | B22:B23 | u16 | `0x400153A8` (float) | ×1000 → mV | ADC channel voltage (raw `0x40015318` × 0.001221 V). Obs. 518-681 mV | **contradicts** `MCU_2101_B22` (a single byte): it is the low byte of a 16-bit millivolt value |
+| 18-19 | B25:B26 | u16 | `0x400153AC` (float) | ×1000 → mV | ADC channel voltage (raw `0x4001531C`). Obs. 1062-1145 mV, slow, falls as the coolant warms (the profile's r = −0.72) | **contradicts** `MCU_2101_B25` (single byte): the low byte of a millivolt value. Probably a temperature-sensor divider (inferred) |
+| 20-21 | B27:B28 | u16 | `0x40015490` (float) | ×1000 → mV | 12 V supply, second reading: `FUN_001252C0(0,4,raw 0x400152F4)`, a second gain and offset | **confirmed** `MCU_SUPPLY_VOLTAGE_2` |
+| 22-23 | B29:B30 | s16 | `0x40015408` (float) | ×50 | phase current 1 (probably amperes: 0.02 A per count) | **confirmed** layout; scale is new |
+| 24-25 | B31, B33 | s16 | `0x40015410` (float) | ×50 | phase current 2 (B32 is a PCI byte) | confirmed |
+| 26-27 | B34:B35 | s16 | `0x40015418` (float) | ×50 | phase current 3 | confirmed |
+
+The three phase currents are separate floats in the code; that they sum to within one count is
+the profile's finding and was not re-derived. Two captured payloads decode to 0, +73, −73 counts
+(±1.46 A) and 0, +24, −24 counts (±0.48 A) at standstill. If the unit is amperes, the profile's
+"multiples of about 24.4 counts" is one ADC step of 0.488 A, which is a 12-bit converter over
+about ±1000 A (probable).
+
+### 5.3 Record 2102 (54 data bytes)
+
+| data | WiCAN | form | source (RAM) | → value | what it is | vs profile |
+|---|---|---|---|---|---|---|
+| 0-3 | B05-B08 | constant | `07 FF FF FF` | | header | new (constant) |
+| 4-5 | B09:B10 | s16 | `0x40016650` (float) | ×1 → rpm | motor speed. `FUN_001559A0` takes it from `0x40016284`, the speed estimate. Also `0x523`/`0x5DC` | **confirmed** `MCU_MOTOR_RPM` |
+| 6-7 | B11:B12 | s16 | `0x40016780` (float) | ×10 → 0.1 Nm | motor torque (written by `FUN_00158390`) | **confirmed** `MCU_MOTOR_TORQUE` |
+| 8-9 | B13:B14 | s16 | `0x400167A8` (float) | ×10 → 0.1 Nm | a second torque value (`FUN_00157598`); the profile found it byte-identical to the first in all 8,231 captures, which fits a limited and an unlimited copy that agree in the states captured. It is the source of the `0x291` torque field | confirmed `MCU_MOTOR_TORQUE_2` |
+| 10-11 | B15:B17 | u16 | `0x40015EAC` (float) | ×10 → 0.1 | motor current magnitude: `0.70721 × √(0x400164E4)` (`FUN_00136FE0`), i.e. an RMS-style figure from the sum of two squared current components | **confirmed** `MCU_MOTOR_CURRENT` (never negative, as the profile found) |
+| 12 | B18 | **s8** | `0x40016680` (float) | ×0.5 | temperature, °C = raw × 2. Output of the temperature chain (`FUN_00153A74`); in the fault freeze frame | **contradicts** in the sign: the profile reads `B18*2` as unsigned, which is wrong below 0 °C (`S18*2`) |
+| 13 | B19 | **s8** | `0x40016678` (float) | ×0.5 | temperature (`FUN_00153A94`); the profile's heatsink | contradicts in the sign |
+| 14 | B20 | **s8** | `0x40016690` (float) | ×0.5 | temperature (`FUN_001539CC`); the profile's coolant | contradicts in the sign |
+| 15 | B21 | **s8** | `0x40016688` (float) | ×0.5 | temperature (`FUN_00153A64`); the profile's motor coolant | contradicts in the sign |
+| 16-17 | B22:B23 | s16 | `0x40001E20` | ×1 | current-sensor offset 1 (standby RAM; the profile's range −11 to −7) | **confirmed** `MCU_CURRENT_SENSOR_OFFSET_1` |
+| 18-19 | B25:B26 | s16 | `0x40001E24` | ×1 | current-sensor offset 2 | confirmed (`_2`) |
+| 20-21 | B27:B28 | u16 | `0x40001E14` (float) | ×10000 | **probably the learned position-sensor (resolver) offset angle in radians**: 5.4909 in all 8,871 captures (the default `FUN_00132630` loads is 5.49; 2π = 6.2832, the range of an angle) | new (constant) |
+| 22-23 | B29:B30 | u16 | `0x40001E0C` | ×1 | marker `0xABCD`: **learned data valid**. If it is anything else, `FUN_00132630` raises fault class 5 #11 (DTC P0C17 "position sensor not learned") and sets bit 7 of status byte B. `0xABCD` = 43,981 in every capture | new (constant) |
+| 24-25 | B31, B33 | u16 | `0x40001E80` | ×1 | marker `0xCDC2` = 52,674 in every capture; its readers are `FUN_0013DF54` and `FUN_0014A1CC` | new (constant) |
+| 26-27 | B34:B35 | s16 | `0x40001E88` (float) | ×10000 | stored value 0.0163 (163), written only by an end-of-line routine guarded by a calibration word `0xCAFE` that reads 0 here | new (constant) |
+| 28-29 | B36:B37 | s16 | `0x40001E90` (float) | ×10000 | stored value 0.0432 (432), as above | new (constant) |
+| 30-31 | B38:B39 | s16 | `0x40001E98` (float) | ×10000 | stored value 0.0050 (50), as above | new (constant) |
+| 32-33 | B41:B42 | s16 | `0x40001EA0` (float) | ×10000 | stored value 0.1311 (1311), as above | new (constant) |
+| 34-35 | B43:B44 | s16 | `0x40001E78` (float) | ×10000 | result of the current-sensor offset calibration (`FUN_001363CC`, `FUN_00133EB4`): 0.9975 (9975) | new (constant) |
+| 36-37 | B45:B46 | s16 | `0x40001E7C` (float) | ×10000 | second result of the same calibration: 0.1782 (1782) | new (constant) |
+| 38-39 | B47:B49 | u16 | `0x40001E74` | ×1 | marker `0xCDC1` = 52,673: **the offset calibration has completed** (`FUN_001363CC` writes it after the last state) | new (constant) |
+| 40-41 | B50:B51 | u16 | `0x40000DF4` | ×1 | a counter in standby RAM, written by `FUN_00123B64`, `FUN_00124688` and `FUN_0013A118`. Obs. 9 | new |
+| 42-43 | B52:B53 | u16 | `0x40011C18` (float) | ×10000 → V | **an analog sensor voltage of about 1.1-1.45 V** (mean 1.28 V, 8,871 captures). Probably the motor temperature sensor (a rising KTY-type signal: it rises after driving). It is also `0x540` bytes 0-1 and the source of the 21F2 `W27`/`W31` statistics | **contradicts** the "B52 varies over 0-253 and correlates with no signal" note: B52 is the low byte of this 16-bit value |
+| 44-45 | B54:B55 | u16 | `0x40000DCC` | ×1 | counter written by the interrupt `FUN_001241E0`. Obs. 0 | new |
+| 46-47 | B57:B58 | u16 | `0x40000DC8` | ×1 | counter written by `FUN_00123B64`, `FUN_00124688`, `FUN_0013A118`. Obs. 0 | new |
+| 48-49 | B59:B60 | u16 | `0x40000DD0` | ×1 | counter written by the interrupt `FUN_001242B4`. Obs. 0 | new |
+| 50-51 | B61:B62 | u16 | `0x40000DD2` | ×1 | counter written by the interrupt `FUN_0012434C`. Obs. 0 | new |
+| 52-53 | B63:B65 | u16 | `0x40001E6C` | ×1 | a 32-bit variable clipped to 16 bits; no writer in the image. Obs. 0 | new |
+
+The profile's "B54 to B65 read 0 in all captures" is explained: all six are event counters or an
+unused slot. The three counters `0x40000DCC`, `DD0` and `DD2` are each owned by one eMIOS
+interrupt, so they are probably per-channel fault-trip counts (inferred).
+
+**Motor power** (`MCU_MOTOR_POWER`) is derived and needs no source. The unit of the torque and
+the current is not stated in the code. The 100 % torque scale of the CAN frames is 300 Nm
+(§7.3).
+
+### 5.4 Record 21F2 (65 data bytes)
+
+21F2 mixes live copies of the 2102 values with **last-cycle statistics**. `FUN_0013A334` (100 ms
+task) accumulates them while the model state `0x40016A28` is 1; on every run in which the state is
+not 1 it copies the accumulators to the retained block `0x40002464`-`0x40002476`. So the
+block holds the figures of the last period in state 1 and survives a reset.
+
+| data | WiCAN | form | source (RAM) | what it is | vs profile |
+|---|---|---|---|---|---|
+| 0-3 | B05-B08 | constant | `FF FF FF 3F` | header | new (constant) |
+| 4-5 | B09:B10 | s16 | `0x40001E20` | live copy of current-sensor offset 1 | confirmed |
+| 6-7 | B11:B12 | s16 | `0x40001E24` | live copy of offset 2 | confirmed |
+| 8-9 | B13:B14 | u16 | `0x40001E14` ×10000 | the learned angle (2102 B27:B28) | new (constant) |
+| 10-11 | B15:B17 | u16 | `0x40000DF4` | the counter (2102 B50:B51) | new |
+| 12-19 | B18:B19, B20:B21, B22:B23, B25:B26 | 4 × u16 | `0x40000DC8`, `DCC`, `DD0`, `DD2` | the four counters (2102 B57, B54, B59, B61) | new |
+| 20-21 | B27:B28 | u16 | `0x40002472` | **maximum of the sensor voltage `0x40011C18`, in mV** (accumulator `0x4001EDFC`); 1,275-1,469 | confirmed layout `MCU_21F2_W27`; the meaning (a maximum) is new |
+| 22-23 | B29:B30 | u16 | `0x40002474` | the **minimum** of the same voltage (`0x4001EDFE`). **It reads 0 in all 200 captures**: the minimum starts at 0 and is only ever lowered, so it never changes | new (constant 0; a firmware quirk) |
+| 24-25 | B31, B33 | u16 | `0x40002476` | **average** of the same voltage (`0x4001EDFA`), 1,258-1,297 | confirmed layout `MCU_21F2_W31`; the meaning (an average) is new |
+| 26-27 | B34:B35 | u16 | `0x40001E0C` | the `0xABCD` marker | new (constant) |
+| 28-29 | B36:B37 | u16 | `0x40001E80` | the `0xCDC2` marker | new (constant) |
+| 30-37 | B38:B39, B41:B42, B43:B44, B45:B46 | 4 × s16 | `0x40001E88`, `E90`, `E98`, `EA0` ×10000 | the four stored values (2102 B34-B42) | new (constant) |
+| 38-39 | B47:B49 | s16 | `0x4000246A` | **average heatsink temperature** of the cycle, °C (`0x4001EDF2`) | **confirmed** `MCU_21F2_HEATSINK_TEMP_AVG`: it is a signed 16-bit value in °C, not a byte |
+| 40-41 | B50:B51 | s16 | `0x4000246C` | **maximum heatsink temperature**, °C (`0x4001EDF4`) | confirmed `..._MAX` (16-bit) |
+| 42-43 | B52:B53 | u16 | `0x40001E6C` | unused slot, 0 | new |
+| 44-45 | B54:B55 | u16 | `0x40000DF8` | a counter | new |
+| 46-47 | B57:B58 | s16 | `0x4000246E` | **average of the temperature behind 2102 B18**, °C (`0x4001EDF6`) | confirmed `MCU_21F2_TEMP_B18_AVG` (16-bit) |
+| 48-49 | B59:B60 | s16 | `0x40002470` | **maximum of the same temperature**, °C (`0x4001EDF8`) | confirmed `..._MAX` (16-bit) |
+| 50-51 | B61:B62 | u16 | `0x40001E74` | the `0xCDC1` marker | new (constant) |
+| 52 | B63 | u8 | `0x40002464` | **maximum 12 V supply**, 0.1 V (`FUN_0013A334` keeps the maximum of `0x40015E74 × 10`) | **confirmed** `MCU_21F2_SUPPLY_VOLTAGE_MAX` |
+| 53 | B65 | u8 | `0x40002465` | **minimum 12 V supply**, 0.1 V | confirmed `..._MIN` |
+| 54 | B66 | u8 | `0x40002466` | **average 12 V supply**, 0.1 V | confirmed `..._AVG` |
+| 55 | B67 | **s8** | `0x40002467` | **average coolant temperature**, °C (average of `0x40016690`) | confirmed `MCU_21F2_COOLANT_TEMP_AVG`, but signed |
+| 56 | B68 | **s8** | `0x40002468` | **maximum coolant temperature**, °C | confirmed `..._MAX`, signed |
+| 57-64 | B69-B77 | 8 × u8 | `0x4001151D`-`0x40011524` | the ASCII tag `EHEL-MS2`: bytes 3-10 of the software id copy in `.data` | **confirmed** `MCU_21F2_TAG`; B72 and B64 are PCI bytes |
+
+The four temperature statistics are kept as `sum / sample count` with the count `0x40011A94`,
+which `FUN_00123A8C` increments once per 100 ms run while the state is 1, so they are real
+means over the powered cycle (verified in `FUN_0013A334`).
+
+`FUN_0013A334` is the only function that stores to `0x40002464`-`0x40002476`, so 21F2 changes
+only after a period in state 1 ends, which is what the profile found.
+
+### 5.5 Record 2103
+
+`21 03` returns 25 zero bytes. The record `0x40021AAC` is written by no function; the support-map
+byte and the data both stay 0 (verified from the whole image, and in the profile's 697 captures).
+There is nothing to decode.
+
+### 5.6 What the profile should take (unverified)
+
+The corrections below are recorded in `mcu.yaml` as unverified signals (none from code alone is
+marked verified):
+
+- `MCU_DC_LINK_VOLTAGE` = `((B13<<8)|B12)/100` V, the full-resolution form of `MCU_HV_VOLTAGE`.
+- `MCU_2101_B22` becomes the 16-bit millivolt value `(B23<<8)|B22`; `MCU_2101_B25` becomes
+  `(B26<<8)|B25`.
+- `MCU_2101_PUMP_CURVE` = `(B21<<8)|B20` (new, probable pump duty percent).
+- The four 2102 temperatures read `S18*2`, `S19*2`, `S20*2`, `S21*2` (signed, 2 °C per count).
+- `MCU_2102_SENSOR_V` = `((B53<<8)|B52)/10000` V (new).
+- The learned-position values are listed as constants with their markers.
+- The 21F2 temperature and supply statistics get their 16-bit and signed forms.
+
+The unit of the phase currents and the physical meaning of the 2101 flag bytes B09-B11 stay open
+(research entries).
