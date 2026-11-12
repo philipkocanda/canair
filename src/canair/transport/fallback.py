@@ -17,10 +17,17 @@ from __future__ import annotations
 import sys
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 
+from canair.config.devices import fallback_settings
 from canair.core.tcp import tcp_open
 
-from .config import DEFAULT_ELM327_TCP_PORT, TransportConfig
+from .config import (
+    DEFAULT_ELM327_TCP_PORT,
+    TransportConfig,
+    TransportOverrides,
+    resolve_transport_candidates,
+)
 
 
 def _probe_port(cand: TransportConfig) -> int:
@@ -88,6 +95,43 @@ def select_reachable_transport(
             notice(f"{cand.describe()} unreachable — trying {nxt.describe()}…")
     # None reachable: hand back the primary so the normal rich-error path fires.
     return candidates[0]
+
+
+@dataclass(frozen=True)
+class Selection:
+    """The device :func:`select_device` picked and the candidate list it picked from."""
+
+    chosen: TransportConfig
+    candidates: list[TransportConfig]
+
+    @property
+    def fell_back(self) -> bool:
+        return self.chosen is not self.candidates[0]
+
+
+def select_device(
+    overrides: TransportOverrides | None = None,
+    *,
+    notice: Callable[[str], None] | None = None,
+    accept: Callable[[TransportConfig], bool] | None = None,
+) -> Selection:
+    """Resolve the candidates for ``overrides`` and pick the first reachable one.
+
+    The one entry point for a command that connects to a single device without
+    :mod:`canair.cli.live`'s session machinery (``status``, ``sniff``, the ``wican``
+    device commands). Never take ``resolve_transport_candidates(...)[0]`` or
+    :func:`~canair.transport.config.resolve_transport` for that: both discard the fallback.
+
+    ``accept`` narrows the *fallback* devices to those the command can use (an HTTP-only
+    command cannot use an ``elm327-tcp`` adapter). The selected device is always kept, so
+    that an unusable choice fails with its own error and not a silent substitution.
+    """
+    candidates = resolve_transport_candidates(overrides)
+    if accept is not None:
+        candidates = [candidates[0], *(c for c in candidates[1:] if accept(c))]
+    _, connect_timeout, _ = fallback_settings()
+    chosen = select_reachable_transport(candidates, connect_timeout=connect_timeout, notice=notice)
+    return Selection(chosen, candidates)
 
 
 def wait_for_reachable(

@@ -10,7 +10,6 @@ from pathlib import Path
 
 from canair.cli.args.group import group_help
 from canair.cli.args.query import parse_canonical_query
-from canair.device.wican.api import resolve_wican_url
 from canair.interop.autopid.profile import (
     normalize_device_profile,
     render_v4,
@@ -18,7 +17,7 @@ from canair.interop.autopid.profile import (
 )
 from canair.render import messages
 
-from .common import add_wican_arg, require_pro, require_v4_api
+from .common import add_wican_arg, require_pro, require_v4_api, resolve_device_url
 from .diff import show_diff
 from .generate import (
     FIRMWARE_FILES,
@@ -176,7 +175,7 @@ def cmd_autopid_upload(args) -> int:
     if guard is not None:
         return guard
 
-    base_url = resolve_wican_url(args.wican)
+    base_url = resolve_device_url(args)
     guard = require_v4_api(base_url, "autopid-sync", writes=True)
     if guard is not None:
         return guard
@@ -200,7 +199,7 @@ def cmd_autopid_download(args) -> int:
     if guard is not None:
         return guard
 
-    base_url = resolve_wican_url(args.wican)
+    base_url = resolve_device_url(args)
     guard = require_v4_api(base_url, "autopid-sync")
     if guard is not None:
         return guard
@@ -216,7 +215,7 @@ def cmd_autopid_diff(args) -> int:
     if guard is not None:
         return guard
 
-    base_url = resolve_wican_url(args.wican)
+    base_url = resolve_device_url(args)
     guard = require_v4_api(base_url, "autopid-sync")
     if guard is not None:
         return guard

@@ -14,11 +14,7 @@ from canair.install.build_info import build_summary, full_version
 from canair.install.context import describe as describe_install
 from canair.install.context import source_clone
 from canair.install.update_check import pending_notice
-from canair.transport import (
-    TransportError,
-    resolve_transport_candidates,
-    select_reachable_transport,
-)
+from canair.transport import TransportError, select_device
 from canair.transport.config import DEFAULT_ELM327_TCP_PORT
 from canair.variants import load_variants
 
@@ -46,20 +42,19 @@ def gather(args) -> dict:
     info: dict = {"exit": _OK, "warnings": [], "errors": [], "canair_version": full_version()}
     info["canair_build"] = build_summary()
 
-    try:
-        candidates = resolve_transport_candidates(transport_overrides(args))
-    except TransportError as e:
-        info["errors"].append(str(e))
-        info["exit"] = _MISCONFIGURED
-        return info
-
     # Probe the whole candidate list exactly as a live command does, so status
     # reports the device `read`/`monitor` would actually connect to instead of
     # calling the setup unreachable because the *selected* device is down.
     _, connect_timeout, _ = fallback_settings()
     probe_timeout = max(_PROBE_TIMEOUT, connect_timeout)
     notes: list[str] = []
-    t = select_reachable_transport(candidates, connect_timeout=connect_timeout, notice=notes.append)
+    try:
+        selection = select_device(transport_overrides(args), notice=notes.append)
+    except TransportError as e:
+        info["errors"].append(str(e))
+        info["exit"] = _MISCONFIGURED
+        return info
+    candidates, t = selection.candidates, selection.chosen
     info["notes"] = notes
 
     info["transport"] = {
@@ -71,7 +66,7 @@ def gather(args) -> dict:
         "summary": t.summary,
         "selected": candidates[0].describe(),
         "candidates": [c.describe() for c in candidates],
-        "fell_back": t is not candidates[0],
+        "fell_back": selection.fell_back,
     }
 
     # Active vehicle profile.

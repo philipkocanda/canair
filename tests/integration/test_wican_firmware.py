@@ -18,6 +18,7 @@ from canair.cli.commands.wican import common as wican_common
 from canair.cli.profile_context import active
 from canair.device.wican.firmware import FirmwareInfo, compatibility, probe
 from canair.live.read import raw_ops
+from canair.transport import Selection
 
 # A v4 /check_status body is full of secrets; these must never survive the probe.
 _V4_SECRETS = {
@@ -762,8 +763,9 @@ class TestLiveSurfaces:
         from canair.cli.commands import sniff
 
         ran: list = []
-        monkeypatch.setattr("canair.transport.resolve_transport", lambda args: self._cand())
-        monkeypatch.setattr(sniff, "resolve_transport", lambda args: self._cand())
+        monkeypatch.setattr(
+            sniff, "select_device", lambda args, **k: Selection(self._cand(), [self._cand()])
+        )
         monkeypatch.setattr("canair.core.tcp.tcp_open", lambda host, port, timeout: http_up)
         monkeypatch.setattr(raw_ops, "require_protocol", lambda *a, **k: None)
         monkeypatch.setattr(raw_ops, "require_slcan_reachable", lambda *a, **k: None)
@@ -946,8 +948,9 @@ class TestStatusSurface:
             probed: list | None = None,
         ):
             cand = TransportConfig(type=ttype, host="192.0.2.1")
-            monkeypatch.setattr(gather_mod, "resolve_transport_candidates", lambda args: [cand])
-            monkeypatch.setattr(gather_mod, "select_reachable_transport", lambda c, **k: c[0])
+            monkeypatch.setattr(
+                gather_mod, "select_device", lambda args, **k: Selection(cand, [cand])
+            )
             monkeypatch.setattr(wf, "firmware_check_mode", lambda: mode)
             monkeypatch.setattr(cfg_transport, "firmware_check_mode", lambda: mode)
             monkeypatch.setattr(gather_mod, "firmware_check_mode", lambda: mode)

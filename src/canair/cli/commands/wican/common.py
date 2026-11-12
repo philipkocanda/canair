@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 
+from canair.cli.args.transport import transport_overrides
 from canair.config.devices import default_wican, is_wican_pro, wican_addresses
+from canair.device.wican.api import resolve_wican_url
 from canair.device.wican.firmware import (
     Surface,
     compatibility,
@@ -14,6 +16,7 @@ from canair.device.wican.firmware import (
     unconfirmed,
 )
 from canair.render import messages
+from canair.transport import TransportError, select_device
 
 WICAN_TIMEOUT = 10  # seconds
 
@@ -62,12 +65,43 @@ def require_v4_api(base_url: str, surface: Surface, *, writes: bool = False) -> 
     return None
 
 
+def resolve_device_url(args: argparse.Namespace) -> str:
+    """Base URL of the WiCAN a device command talks to, after the connect-time fallback.
+
+    A device named with ``--wican`` is used as given and never swapped: these commands
+    rewrite the device's config and reboot it, and a typo or a down device must not land
+    them on another one. Only the implicit choice (``transport.host``, else
+    ``default_wican``) falls back to another configured device, as the live commands do.
+    """
+    if args.wican or args.no_fallback:
+        return resolve_wican_url(args.wican)
+    try:
+        chosen = select_device(
+            transport_overrides(args),
+            accept=lambda c: c.is_wican_http,
+            notice=messages.note,
+        ).chosen
+    except TransportError:
+        # A transport misconfiguration is irrelevant to an HTTP-only command.
+        return resolve_wican_url(None)
+    return resolve_wican_url(chosen.host)
+
+
 def add_wican_arg(parser: argparse.ArgumentParser) -> None:
-    # Resolved exactly like the live commands' --wican (wican_api.resolve_wican_url):
-    # a device alias, else the value itself as the host — never another device.
+    # An explicit value resolves exactly like the live commands' --wican
+    # (wican_api.resolve_wican_url): a device alias, else the value itself as the host,
+    # never another device. Only the implicit default falls back (resolve_device_url).
     parser.add_argument(
         "--wican",
         default=None,
         help=f"WiCAN address: {', '.join(wican_addresses())}, an IP/host, or a URL "
-        f"(default: config transport.host / default_wican={default_wican()})",
+        f"(default: config transport.host / default_wican={default_wican()}, falling back "
+        "to another configured device when it is unreachable)",
+    )
+    parser.add_argument(
+        "--no-fallback",
+        dest="no_fallback",
+        action="store_true",
+        help="Don't fall back to another configured device when the default is unreachable "
+        "(see config transport.fallback)",
     )

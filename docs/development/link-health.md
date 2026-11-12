@@ -22,6 +22,14 @@ request path or change the reconnect behavior of the monitor. The user-facing vi
 - **`canair status` runs the same probe**, so its diagnosis matches what a live command will do.
   Never resolve only the selected device there. `resolve_transport_candidates(args)[0]` discards
   the fallback and reports a working setup as dead.
+- **Commands outside the live runtime** (`status`, `sniff`, the `wican` device commands) call
+  `transport/fallback.py::select_device`, which resolves and probes in one step. A fallback
+  device must also suit the command: `sniff` accepts raw devices only, and the HTTP-only `wican`
+  commands accept WiCAN devices only. The `wican` commands apply one more rule
+  (`cli/commands/wican/common.py::resolve_device_url`). A device named with `--wican` is used as
+  given and never swapped, because `mode set` and `autopid upload` rewrite or reboot it. Only the
+  implicit default falls back. `tests/contracts/test_device_selection.py` fails when a command
+  picks a device without probing it.
 - **`--wait`** blocks the initial connect and retries until a candidate appears
   (`fallback.py::wait_for_reachable`). It also makes a mid-session drop reconnect forever.
 

@@ -29,7 +29,7 @@ from canair.live.read.raw_ops import slcan_preflight
 from canair.render import messages
 from canair.render.console import console
 from canair.render.sniff import render_sniff_table
-from canair.transport import SlcanTcpBus, resolve_transport
+from canair.transport import SlcanTcpBus, select_device
 from canair.variants import effective_meta
 
 NAME = "sniff"
@@ -54,6 +54,13 @@ examples:
         default=None,
         help=f"WiCAN address: {', '.join(wican_addresses())} or IP "
         f"(default: config transport.host / default_wican={default_wican()})",
+    )
+    parser.add_argument(
+        "--no-fallback",
+        dest="no_fallback",
+        action="store_true",
+        help="Don't auto-fall-back to another configured device when the selected one is "
+        "unreachable (see config transport.fallback)",
     )
     parser.add_argument(
         "--listen-only",
@@ -101,7 +108,8 @@ def run(args) -> int:
     import sys
 
     require_car("sniff the car")
-    t = resolve_transport(transport_overrides(args))
+    # Only a raw SLCAN device can be sniffed, so a fallback never lands on an ELM327 one.
+    t = select_device(transport_overrides(args), accept=lambda c: c.is_raw).chosen
     try:
         filters = _parse_filters(args.filter)
     except ValueError:

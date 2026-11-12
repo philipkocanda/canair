@@ -3,8 +3,9 @@
 # `canair sniff`
 
 ```
-usage: canair sniff [-h] [--wican WICAN] [--listen-only] [--filter IDS]
-                    [--duration DURATION] [--save FILE] [--force]
+usage: canair sniff [-h] [--wican WICAN] [--no-fallback] [--listen-only]
+                    [--filter IDS] [--duration DURATION] [--save FILE]
+                    [--force]
 
 [CAN] ``canair sniff`` — passive CAN bus sniffer (raw SLCAN-over-TCP backend).
 
@@ -21,6 +22,9 @@ options:
   -h, --help           show this help message and exit
   --wican WICAN        WiCAN address: ap or IP (default: config transport.host
                        / default_wican=ap)
+  --no-fallback        Don't auto-fall-back to another configured device when
+                       the selected one is unreachable (see config
+                       transport.fallback)
   --listen-only        Open the bus silently (no ACK/TX) — pure passive sniff.
                        Refused on WiCAN firmware v6, which ignores the SLCAN
                        listen-only command

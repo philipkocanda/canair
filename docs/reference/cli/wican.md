@@ -117,6 +117,7 @@ options:
 ```
 usage: canair wican autopid upload [-h] [--reboot] [--include-unverified]
                                    [--no-expected-responses] [--wican WICAN]
+                                   [--no-fallback]
 
 Generate the AutoPID profile and upload it to the WiCAN device (POST
 /store_car_data). WiCAN Pro on firmware 4.x only.
@@ -132,13 +133,16 @@ options:
                         frames arrive instead of waiting out its ~614ms
                         budget)
   --wican WICAN         WiCAN address: ap, an IP/host, or a URL (default:
-                        config transport.host / default_wican=ap)
+                        config transport.host / default_wican=ap, falling back
+                        to another configured device when it is unreachable)
+  --no-fallback         Don't fall back to another configured device when the
+                        default is unreachable (see config transport.fallback)
 ```
 
 ### `canair wican autopid download`
 
 ```
-usage: canair wican autopid download [-h] [--wican WICAN]
+usage: canair wican autopid download [-h] [--wican WICAN] [--no-fallback]
 
 Download the WiCAN device's current AutoPID profile (GET
 /load_auto_pid_car_data) and print it, normalized. WiCAN Pro on firmware 4.x
@@ -147,7 +151,10 @@ only.
 options:
   -h, --help     show this help message and exit
   --wican WICAN  WiCAN address: ap, an IP/host, or a URL (default: config
-                 transport.host / default_wican=ap)
+                 transport.host / default_wican=ap, falling back to another
+                 configured device when it is unreachable)
+  --no-fallback  Don't fall back to another configured device when the default
+                 is unreachable (see config transport.fallback)
 ```
 
 ### `canair wican autopid diff`
@@ -155,6 +162,7 @@ options:
 ```
 usage: canair wican autopid diff [-h] [--include-unverified]
                                  [--no-expected-responses] [--wican WICAN]
+                                 [--no-fallback]
 
 Download the device's current AutoPID profile and show a parameter-level diff
 against the freshly generated one. WiCAN Pro on firmware 4.x only.
@@ -169,7 +177,10 @@ options:
                         frames arrive instead of waiting out its ~614ms
                         budget)
   --wican WICAN         WiCAN address: ap, an IP/host, or a URL (default:
-                        config transport.host / default_wican=ap)
+                        config transport.host / default_wican=ap, falling back
+                        to another configured device when it is unreachable)
+  --no-fallback         Don't fall back to another configured device when the
+                        default is unreachable (see config transport.fallback)
 ```
 
 ### `canair wican autopid show`
@@ -232,20 +243,24 @@ options:
 ### `canair wican mode show`
 
 ```
-usage: canair wican mode show [-h] [--wican WICAN]
+usage: canair wican mode show [-h] [--wican WICAN] [--no-fallback]
 
 Report the WiCAN device's currently active protocol/mode.
 
 options:
   -h, --help     show this help message and exit
   --wican WICAN  WiCAN address: ap, an IP/host, or a URL (default: config
-                 transport.host / default_wican=ap)
+                 transport.host / default_wican=ap, falling back to another
+                 configured device when it is unreachable)
+  --no-fallback  Don't fall back to another configured device when the default
+                 is unreachable (see config transport.fallback)
 ```
 
 ### `canair wican mode set`
 
 ```
 usage: canair wican mode set [-h] [--yes] [--no-transport] [--wican WICAN]
+                             [--no-fallback]
                              {elm327,slcan,savvycan,realdash66,auto_pid}
 
 Switch the WiCAN device to MODE and reboot it, then align canair's transport to match (slcan -> slcan-tcp, elm327 -> wican-ws). WiCAN Pro on firmware 4.x only.
@@ -267,5 +282,8 @@ options:
   --no-transport        Don't auto-align the config transport.type to the new
                         mode
   --wican WICAN         WiCAN address: ap, an IP/host, or a URL (default:
-                        config transport.host / default_wican=ap)
+                        config transport.host / default_wican=ap, falling back
+                        to another configured device when it is unreachable)
+  --no-fallback         Don't fall back to another configured device when the
+                        default is unreachable (see config transport.fallback)
 ```

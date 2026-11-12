@@ -40,7 +40,7 @@ from .config import (
     resolve_transport_candidates,
 )
 from .errors import describe_transport_error, is_transport_error, transport_error_types
-from .fallback import select_reachable_transport, wait_for_reachable
+from .fallback import Selection, select_device, select_reachable_transport, wait_for_reachable
 from .protocol import Terminal
 
 __all__ = [
@@ -54,6 +54,7 @@ __all__ = [
     "Elm327Terminal",
     "RawTerminal",
     "RawUdsClient",
+    "Selection",
     "SlcanTcpBus",
     "TcpChannel",
     "Terminal",
@@ -70,6 +71,7 @@ __all__ = [
     "resolve_transport",
     "resolve_transport_candidates",
     "response_id",
+    "select_device",
     "select_reachable_transport",
     "transport_error_types",
     "wait_for_reachable",

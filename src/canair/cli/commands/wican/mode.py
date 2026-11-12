@@ -7,12 +7,11 @@ import argparse
 from canair.cli.args.group import group_help
 from canair.config.file import get_config_key, set_config_key
 from canair.core.prompt import confirm
-from canair.device.wican.api import resolve_wican_url
 from canair.device.wican.mode import ModeError, current_protocol, set_protocol
 from canair.render import messages
 from canair.transport.config import DEFAULT_TRANSPORT, TransportType
 
-from .common import add_wican_arg, require_pro, require_v4_api
+from .common import add_wican_arg, require_pro, require_v4_api, resolve_device_url
 
 PROTOCOLS = ("elm327", "slcan", "savvycan", "realdash66", "auto_pid")
 
@@ -80,7 +79,7 @@ def add_parsers(groups) -> argparse.ArgumentParser:
 
 
 def cmd_mode_show(args) -> int:
-    base_url = resolve_wican_url(args.wican)
+    base_url = resolve_device_url(args)
     guard = require_v4_api(base_url, "wican-mode")
     if guard is not None:
         return guard
@@ -127,7 +126,7 @@ def cmd_mode_set(args) -> int:
     if guard is not None:
         return guard
 
-    base_url = resolve_wican_url(args.wican)
+    base_url = resolve_device_url(args)
     guard = require_v4_api(base_url, "wican-mode")
     if guard is not None:
         return guard
@@ -144,7 +143,7 @@ def cmd_mode_set(args) -> int:
         return 0
 
     question = (
-        f"Switch WiCAN from '{cur}' to '{target}'? This reboots the device "
+        f"Switch WiCAN at {base_url} from '{cur}' to '{target}'? This reboots the device "
         "(~5s) and interrupts its current mode."
     )
     if not confirm(question, yes=args.yes, danger=True):

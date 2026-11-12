@@ -185,7 +185,7 @@ class TestConfirmations:
 
         monkeypatch.setattr(mode, "require_pro", lambda op: None)
         monkeypatch.setattr(mode, "require_v4_api", lambda *a, **k: None)
-        monkeypatch.setattr(mode, "resolve_wican_url", lambda w: "http://x")
+        monkeypatch.setattr(mode, "resolve_device_url", lambda a: "http://x")
         monkeypatch.setattr(mode, "current_protocol", lambda url: "elm327")
         monkeypatch.setattr(mode, "confirm", lambda *a, **k: False)
         sent = []
@@ -250,7 +250,7 @@ class TestWican:
 
         monkeypatch.setattr(autopid, "require_pro", lambda op: None)
         monkeypatch.setattr(autopid, "require_v4_api", lambda *a, **k: None)
-        monkeypatch.setattr(autopid, "resolve_wican_url", lambda w: "http://x")
+        monkeypatch.setattr(autopid, "resolve_device_url", lambda a: "http://x")
         monkeypatch.setattr(autopid, "download_profile", lambda url: None)
         assert autopid.cmd_autopid_download(argparse.Namespace(wican=None)) == 1
         captured = capsys.readouterr()

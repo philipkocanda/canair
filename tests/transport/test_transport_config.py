@@ -212,6 +212,71 @@ class TestSelectReachable:
         assert seen[0] == ("10.0.0.9", 80)
 
 
+class TestSelectDevice:
+    """The one resolve-and-probe entry point for commands that connect to a single device."""
+
+    @pytest.fixture
+    def devices(self, monkeypatch):
+        from canair.config.devices import DeviceEntry
+
+        table = {
+            "home": DeviceEntry(host="10.0.0.9", transport="slcan-tcp"),
+            "adapter": DeviceEntry(host="10.0.0.20", transport="elm327-tcp"),
+            "vpn": DeviceEntry(host="1.2.3.4", transport="wican-ws"),
+        }
+        monkeypatch.setattr(tc, "_wican_devices", lambda: (dict(table), "home"))
+        monkeypatch.setattr(tc, "_wican_addresses", lambda: {a: d.host for a, d in table.items()})
+        monkeypatch.setattr(tc, "_is_pro", lambda: True)
+        monkeypatch.setattr(tc, "_fallback_settings", lambda: (True, 2.0, None))
+        monkeypatch.setattr(
+            "canair.transport.fallback.fallback_settings", lambda: (True, 2.0, None)
+        )
+        for module in (cfg_mod_file, cfg_mod_devices, cfg_mod_transport, tc):
+            monkeypatch.setattr(module, "load_config", lambda: {})
+
+    def _up(self, monkeypatch, *hosts):
+        monkeypatch.setattr("canair.transport.fallback.tcp_open", lambda h, p, t: h in hosts)
+
+    def test_selected_device_up(self, devices, monkeypatch):
+        from canair.transport.fallback import select_device
+
+        self._up(monkeypatch, "10.0.0.9", "1.2.3.4")
+        sel = select_device(Args(), notice=lambda m: None)
+        assert sel.chosen.host == "10.0.0.9" and not sel.fell_back
+        assert [c.host for c in sel.candidates] == ["10.0.0.9", "10.0.0.20", "1.2.3.4"]
+
+    def test_falls_back_when_the_selected_device_is_down(self, devices, monkeypatch):
+        from canair.transport.fallback import select_device
+
+        self._up(monkeypatch, "1.2.3.4")
+        notes: list[str] = []
+        sel = select_device(Args(), notice=notes.append)
+        assert sel.chosen.host == "1.2.3.4" and sel.fell_back
+        assert any("falling back" in m for m in notes)
+
+    def test_accept_narrows_the_fallbacks_only(self, devices, monkeypatch):
+        from canair.transport.fallback import select_device
+
+        self._up(monkeypatch, "10.0.0.20", "1.2.3.4")
+        sel = select_device(Args(), notice=lambda m: None, accept=lambda c: c.is_wican_http)
+        assert [c.host for c in sel.candidates] == ["10.0.0.9", "1.2.3.4"]
+        assert sel.chosen.host == "1.2.3.4"
+
+    def test_accept_never_drops_the_selected_device(self, devices, monkeypatch):
+        from canair.transport.fallback import select_device
+
+        self._up(monkeypatch)
+        sel = select_device(Args(wican="adapter"), notice=lambda m: None, accept=lambda c: False)
+        assert sel.chosen.host == "10.0.0.20" and not sel.fell_back
+
+    def test_nothing_answers_returns_the_selected_device(self, devices, monkeypatch):
+        from canair.transport.fallback import select_device
+
+        self._up(monkeypatch)
+        sel = select_device(Args(), notice=lambda m: None)
+        assert sel.chosen.host == "10.0.0.9" and not sel.fell_back
+
+
 class TestTransportConfigProps:
     def test_is_raw_elm(self):
         from canair.transport.config import TransportConfig

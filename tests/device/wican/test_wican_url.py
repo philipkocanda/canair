@@ -93,6 +93,101 @@ class TestWicanCommands:
         monkeypatch.setattr(
             mode_cmd, "set_protocol", lambda *a, **k: pytest.fail("already in the mode")
         )
-        args = argparse.Namespace(wican=value, protocol="slcan", yes=True, no_transport=True)
+        monkeypatch.setattr("canair.transport.fallback.tcp_open", lambda h, p, t: True)
+        args = argparse.Namespace(
+            wican=value, no_fallback=False, protocol="slcan", yes=True, no_transport=True
+        )
         assert mode_cmd.cmd_mode_set(args) == 0
         assert seen == [url]
+
+
+class TestResolveDeviceUrl:
+    """``wican`` device commands: only the implicit default falls back, as live commands do."""
+
+    @pytest.fixture
+    def probe(self, config, monkeypatch):
+        from canair.transport import config as transport_config
+        from canair.transport import fallback
+
+        config(_CONFIG)
+        monkeypatch.setattr(transport_config, "load_config", lambda: _CONFIG)
+        monkeypatch.setattr(transport_config, "_is_pro", lambda: True)
+        up: set[str] = set()
+        asked: list[str] = []
+
+        def tcp_open(host, port, timeout):
+            asked.append(host)
+            return host in up
+
+        monkeypatch.setattr(fallback, "tcp_open", tcp_open)
+        return up, asked
+
+    @staticmethod
+    def _args(**kw):
+        return argparse.Namespace(**{"wican": None, "no_fallback": False, **kw})
+
+    def test_default_device_up_is_used_without_a_note(self, probe, capsys):
+        from canair.cli.commands.wican.common import resolve_device_url
+
+        probe[0].update({"10.0.0.5", "10.8.0.2"})
+        assert resolve_device_url(self._args()) == "http://10.0.0.5"
+        assert capsys.readouterr().err == ""
+
+    def test_default_device_down_falls_back_with_a_note(self, probe, capsys):
+        from canair.cli.commands.wican.common import resolve_device_url
+
+        probe[0].add("10.8.0.2")
+        assert resolve_device_url(self._args()) == "http://10.8.0.2"
+        assert "falling back" in capsys.readouterr().err
+
+    def test_nothing_answers_keeps_the_default_for_the_normal_error(self, probe):
+        from canair.cli.commands.wican.common import resolve_device_url
+
+        assert resolve_device_url(self._args()) == "http://10.0.0.5"
+
+    def test_an_explicit_device_is_never_swapped_or_probed(self, probe):
+        from canair.cli.commands.wican.common import resolve_device_url
+
+        probe[0].add("10.8.0.2")
+        assert resolve_device_url(self._args(wican="home")) == "http://10.0.0.5"
+        assert probe[1] == []
+
+    def test_no_fallback_keeps_the_default(self, probe):
+        from canair.cli.commands.wican.common import resolve_device_url
+
+        probe[0].add("10.8.0.2")
+        assert resolve_device_url(self._args(no_fallback=True)) == "http://10.0.0.5"
+        assert probe[1] == []
+
+    def test_a_device_without_an_http_api_is_not_a_fallback(self, config, probe, monkeypatch):
+        from canair.cli.commands.wican.common import resolve_device_url
+        from canair.transport import config as transport_config
+
+        cfg = {
+            "devices": {
+                "home": {"host": "10.0.0.5"},
+                "adapter": {"host": "10.0.0.7", "transport": "elm327-tcp"},
+            },
+            "default_wican": "home",
+        }
+        config(cfg)
+        monkeypatch.setattr(transport_config, "load_config", lambda: cfg)
+        probe[0].add("10.0.0.7")
+        assert resolve_device_url(self._args()) == "http://10.0.0.5"
+
+    def test_a_transport_misconfiguration_does_not_block_an_http_command(
+        self, probe, config, monkeypatch
+    ):
+        from canair.cli.commands.wican.common import resolve_device_url
+        from canair.transport import config as transport_config
+
+        cfg = {**_CONFIG, "transport": {"type": "bogus"}}
+        config(cfg)
+        monkeypatch.setattr(transport_config, "load_config", lambda: cfg)
+        assert resolve_device_url(self._args()) == "http://10.0.0.5"
+
+    def test_parser_offers_no_fallback(self):
+        from canair.cli import build_parser
+
+        for argv in (["wican", "mode", "set", "slcan"], ["wican", "autopid", "download"]):
+            assert build_parser().parse_args([*argv, "--no-fallback"]).no_fallback is True
