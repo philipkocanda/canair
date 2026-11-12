@@ -131,6 +131,12 @@ shots:
 # to validate), and they are re-recorded manually with `--only <id>` when a car
 # is reachable.
 animations:
+  - id: monitor-hero
+    kind: anim
+    tape: tapes/monitor-hero.tape
+    script: scripts/gen/monitor_demo.py
+    caption: "canair monitor — drivetrain values and payload bytes changing live (the README's top)"
+
   - id: monitor-tour
     kind: anim
     tape: tapes/monitor-tour.tape

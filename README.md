@@ -6,7 +6,7 @@
 [![CI](https://github.com/philipkocanda/canair/actions/workflows/ci.yml/badge.svg)](https://github.com/philipkocanda/canair/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-<img width="300" alt="Jul-23-2026 00-14-52" src="https://github.com/user-attachments/assets/e74ce18d-5350-4a69-b96e-d3b312b25b2f" />
+<img width="480" alt="canair monitor: the motor speed, torque and pedal values of a motorway drive change live, and the payload bytes that changed light up" src="docs/screenshots/monitor-hero.gif" />
 
 canair is a command-line tool (CLI). It connects to a
 [WiCAN](https://www.meatpi.com/products/wican-pro) OBD-II (On-Board Diagnostics) WiFi dongle. It

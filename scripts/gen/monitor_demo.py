@@ -51,7 +51,7 @@ from tests.support.fakes import FakeTerminal, ok  # noqa: E402
 PROFILE = "hyundai-ioniq-ae-ev"
 #: The recorded drive: (capture file, session index). READY, about 100 km/h on a motorway.
 SESSION = ("2026-08-08.json", 6)
-QUERY = "query BMS:2101 VCU:2101 MCU:2102"
+QUERY = "BMS:2101 VCU:2101 MCU:2102"
 LABEL = "Motorway drive — battery and drivetrain"
 STATES = "READY, DRIVING"
 
@@ -117,27 +117,35 @@ def _tx_to_rx(pids_data: dict) -> dict[int, int]:
     return out
 
 
-async def build_controller(workdir: Path) -> MonitorController:
-    """The production controller over the replay terminal, on a scratch profile in ``workdir``."""
+async def build_controller(
+    workdir: Path, query: str = QUERY, label: str = LABEL, *, rows: int | None = None
+) -> MonitorController:
+    """The production controller over the replay terminal, on a scratch profile in ``workdir``.
+
+    ``query`` is what ``canair monitor`` would take (the PIDs must be in the recorded session).
+    ``rows`` keeps that many payloads per PID on screen (``--keep N``); the newest is compared
+    with the one before it, so its changed bytes light up. None keeps the monitor's default.
+    """
     bundled = _bundled_profile()
     profile = _scratch_profile(bundled, workdir)
     pids_data = load_pids(profile)
     terminal = ReplayTerminal(_recorded(bundled), _tx_to_rx(pids_data))
     options = MonitorOptions(
-        query_steps=parse_sub_commands([QUERY], profile=profile),
+        query_steps=parse_sub_commands([f"query {query}"], profile=profile),
         interval=1.0,
         schedule="fixed",
         save=True,
-        label=LABEL,
+        label=label,
         vehicle_states=STATES,
-        keep_mode="changes",
+        keep_mode="changes" if rows is None else "last",
+        keep_n=rows,
     )
     controller = MonitorController(terminal, options, pids_data, profile=profile)
     controller.transport_type = "replay"
     controller.captures_dir = Path(profile.captures_dir)
-    controller.recorder.session_label = LABEL
+    controller.recorder.session_label = label
     controller.recorder.session_states = [s.strip() for s in STATES.split(",")]
-    controller.recorder.journal = open_journal(controller, LABEL, None, None)
+    controller.recorder.journal = open_journal(controller, label, None, None)
     await controller.setup([])
     return controller
 
@@ -155,7 +163,7 @@ async def _svg(controller, out: Path, size: tuple[int, int], keys: list[str], wa
 
 async def main_async(args) -> int:
     with tempfile.TemporaryDirectory(prefix="canair-demo-") as tmp:
-        controller = await build_controller(Path(tmp))
+        controller = await build_controller(Path(tmp), args.query, args.label, rows=args.rows)
         try:
             if args.check:
                 for _ in range(3):
@@ -179,6 +187,9 @@ def main() -> int:
     parser.add_argument("--keys", default="", help="comma-separated keys to press first")
     parser.add_argument("--wait", type=float, default=6.0, help="seconds to poll before the shot")
     parser.add_argument("--check", action="store_true", help="poll three cycles headless")
+    parser.add_argument("--query", default=QUERY, help="what to poll, as canair monitor takes it")
+    parser.add_argument("--label", default=LABEL, help="the recording's label (the menu bar title)")
+    parser.add_argument("--rows", type=int, help="payloads kept on screen per PID (--keep N)")
     return asyncio.run(main_async(parser.parse_args()))
 
 
