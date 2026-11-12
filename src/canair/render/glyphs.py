@@ -16,4 +16,6 @@ CURSOR: Final = "▶"  # the selected row
 SEP: Final = "·"  # separator between items on one line
 EMPTY: Final = "—"  # an empty table cell, and a dash in a title
 ELLIPSIS: Final = "…"  # truncation
+BAR_FULL: Final = "█"  # the done part of a progress bar
+BAR_EMPTY: Final = "░"  # the part of a progress bar still to do
 DANGER: Final = "!!"  # the start of a prompt that may change the car or the device

@@ -127,6 +127,7 @@ Import them from `render/glyphs.py`.
 | `·` | separator |
 | `—` | empty cell |
 | `…` | truncation (one character, never `...`) |
+| `█` `░` | the done and the remaining part of a progress bar |
 | `!!` | the start of a danger prompt |
 
 A new glyph needs a new meaning. Do not reuse one for a second meaning. In scan and sweep output

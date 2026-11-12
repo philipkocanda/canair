@@ -7,19 +7,20 @@ import sys
 from typing import Any
 
 from canair.ecus.memory import MemoryRegion
+from canair.live.memory.dump import DumpRun
 from canair.memory.diff import DumpDiff
 from canair.memory.store import Dump
-from canair.render import messages
+from canair.render import ansi, messages
+from canair.render.formatting import duration_text, rate_text, size_text
+from canair.render.glyphs import OK
+from canair.render.paint import Painter, column_widths, render_row
+
+#: A dump header lists this many ranges, then says how many more there are.
+MAX_RANGES_SHOWN = 8
 
 
 def span_text(start: int, end: int, width: int) -> str:
     return f"0x{start:0{width}X}-0x{end:0{width}X}"
-
-
-def size_text(n: int) -> str:
-    if n < 1024:
-        return f"{n} B"
-    return f"{n / 1024:.1f} KiB" if n < 1024 * 1024 else f"{n / 1024 / 1024:.1f} MiB"
 
 
 def region_rows(regions: list[MemoryRegion]) -> list[dict[str, Any]]:
@@ -98,24 +99,133 @@ def dump_doc(dump: Dump) -> dict[str, Any]:
     }
 
 
-def print_dump_summary(dump: Dump, *, as_json: bool, note: str | None = None) -> None:
+def address_width(end: int) -> int:
+    """Hex digits to print addresses up to ``end`` with: 6 for a 3-byte space, 8 beyond."""
+    return 2 * max(3, (len(f"{end:X}") + 1) // 2)
+
+
+def dump_header_lines(
+    ecu: str,
+    tx_id: int,
+    ranges: list[tuple[int, int]],
+    block: int,
+    transport: str | None,
+    paint: Painter,
+) -> list[str]:
+    """What a dump is about to read: the ECU, how, and each range with its size."""
+    width = address_width(max(end for _, end in ranges))
+    how = ["memory dump", f"block {block}", *([f"over {transport}"] if transport else [])]
+    name = paint(f"{ecu} (0x{tx_id:03X})", ansi.raw.BOLD + ansi.raw.CYAN)
+    lines = [f"\n  {name}{paint(' · ' + ' · '.join(how), ansi.raw.DIM)}"]
+    shown = ranges[:MAX_RANGES_SHOWN]
+    rows = [
+        [
+            (f"{i}" if len(ranges) > 1 else "", ansi.raw.DIM),
+            (span_text(start, end, width), ""),
+            (size_text(end - start + 1).rjust(10), ""),
+        ]
+        for i, (start, end) in enumerate(shown, 1)
+    ]
+    widths = column_widths(rows)
+    lines += [render_row(row, widths, paint) for row in rows]
+    if len(shown) < len(ranges):
+        lines.append(paint(f"    … and {len(ranges) - len(shown)} more", ansi.raw.DIM))
+    total = size_text(sum(end - start + 1 for start, end in ranges))
+    count = f"{len(ranges)} ranges · " if len(ranges) > 1 else ""
+    lines.append(paint(f"  {count}{total}", ansi.raw.DIM))
+    return lines
+
+
+def print_dump_header(
+    ecu: str, tx_id: int, ranges: list[tuple[int, int]], block: int, transport: str | None
+) -> None:
+    """The header of a dump, on stderr (the result stays on stdout)."""
+    paint = Painter(sys.stderr)
+    print(
+        "\n".join(dump_header_lines(ecu, tx_id, ranges, block, transport, paint)), file=sys.stderr
+    )
+
+
+def run_doc(run: DumpRun) -> dict[str, Any]:
+    return {
+        "seconds": round(run.seconds, 1),
+        "bytes_per_second": round(run_rate(run), 1) if run.seconds > 0 else None,
+        "retries": run.retries,
+        "halvings": run.halvings + run.drops,
+        "rereads": run.rereads,
+        "stopped": run.stopped,
+    }
+
+
+def run_rate(run: DumpRun) -> float:
+    return run.dump.bytes_read / run.seconds if run.seconds > 0 else 0.0
+
+
+def run_lines(run: DumpRun, paint: Painter) -> list[str]:
+    """How the read went: the time and speed, then whatever the link cost (nothing if clean)."""
+    lines = []
+    if run.seconds > 0:
+        speed = f" ({rate_text(run_rate(run))})" if run.dump.bytes_read else ""
+        lines.append(paint(f"  this run: {duration_text(run.seconds)}{speed}", ansi.raw.DIM))
+    costs = [
+        (run.retries, "lost replies read again"),
+        (run.halvings + run.drops, "blocks halved"),
+        (run.rereads, "stale replies re-read"),
+    ]
+    parts = [f"{n} {words}" for n, words in costs if n]
+    if parts:
+        lines.append(paint("  link: " + " · ".join(parts), ansi.raw.YELLOW))
+    return lines
+
+
+def _result_cell(result: str, nrc: int | None) -> tuple[str, str]:
+    if result == "read":
+        return result, ansi.raw.GREEN
+    return (f"{result}  NRC 0x{nrc:02X}" if nrc is not None else result), ansi.raw.YELLOW
+
+
+def print_dump_summary(
+    dump: Dump, *, as_json: bool, note: str | None = None, run: DumpRun | None = None
+) -> None:
     if as_json:
-        print(json.dumps(dump_doc(dump), indent=2))
+        doc = dump_doc(dump)
+        if run is not None:
+            doc["run"] = run_doc(run)
+        print(json.dumps(doc, indent=2))
         return
-    width = 2 * max(4, len(f"{max((s.end for s in dump.stretches), default=0):X}") // 2)
-    print(f"\n  {dump.id}  ·  {dump.ecu} · {size_text(dump.bytes_read)} read", end="")
-    print(f" · software {dump.software}" if dump.software else "")
-    for s in dump.stretches:
-        print(f"    {span_text(s.start, s.end, width)}  {size_text(len(s.data)):>10}  read")
-    for g in dump.gaps:
-        nrc = f"  NRC 0x{g.nrc:02X}" if g.nrc is not None else ""
-        print(
-            f"    {span_text(g.start, g.end, width)}  {size_text(g.end - g.start + 1):>10}  {g.result}{nrc}"
-        )
+    paint = Painter(sys.stdout)
+    width = address_width(max((s.end for s in dump.stretches), default=0))
+    details = [dump.ecu, f"{size_text(dump.bytes_read)} read"]
+    if dump.software:
+        details.append(f"software {dump.software}")
+    print(paint.heading(dump.id, *details))
+    rows = [
+        [
+            (span_text(s.start, s.end, width), ""),
+            (size_text(len(s.data)).rjust(10), ""),
+            _result_cell("read", None),
+        ]
+        for s in dump.stretches
+    ]
+    rows += [
+        [
+            (span_text(g.start, g.end, width), ""),
+            (size_text(g.end - g.start + 1).rjust(10), ""),
+            _result_cell(g.result, g.nrc),
+        ]
+        for g in dump.gaps
+    ]
+    widths = column_widths(rows)
+    for row in rows:
+        print(render_row(row, widths, paint))
+    if run is not None:
+        for line in run_lines(run, paint):
+            print(line)
     if note:
         messages.warning(note)
     if dump.path is not None:
-        print(f"  ✓ Saved to {dump.path} (local only; never shared)", file=sys.stderr)
+        tick = Painter(sys.stderr)(OK, ansi.raw.GREEN)
+        print(f"  {tick} Saved to {dump.path} (local only; never shared)", file=sys.stderr)
 
 
 def print_listing(dumps: list[Dump], *, as_json: bool) -> None:

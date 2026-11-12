@@ -5,13 +5,13 @@ Both confirm in the command, before connecting; a handler only reads the flags a
 
 from __future__ import annotations
 
-from canair.cli.commands.memory.render import print_dump_summary, print_scan
+from canair.cli.commands.memory.render import print_dump_header, print_dump_summary, print_scan
 from canair.cli.live.operation import LiveOperation
 from canair.cli.profile_context import active
 from canair.core.skip_key import skip_listener
 from canair.ecus.revisions import determined_revisions
 from canair.install.build_info import full_version
-from canair.live.memory.dump import mode_memory_dump
+from canair.live.memory.dump import block_for, mode_memory_dump
 from canair.live.memory.reads import MemoryTargetError, resolve_target
 from canair.live.memory.scan import mode_memory_scan
 from canair.memory.store import store_root
@@ -63,7 +63,14 @@ async def handle_memory_dump(args, terminal: Terminal, pids_data, host, *, recon
         "canair": full_version(),
         "transport": client_transport(terminal),
     }
+    try:
+        block = block_for(target, args.block)
+    except ValueError as e:
+        messages.fail(str(e), code=2)
     with skip_listener(not args.json) as skip:
+        if not args.json:
+            ranges = list(args.ranges)
+            print_dump_header(target.name, target.tx_id, ranges, block, provenance["transport"])
         if skip.active:
             messages.note("press s or escape to stop the dump and keep what was read")
         try:
@@ -83,7 +90,7 @@ async def handle_memory_dump(args, terminal: Terminal, pids_data, host, *, recon
         except ValueError as e:
             messages.fail(str(e), code=2)
     note = f"dump ended early: {run.stopped}" if run.stopped else None
-    print_dump_summary(run.dump, as_json=args.json, note=note)
+    print_dump_summary(run.dump, as_json=args.json, note=note, run=run)
 
 
 SCAN = LiveOperation(handle_memory_scan)

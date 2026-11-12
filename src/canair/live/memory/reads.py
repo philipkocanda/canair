@@ -187,6 +187,9 @@ class BlockReader:
         self.rereads = 0
         self.halvings = 0
         self.retries = 0
+        self.drops = 0
+        #: Bytes of memory the ECU has handed back, for a command that reports progress.
+        self.delivered = 0
         self.last_size = 0
         self._silent = 0
         self._retried_at: int | None = None
@@ -230,6 +233,8 @@ class BlockReader:
             self.halvings += 1
         elif kind == RETRY:
             self.retries += 1
+        elif kind == DROP:
+            self.drops += 1
         if self.on_event is not None:
             self.on_event(kind)
 
@@ -262,7 +267,9 @@ class BlockReader:
             if result is RegionResult.READABLE:
                 self._silent = 0
                 self._retried_at = None
-                span.pieces.append(Stretch(address, data_of(resp)))
+                piece = Stretch(address, data_of(resp))
+                span.pieces.append(piece)
+                self.delivered += len(piece.data)
                 self._event(span, OK)
                 address += size
                 continue
@@ -363,6 +370,7 @@ class BlockReader:
                 resp, _ = await self.read(address, 1)
                 data = data_of(resp)
             span.pieces.append(Stretch(address, data))
+            self.delivered += len(data)
             return len(data)
         result, result_nrc = first, first_nrc
         last, _ = await self._byte_readable(address + size - 1)

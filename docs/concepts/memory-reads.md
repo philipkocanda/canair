@@ -100,6 +100,21 @@ a reply of the wrong length as the reply to another request, and the ELM327 tran
 their pipe. `memory dump` alternates its block size (`N`, `N-1`, `N`, …), so a reply to the
 previous request always has the wrong length.
 
+## What a dump prints
+
+`memory dump` prints around the read, and puts only the result on stdout:
+
+- **A header on stderr** before it reads: the ECU, the block and the transport, then each range
+  with its size and the total. Not with `--json`.
+- **One progress line on stderr**, on a terminal only. It follows the whole dump, not the range
+  in hand: a bar and a percentage, the bytes done of the total, the speed over the last minute
+  and the time left. As the terminal allows, it adds the range, the address, the block and the
+  count of lost replies that were read again (in yellow). It leaves out the least useful part
+  first, so it never wraps. It is cleared when the read ends.
+- **A summary on stdout**: the dump's id, one row per stretch read (green) or refused (yellow,
+  with its NRC), then how long the run took, its speed and what the link cost. `--json` adds a
+  `run` object with the same figures.
+
 ## Silence
 
 Some ECUs refuse an address by not answering at all. The VCU of the Ioniq does this above

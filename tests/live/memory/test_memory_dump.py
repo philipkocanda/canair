@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import io
+import itertools
+import os
+import re
 
 import pytest
 
@@ -246,3 +250,43 @@ def test_a_killed_dump_keeps_what_it_read(tmp_path):
     assert dump.stretches[0].start == 0 and dump.bytes_read % 0x1000 == 0
     assert dump.stretches[0].data == _expected(0x0, dump.bytes_read - 1)
     assert dump.gaps[-1].result == "skipped" and dump.gaps[-1].end == 0xFFFF
+
+
+class _Tty(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+def test_the_reader_counts_the_bytes_it_hands_back_and_the_drops(tmp_path):
+    ecu = MemoryEcu([(0x0, 0xFFF, None)], drop_once={0x110})
+    run = _dump(ecu, [(0x100, 0x13F)], tmp_path, block=16)
+    assert run.drops == 1 and run.halvings == 0 and run.retries == 0
+
+
+def test_a_dump_draws_one_progress_line_for_the_whole_run(tmp_path, monkeypatch):
+    stderr = _Tty()
+    monkeypatch.setattr("sys.stderr", stderr)
+    monkeypatch.setattr(
+        "shutil.get_terminal_size", lambda fallback=None: os.terminal_size((200, 24))
+    )
+    ecu = MemoryEcu([(0x0, 0xFFFF, None)])
+    ticks = itertools.count(0, 2)  # the fake clock moves 2 s a call: speed is known at once
+    run = _dump(
+        ecu, [(0x1000, 0x2FFF), (0x8000, 0x9FFF)], tmp_path, block=64, clock=lambda: next(ticks)
+    )
+    drawn = [t for t in stderr.getvalue().split("\r") if t.strip()]
+    assert drawn, "nothing was drawn"
+    assert "range 1/2" in drawn[0] and "0 B / 16.0 KiB" in drawn[0]
+    assert any("range 2/2" in t for t in drawn)
+    assert any("B/s" in t and "left" in t for t in drawn)
+    percents = [float(m.group(1)) for t in drawn if (m := re.search(r"(\d+\.\d) %", t))]
+    assert percents == sorted(percents) and percents[-1] >= 75.0  # it only moves forward
+    assert stderr.getvalue().endswith("\r")  # and the line is cleared at the end
+    assert run.seconds > 0
+
+
+def test_no_progress_is_drawn_when_stderr_is_not_a_terminal(tmp_path, monkeypatch):
+    stderr = io.StringIO()
+    monkeypatch.setattr("sys.stderr", stderr)
+    _dump(MemoryEcu([(0x0, 0xFFF, None)]), [(0x100, 0x1FF)], tmp_path, block=64)
+    assert stderr.getvalue() == ""

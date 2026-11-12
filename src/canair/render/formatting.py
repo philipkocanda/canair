@@ -384,3 +384,22 @@ def print_json_result(result: UdsResponse):
         else:
             out[k] = v
     print(json.dumps(out, indent=2))
+
+
+def size_text(n: int) -> str:
+    """``n`` bytes as ``812 B``, ``39.2 KiB`` or ``1.5 MiB``."""
+    if n < 1024:
+        return f"{n} B"
+    return f"{n / 1024:.1f} KiB" if n < 1024 * 1024 else f"{n / 1024 / 1024:.1f} MiB"
+
+
+def rate_text(bytes_per_second: float) -> str:
+    return f"{bytes_per_second:.0f} B/s"
+
+
+def duration_text(seconds: float) -> str:
+    """``45 s``, ``12 min`` or ``1 h 13 min``: whole minutes from a minute on."""
+    minutes = round(seconds / 60)
+    if minutes < 1:
+        return f"{seconds:.0f} s"
+    return f"{minutes // 60} h {minutes % 60} min" if minutes >= 60 else f"{minutes} min"

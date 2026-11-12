@@ -10,9 +10,10 @@ from canair.live.memory.image import ImageRun
 from canair.memory.job import DATA, FULL
 from canair.memory.verify import FIRST_READ_ERROR, REREAD_ERROR, SAME, VOLATILE
 from canair.render import messages
+from canair.render.formatting import duration_text, size_text
 from canair.render.glyphs import EMPTY, OK
 
-from .render import size_text, span_text
+from .render import span_text
 
 _VERDICTS = {
     SAME: "same",
@@ -26,13 +27,6 @@ def resume_command(run: ImageRun) -> str | None:
     if run.dump is None or not run.dump.resumable:
         return None
     return f"canair memory image --resume {run.dump.id}"
-
-
-def _duration(seconds: float) -> str:
-    minutes = round(seconds / 60)
-    if minutes < 1:
-        return f"{seconds:.0f} s"
-    return f"{minutes // 60} h {minutes % 60} min" if minutes >= 60 else f"{minutes} min"
 
 
 def plan_lines(run: ImageRun) -> list[str]:
@@ -66,7 +60,7 @@ def plan_lines(run: ImageRun) -> list[str]:
     if est is not None:
         lines.append(
             f"  {size_text(est.full_bytes)} in full, {size_text(est.sampled_bytes)} sampled · "
-            f"about {est.reads} reads · about {_duration(est.seconds)}"
+            f"about {est.reads} reads · about {duration_text(est.seconds)}"
         )
     conditions = [f"block {plan.ceiling}"]
     if plan.state:
@@ -127,7 +121,7 @@ def _report_lines(run: ImageRun) -> list[str]:
     speed = run.bytes_now / run.seconds if run.seconds else 0
     block = f" · block {run.rate.block}" if run.rate else ""
     lines.append(
-        f"  this run: {size_text(run.bytes_now)} in {_duration(run.seconds)} "
+        f"  this run: {size_text(run.bytes_now)} in {duration_text(run.seconds)} "
         f"({speed:.0f} B/s){block} · {run.reads} reads"
     )
     for p in dump.pauses:
