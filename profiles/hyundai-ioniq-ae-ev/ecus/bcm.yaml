@@ -397,9 +397,14 @@ BCM:
       status: draft
       vehicle_states: [ALL]
       notes: >-
-        11 bytes. B03-B06 read FE EE FE EE; the rest 0 except B10 and B12 bit 3, which follow the
-        ignition. Sample: 62B009FEEEFEEE00000000.
+        11 bytes. B03-B06 read FE EE FE EE (a per-bit support map, see BCM_PARK_SENS_*); B10:3 and
+        B12:3 follow the ignition. B10:0-1 and B12:0-1, B12:4-5 moved only in the 2026-11-12
+        parking-sensor session; the 18 other marked bits were never set. Sample:
+        62B009FEEEFEEE08000800.
       source: Ignition cross-tab 2026-10-22
+      min: "0"
+      max: "1"
+      verified: false
       parameters:
         BCM_IGN_ON_B009:
           expression: B10:3
@@ -416,6 +421,42 @@ BCM:
           max: "1"
           verified: false
           notes: Equals BCM_IGN_ON_B009 (B10:3) in every capture. Disabled as a duplicate.
+        BCM_PARK_SENS_B10_0:
+          expression: B10:0
+          source: Park-sensor session 2026-11-12
+          notes: >-
+            Set in 14 captures, all on 2026-11-12 and all in R, never in D or P. Inside the PID
+            support map.
+        BCM_PARK_SENS_B10_1:
+          expression: B10:1
+          source: Park-sensor session 2026-11-12
+          notes: >-
+            Set in 29 captures, all on 2026-11-12, in R (one just after leaving R), never in D or P.
+            Inside the PID support map.
+        BCM_PARK_SENS_B12_0:
+          expression: B12:0
+          source: Park-sensor session 2026-11-12
+          notes: >-
+            Set in 74 captures, all on 2026-11-12, in D and R, not in P. Often flips every poll.
+            Inside the PID support map.
+        BCM_PARK_SENS_B12_1:
+          expression: B12:1
+          source: Park-sensor session 2026-11-12
+          notes: >-
+            Set in 78 captures, all on 2026-11-12, mostly D, some R, not in P. Often flips every
+            poll. Inside the PID support map.
+        BCM_PARK_SENS_B12_4:
+          expression: B12:4
+          source: Park-sensor session 2026-11-12
+          notes: >-
+            Set in 17 captures, all on 2026-11-12 and all in D, never in R or P. Inside the PID
+            support map.
+        BCM_PARK_SENS_B12_5:
+          expression: B12:5
+          source: Park-sensor session 2026-11-12
+          notes: >-
+            Set in 16 captures, all on 2026-11-12 and all in D, never in R or P. Seen with B12:4
+            clear in the last event. Inside the PID support map.
 
     22B00A:
       response_frames: 2

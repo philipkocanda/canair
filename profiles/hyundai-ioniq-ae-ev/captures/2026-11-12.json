@@ -11,7 +11,7 @@
         "IG3",
         "DRIVING"
       ],
-      "notes": "front left park sens RED continuous beep + center yellow",
+      "notes": "in order: rear left park sens yellow, rear left park sens RED continuous beep, front left park sens RED continuous beep + front center yellow",
       "transport": "wican-ws",
       "quality": {
         "exchanges": 2614
@@ -651,6 +651,91 @@
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009215A45063B03000000004E76340420","time":"11:08:24.830"},
         {"rx":"0x7A8","pid":"22C011","payload":"62C011E000000001B92D2848","time":"11:08:25.876"},
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE0000009215A4C064003000000004876340420","time":"11:08:26.096"}
+      ]
+    },
+    {
+      "date": "2026-11-12",
+      "label": "Unknown-7C0 first probe 1001",
+      "version": "5.4.0+main.f8d8830.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "Identify Unknown-7C0 (charge LED hypothesis)",
+      "transport": "slcan-tcp",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7C8","pid":"1001","response":"No response from ECU (NO DATA)"}
+      ]
+    },
+    {
+      "date": "2026-11-12",
+      "label": "discover 7B0-7D8 around 7C0",
+      "version": "5.4.0+main.f8d8830.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "Check who answers near Unknown-7C0",
+      "transport": "slcan-tcp",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover 7B0-7D8","scan_results":{"responding":[{"tx":"0x7B3","rx":"0x7BB","response":"HVAC (positive)","notes":"Raw: 5001"},{"tx":"0x7B6","rx":"0x7BE","response":"GSA (positive)","notes":"Raw: 5001003201F4"},{"tx":"0x7B7","rx":"0x7BF","response":"BSD-L (positive)","notes":"Raw: 5001"},{"tx":"0x7C4","rx":"0x7CC","response":"MFC (positive)","notes":"Raw: 5001"},{"tx":"0x7C6","rx":"0x7CE","response":"CLU (positive)","notes":"Raw: 5001"},{"tx":"0x7D0","rx":"0x7D8","response":"SCC (positive)","notes":"Raw: 5001"},{"tx":"0x7D1","rx":"0x7D9","response":"ESC (positive)","notes":"Raw: 5001"},{"tx":"0x7D2","rx":"0x7DA","response":"SRS (positive)","notes":"Raw: 5001"},{"tx":"0x7D4","rx":"0x7DC","response":"EPS (positive)","notes":"Raw: 5001"},{"tx":"0x7D5","rx":"0x7DD","response":"EPB (positive)","notes":"Raw: 5001"}],"rejected":"31 addresses silent"}}
+      ]
+    },
+    {
+      "date": "2026-11-12",
+      "label": "discover 7F1 (new responder)",
+      "version": "5.4.0+main.f8d8830.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "7F1/7F9 answers 10 01, 10 03, 3E 00; not in registry. Found in 0x700-0x7FF sweep",
+      "transport": "slcan-tcp",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"broadcast","pid":"discover 7F1-7F1","scan_results":{"responding":[{"tx":"0x7F1","rx":"0x7F9","response":"positive","notes":"Raw: 5001"}]}}
+      ]
+    },
+    {
+      "date": "2026-11-12",
+      "label": "7F1 22 F1xx extended",
+      "version": "5.4.0+main.f8d8830.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "Identify Unknown-7F1",
+      "transport": "slcan-tcp",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7F9","pid":"scan 22 F100-F1FF","scan_results":{"rejected":"256 DIDs returned 256 NRC"}}
+      ]
+    },
+    {
+      "date": "2026-11-12",
+      "label": "7F1 22 families extended",
+      "version": "5.4.0+main.f8d8830.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "Identify Unknown-7F1",
+      "transport": "slcan-tcp",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7F9","pid":"scan 22 0000-02FF,B000-B0FF,C000-C1FF,E000-E0FF,F000-F0FF","scan_results":{"rejected":"2048 DIDs returned 2048 NRC"}}
       ]
     }
   ]

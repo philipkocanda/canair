@@ -360,6 +360,8 @@ SKM:
         and 7 come on for about 30 s after each change to ACC or ON, and B54 bit 2 and B39 bit 4
         stay on through READY; B33 and B37 bit 4 are set with the ignition on or in ACC until the
         driver door closed at 20:48:35.
+      min: "0"
+      verified: false
       parameters:
         SKM_POWER_MODE_B00B:
           expression: B57
@@ -369,12 +371,36 @@ SKM:
             2: acc
             7: "on"
             9: ready
-          min: "0"
           max: "15"
           source: Narrated power-state cycles 2026-11-03
-          verified: false
           notes: >-
             Equals SKM_POWER_MODE (22B008 B13) in every co-polled read. Disabled as a duplicate.
+        SKM_DOOR_OPEN_B33:
+          expression: B33:4
+          type: enum
+          values:
+            0: closed
+            1: open
+          category: door
+          max: "1"
+          source: Ignition and door cross-tab 2026-11-03
+          notes: >-
+            1 with a door open and the ignition on or in ACC; 0 with the ignition off. Matches IGPM
+            DOOR_DRV_OPEN in 126 of 136 driver-door-open rows (2026-11-03). Only the driver door was
+            open with the ignition on, so which doors it covers is open. B37:4 behaves the same.
+        SKM_DOOR_OPEN_B37:
+          expression: B37:4
+          type: enum
+          values:
+            0: closed
+            1: open
+          category: door
+          max: "1"
+          source: Ignition and door cross-tab 2026-11-03
+          notes: >-
+            Same as SKM_DOOR_OPEN_B33; matches IGPM DOOR_DRV_OPEN in 125 of 136 driver-door-open
+            rows. B37 also reads 0x20 and 0x90 around the ignition change at 2026-11-03 20:46:34 and
+            20:48:24.
   iocontrol:
     B108:
       vehicle_states: []
