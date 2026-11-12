@@ -50,8 +50,8 @@ sections:
     status: integrated
     date: 2026-11-12
     note: >-
-      Every byte of 2101, 2102 and 21F2 comes from a table-driven converter (three tables, 14, 36
-      and 49 entries). Corrections and additions are recorded as unverified signals in mcu.yaml
+      Every byte of 2101, 2102 and 21F2 comes from a table-driven converter (three tables, 14, 27
+      and 37 entries). Corrections and additions are recorded as unverified signals in mcu.yaml
       (§5.6). 2103 is never written.
     target: profiles/hyundai-ioniq-ae-ev/ecus/mcu.yaml
   - section: "6"
@@ -793,7 +793,7 @@ These match the service manual quoted in `mcu.yaml`. The thresholds sit in the c
 | P0A2C | the same voltage falls below **0.40 V** (`0x12940`) for the same count | below 400 mV, 10 s |
 | P0A2F | the motor temperature stays above **180 °C** (`0x1299C`) for **1000** calls (`0x129B4`) after two earlier stages at 170 °C (`0x1298C`, fault 3.23, no DTC) and 180 °C (`0x12994`, fault 3.24, raises P0C31); hysteresis 3 °C (`0x129A4`) | above 180 °C, 10 s |
 | P0C17 | one of eleven "not learned" faults; the simplest: `0x40001E0C` is not `0xABCD` (§5.3) | position sensor not learned |
-| P0A78 | the sum of two filtered squares (`0x40011B60`, `0x40011B68`, filter gain `0.001/…`) exceeds a calibrated limit (`0x12824`) for a calibrated time (`0x1282C`) | inverter performance |
+| P0A78 | a low-pass-filtered sum of two squared inputs (`0x40016C4C`, `0x40016C54`) stays above **6400** (`0x12824`, which is 80²) for **1000** monitor calls (`0x1282C`); `FUN_0014DEB0` is called from the 1 ms task | inverter performance |
 
 The temperature in P0A2F is the motor temperature sensor's value after the table look-up chain
 `FUN_00153E10`/`FUN_00153B24`; the voltage in P0A2C/D is the sensor's ADC voltage (§5.3,
