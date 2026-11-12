@@ -6,6 +6,10 @@ then the titles shorten (``Record`` → ``Rec``) and finally become one letter e
 stays one click, one ``f10`` or one ``alt+letter`` away on any screen down to 12 columns. The
 document title (a monitor's recording label) takes whatever the titles leave.
 
+The bar is black on the terminal's light grey (ANSI white), the pairing that reverse video gives on
+a dark scheme, so it keeps its contrast on any palette. The title under the pointer, or with its
+menu open, is reversed.
+
 A dropdown (:class:`MenuScreen`) draws each item with its key on the right, ``[x]`` for a toggle
 and ``(•)`` for a choice, and disables what cannot run now. It stays inside the screen: on a screen
 narrower than the menu, a label gives way (``…``), never its key, and the border names the menu.
@@ -81,7 +85,7 @@ class MenuBar(Horizontal):
     """The app name, the menu titles and the document title, on one row."""
 
     DEFAULT_CSS = """
-    MenuBar { height: 1; background: $primary; color: $text; }
+    MenuBar { height: 1; background: ansi_white; color: ansi_black; }
     MenuBar #menu-name { width: auto; padding: 0 1; text-style: bold; }
     MenuBar #menu-doc {
         width: 1fr; padding: 0 1; content-align: right middle; text-wrap: nowrap;
