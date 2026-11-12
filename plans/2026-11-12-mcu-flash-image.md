@@ -1,6 +1,6 @@
 # Read the motor controller's flash (MCU) on the car
 
-Status: **IN PROGRESS** (2026-11-12). Phases 0 to 3 are done; phase 4 (offline analysis) is next.
+Status: **IN PROGRESS** (2026-11-12). Phases 0 to 3 are done; the image passes its checksum.
 
 Paths are relative to `src/canair/`. Point at code by file and symbol: line numbers drift.
 Related: `plans/2026-11-05-read-memory-by-address.md` (the live tests),
@@ -243,21 +243,22 @@ uv run canair --profile hyundai-ioniq-ae-ev memory image MCU --block-limit 64 \
 - The image holds the MCU's identity: the part number `36600-0E250`, `sw_id` `EAEEHEL-MS2-D000`
   (at `0x1001C`), calibration (at `0x10014`), ecu_id `AEEMCU83` at `0xFFF6`, and the app-valid
   word `C3 5A` at `0xFFFE`. That is the VCU's header layout.
-- **The checksum does not match, so the image is not byte-exact.** The MCU runs the VCU's
-  checksum code (`0x119CFC`-`0x119F10`, the same instructions as the VCU's `FUN_001AB5AC` to
-  `FUN_001AB694`): a byte sum of `0x4000`-`0x3FFFFF` in 128-byte chunks (`0x7F80` of them), less
-  the 128-byte header at `0x10000`, compared with the word at `0x10078`. The image's sum is
-  `0x2A01F4` (2,753,012) above the stored word.
-- **The interruption is probably not the cause.** The resume re-read the first extent and the
-  last two before it read on, and they matched. The E1 (`slcan-tcp`) and E2 (`wican-ws`) dumps
-  of `0x100000`-`0x109FFF` and the morning's boot block equal the image byte for byte. Every
-  extent with a lost or re-read reply is among the 145 that were read twice and matched.
-- **The likely cause is data between the samples.** A sparse image reads 61 bytes of every KiB
-  in an area its survey called erased, and assumes `FF` for the rest. A sum that is too high
-  means bytes below `FF` there: about 10.8 KiB of `00`, or more of other values. The VCU's sparse
-  image matched its checksum, so the method works on that layout. The MCU's does not.
-- **Next:** read the erased areas in full. Those below `0x168000` (about 825 KiB) come first;
-  `0x167CC0`-`0x3FFFFF` (2.6 MiB) only if the sum still differs.
+- **The sparse image missed 10,865 non-`FF` bytes.** The MCU runs the VCU's checksum code
+  (`0x119CFC`-`0x119F10`, the same instructions as the VCU's `FUN_001AB5AC` to `FUN_001AB694`):
+  a byte sum of `0x4000`-`0x3FFFFF`, less the 128-byte header at `0x10000`, compared with the
+  word at `0x10078`. The image's sum was `0x2A01F4` (2,753,012) above the stored word. A sparse
+  image reads 61 bytes of every KiB in an area its survey called erased and assumes `FF` for the
+  rest, so the cause was unread bytes below `FF`. The interruption was not the cause: the
+  resume's re-reads matched, and the afternoon dumps equal the image byte for byte.
+- **Fix: a second dump of the erased areas below `0x168000`.** `MCU/20261112-203516-MCU-erased-
+  areas-below-0x168000` (826.2 KiB, `wican-ws`, READY, no refused range, 52 min) read those areas
+  in full. Its 67,508 bytes that overlap the image are the same. It supplied 10,865 non-`FF`
+  bytes the image lacked: 10,693 `00`, the rest scattered values, in 13 runs (the first at
+  `0x1403D`, then most of `0x6003D`-`0x61FFF`). 10,693 × 255 is 2,726,715, close to the gap.
+- **The merged image matches its checksum.** The sum of the two dumps merged, with `FF` for the
+  unread `0x167CC0`-`0x3FFFFF`, is `392DADE6`, equal to the stored word. The flash is 4 MiB and
+  the image is byte-exact up to that sum. The checksum cannot show a swapped pair of bytes. The
+  `FF` assumption above `0x167CC0` rests on the sum alone, and the 2.6 MiB there is unread.
 
 ### Phase 4: check and analyse (offline)
 
@@ -268,7 +269,7 @@ uv run canair --profile hyundai-ioniq-ae-ev memory image MCU --block-limit 64 \
   `0x00FFC0`-`0x010CBF`, where that header sits on the VCU. If the MCU's header has the same
   layout, recompute the sum. A match proves that the image is byte-exact and that the flash is
   4 MiB. The same algorithm does not match the OBC's stored sum, so a mismatch alone does not
-  prove a bad image.
+  prove a bad image. **Done for the MCU: it matches** (see the progress notes above).
 - **Static analysis** into `profiles/hyundai-ioniq-ae-ev/research/MCU_FIRMWARE_FINDINGS.md`, with
   the method of the VCU findings:
   - the source of each `2101` and `2102` byte, so the MCU signals can be verified;

@@ -840,12 +840,15 @@ MCU:
       updated: "2026-11-12"
       date: "2026-11-12"
       result: >-
-        Imaged on 2026-11-12 in READY over wican-ws: 836.7 KiB read (sparse: data areas in full,
-        erased areas sampled), 145 extents read twice and the same, no new fault code. The image
-        holds the MCU's part number, sw_id, calibration and ecu_id AEEMCU83 at the VCU's header
-        offsets. The VCU's checksum algorithm does not match the word at 0x10078. Over slcan-tcp,
-        multi-frame replies from the MCU and the VCU were lost at the same rate, so the slcan-tcp
-        path, not the MCU, caused the morning's losses.
+        Imaged on 2026-11-12 in READY over wican-ws: a sparse image (836.7 KiB) plus a full read of
+        the erased areas below 0x168000 (826.2 KiB). 145 extents read twice were the same, the two
+        dumps agree on their 67,508 overlapping bytes, and no new fault code appeared. The merged
+        image passes the VCU's header checksum (392DADE6 at 0x10078), so it is byte-exact and the
+        flash is 4 MiB. The sparse image alone missed 10,865 non-FF bytes (mostly 00), which is why
+        its sum differed. The image holds the MCU's part number, sw_id, calibration and ecu_id
+        AEEMCU83 at the VCU's header offsets. Over slcan-tcp, multi-frame replies from the MCU and
+        the VCU were lost at the same rate, so the slcan-tcp path, not the MCU, caused the morning's
+        losses.
       notes: >-
         Boot block: the first 4 KiB equal the VCU's except 3 bytes. The start-up code clears SRAM up
         to 0x4003FFFF (256 KiB, as on the VCU), and the reset code calls the application at 0x100000
