@@ -1,6 +1,6 @@
 # Read the motor controller's flash (MCU) on the car
 
-Status: **IN PROGRESS** (2026-11-12). Phases 0 and 1 are done; phase 2 needs the car.
+Status: **IN PROGRESS** (2026-11-12). Phases 0 to 2 are done; phase 3 (the full read) is running.
 
 Paths are relative to `src/canair/`. Point at code by file and symbol: line numbers drift.
 Related: `plans/2026-11-05-read-memory-by-address.md` (the live tests),
@@ -186,6 +186,23 @@ VCU, OBC and BMS before and after each session.
 conditions are equal, prefer READY: a stop then drops the car out of READY, but it does not end a
 charge.
 
+**Results (2026-11-12, READY, through the `vpn` device; E3 not run):**
+
+| Run | Lost replies | Kind |
+|---|---|---|
+| E1 MCU, 6-byte reads (1 frame), `slcan-tcp` | 0 of about 560 | none |
+| E1 MCU, 7-byte reads (2 frames), `slcan-tcp` | 2 of about 470 | a first frame came, then a consecutive-frame timeout |
+| E1 MCU, 64-byte reads, `slcan-tcp` | 19 in 7 min | 18 consecutive-frame timeouts, 1 wrong sequence number |
+| E1 VCU, 64-byte reads, `slcan-tcp` | 14 in 4.7 min | 9 consecutive-frame timeouts, 5 wrong sequence numbers |
+| E2 MCU, 64-byte reads, `wican-ws` | 5, in one 4 s burst | frame lines missing in the adapter's output |
+
+- **H1 holds; H2 does not.** Every lost reply had started, and the VCU lost as many as the MCU.
+  A wrong sequence number means a consecutive frame went missing between the bus and canair. So
+  the losses come from the `slcan-tcp` path, not from the MCU. The VCU's clean 133 reads in the
+  morning were a small sample.
+- **The choice: READY, `wican-ws`.** E2 read the same 32 KiB in 1 min 40 s; E1 took 7 min.
+- **Fault codes:** the same 9 before and after (CCM, AMP, the VCU's U1112).
+
 ### Phase 3: the full read (on the car)
 
 ```bash
@@ -209,6 +226,17 @@ uv run canair --profile hyundai-ioniq-ae-ev memory image MCU --block-limit 64 \
   - The verify step finds a volatile range.
 
   Press `s` to stop and save between sessions.
+
+**Progress (2026-11-12):**
+
+- The first run (`MCU/20261112-164742-MCU-flash`, `wican-ws`) read 138.5 KiB, up to
+  `0x08BFFF`, in about 40 min. Then the WiCAN sent a malformed WebSocket frame and the link
+  closed. The pause's reconnect crashed on `Link.actuation` (fixed in `404a0ca7`). The job stayed
+  resumable.
+- That run averaged about 55 B/s: about 0.7 s per read, against 0.19 s in E2. Every pair of lost
+  frames halved the block and added throttle, and the block moved between 30 and 60 bytes. The
+  rest of the gap is not explained yet.
+- A resume with the same flags started after the fix.
 
 ### Phase 4: check and analyse (offline)
 

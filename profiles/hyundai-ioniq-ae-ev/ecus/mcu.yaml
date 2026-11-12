@@ -852,9 +852,11 @@ MCU:
         inferred). The survey found no aliasing and data in 0x000000-0x0062BF, 0x00FFC0-0x010CBF,
         0x011140-0x013F3F, 0x062100-0x0653FF, 0x080000-0x0A57BF, 0x100000-0x1637FF and
         0x164940-0x167CBF (632 KiB); the rest reads erased. The block search sent one 128-byte read,
-        which drew no answer. The ignored reads were at 64, 32 and 16 bytes, about 1 in 38 survey
-        reads, so they do not depend on size. Open: whether late flow control over the link or the
-        MCU's load in READY causes them.
+        which drew no answer. The lost replies come from the slcan-tcp path, not the MCU (afternoon
+        test, READY): every lost reply had started (a first frame came, then a consecutive-frame
+        timeout or a wrong sequence number), single-frame reads lost none, and the VCU lost as many
+        as the MCU on the same link. Over wican-ws the same 32 KiB took 1 min 40 s against 7 min,
+        with one short burst of losses. Read the MCU over wican-ws.
       sources:
         - plans/2026-11-12-mcu-flash-image.md
         - canair logs, memory image MCU --plan-only, 2026-11-12
