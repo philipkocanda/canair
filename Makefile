@@ -71,11 +71,11 @@ gen-check:
 # `docs-serve` also has to be restarted to pick up a change to the profiles they come from.
 docs:
 	uv run python -m scripts.docs_site.data
-	uv run zensical build --strict
+	uv run --group docs zensical build --strict
 
 docs-serve:
 	uv run python -m scripts.docs_site.data
-	uv run zensical serve
+	uv run --group docs zensical serve
 
 lfs-check:
 	uv run python scripts/check/check_lfs_objects.py
