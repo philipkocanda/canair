@@ -166,6 +166,59 @@ class TestModeSetTransportAlign:
         assert cfg_mod_file.get_config_key("transport.type") == "wican-ws"
         assert capsys.readouterr().out == ""
 
+    def _devices(self, tmp_path, monkeypatch, vpn: dict | str):
+        self._fresh(tmp_path, monkeypatch)
+        cfg_mod_file.set_config_key("transport.type", "slcan-tcp")
+        cfg_mod_file.set_config_key("devices.home", "10.0.0.5")
+        cfg_mod_file.set_config_key("devices.vpn", vpn)
+        cfg_mod_file.load_config.cache_clear()
+
+    def test_a_device_with_its_own_transport_is_aligned_there(self, tmp_path, monkeypatch, capsys):
+        self._devices(tmp_path, monkeypatch, {"host": "10.8.0.2", "transport": "wican-ws"})
+        mode.sync_transport_to_mode("slcan", no_transport=False, alias="vpn")
+        cfg_mod_file.load_config.cache_clear()
+        assert cfg_mod_file.get_config_key("devices.vpn.transport") == "slcan-tcp"
+        assert cfg_mod_file.get_config_key("transport.type") == "slcan-tcp"
+        assert "'wican-ws' → 'slcan-tcp' (devices.vpn.transport)" in capsys.readouterr().out
+
+    def test_the_global_transport_is_left_alone_for_such_a_device(self, tmp_path, monkeypatch):
+        self._devices(tmp_path, monkeypatch, {"host": "10.8.0.2", "transport": "slcan-tcp"})
+        mode.sync_transport_to_mode("elm327", no_transport=False, alias="vpn")
+        cfg_mod_file.load_config.cache_clear()
+        assert cfg_mod_file.get_config_key("devices.vpn.transport") == "wican-ws"
+        assert cfg_mod_file.get_config_key("transport.type") == "slcan-tcp"
+
+    def test_the_device_transport_decides_if_it_is_already_aligned(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        # The global value differs, but the device's own transport governs it.
+        self._devices(tmp_path, monkeypatch, {"host": "10.8.0.2", "transport": "wican-ws"})
+        cfg_mod_file.set_config_key("transport.type", "slcan-tcp")
+        cfg_mod_file.load_config.cache_clear()
+        mode.sync_transport_to_mode("elm327", no_transport=False, alias="vpn")
+        assert "already 'wican-ws'" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("alias", ["home", None])
+    def test_a_device_without_its_own_transport_aligns_the_global_one(
+        self, tmp_path, monkeypatch, alias
+    ):
+        self._devices(tmp_path, monkeypatch, {"host": "10.8.0.2", "transport": "slcan-tcp"})
+        mode.sync_transport_to_mode("elm327", no_transport=False, alias=alias)
+        cfg_mod_file.load_config.cache_clear()
+        assert cfg_mod_file.get_config_key("transport.type") == "wican-ws"
+        assert cfg_mod_file.get_config_key("devices.vpn.transport") == "slcan-tcp"
+
+
+class TestDeviceAliasForUrl:
+    def test_maps_a_base_url_back_to_its_alias(self, monkeypatch):
+        from canair.config.devices import DeviceEntry, device_alias_for_url
+
+        devices = {"home": DeviceEntry(host="10.0.0.5"), "vpn": DeviceEntry(host="http://10.8.0.2")}
+        monkeypatch.setattr(cfg_mod_devices, "wican_devices", lambda: (devices, "home"))
+        assert device_alias_for_url("http://10.8.0.2") == "vpn"
+        assert device_alias_for_url("http://10.0.0.5/") == "home"
+        assert device_alias_for_url("http://192.0.2.9") is None
+
 
 class TestProGuards:
     """Device ops must bail out on a classic WiCAN before doing any work."""

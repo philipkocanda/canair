@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 
 from canair.cli.args.group import group_help
+from canair.config.devices import device_alias_for_url, wican_devices
 from canair.config.file import get_config_key, set_config_key
 from canair.core.prompt import confirm
 from canair.device.wican.mode import ModeError, current_protocol, set_protocol
@@ -69,7 +70,8 @@ def add_parsers(groups) -> argparse.ArgumentParser:
     setp.add_argument(
         "--no-transport",
         action="store_true",
-        help="Don't auto-align the config transport.type to the new mode",
+        help="Don't auto-align the device's configured transport (devices.<alias>.transport, "
+        "else transport.type) to the new mode",
     )
     add_wican_arg(setp)
     setp.set_defaults(_wican_func=cmd_mode_set)
@@ -92,13 +94,27 @@ def cmd_mode_show(args) -> int:
     return 0
 
 
-def sync_transport_to_mode(mode: str, *, no_transport: bool) -> None:
-    """Align the config ``transport.type`` to the device mode just set.
+def _transport_setting(alias: str | None) -> tuple[str, str]:
+    """The config key that decides ``alias``'s transport, and its current value.
+
+    A device with its own ``transport:`` is governed by that and the global
+    ``transport.type`` never reaches it, so the alignment must write there.
+    """
+    device = wican_devices()[0].get(alias) if alias else None
+    if device is not None and device.transport:
+        return f"devices.{alias}.transport", device.transport
+    return "transport.type", get_config_key("transport.type") or DEFAULT_TRANSPORT
+
+
+def sync_transport_to_mode(mode: str, *, no_transport: bool, alias: str | None = None) -> None:
+    """Align the config transport of the device just switched to its new mode.
 
     canair drives the bus in ``slcan`` (raw ``slcan-tcp``) or ``elm327``
     (``wican-ws`` ELM327 terminal); switching the device mode without also
-    pointing the transport at it is the usual foot-gun. Prints the ``old ->
-    new`` transition, or reports the transport is already aligned. Modes with no
+    pointing the transport at it is the usual foot-gun. ``alias`` names the
+    configured device that was switched: its own ``transport:`` is aligned when
+    it has one, else the global ``transport.type``. Prints the ``old -> new``
+    transition, or reports the transport is already aligned. Modes with no
     request/response transport (auto_pid/savvycan/realdash66) are left untouched.
     """
     if no_transport:
@@ -112,12 +128,13 @@ def sync_transport_to_mode(mode: str, *, no_transport: bool) -> None:
         )
         return
 
-    current = get_config_key("transport.type") or DEFAULT_TRANSPORT
+    key, current = _transport_setting(alias)
     if current == desired:
         print(f"  Transport already '{desired}'.")
         return
-    set_config_key("transport.type", desired)
-    print(f"  Transport '{current}' → '{desired}'.")
+    set_config_key(key, desired)
+    where = f" ({key})" if key != "transport.type" else ""
+    print(f"  Transport '{current}' → '{desired}'{where}.")
 
 
 def cmd_mode_set(args) -> int:
@@ -131,6 +148,7 @@ def cmd_mode_set(args) -> int:
     if guard is not None:
         return guard
     target = args.protocol
+    alias = device_alias_for_url(base_url)
     try:
         cur = current_protocol(base_url)
     except Exception as e:
@@ -139,7 +157,7 @@ def cmd_mode_set(args) -> int:
 
     if cur == target:
         print(f"WiCAN already in '{target}' mode.")
-        sync_transport_to_mode(target, no_transport=args.no_transport)
+        sync_transport_to_mode(target, no_transport=args.no_transport, alias=alias)
         return 0
 
     question = (
@@ -161,7 +179,7 @@ def cmd_mode_set(args) -> int:
         now = "?"
     if now == target:
         print(f"WiCAN now in '{target}' mode.")
-        sync_transport_to_mode(target, no_transport=args.no_transport)
+        sync_transport_to_mode(target, no_transport=args.no_transport, alias=alias)
         return 0
     messages.warning(f"WiCAN reports '{now}' after switch")
     return 1

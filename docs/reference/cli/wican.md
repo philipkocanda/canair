@@ -279,8 +279,9 @@ positional arguments:
 options:
   -h, --help            show this help message and exit
   --yes                 Skip the confirmation prompt
-  --no-transport        Don't auto-align the config transport.type to the new
-                        mode
+  --no-transport        Don't auto-align the device's configured transport
+                        (devices.<alias>.transport, else transport.type) to
+                        the new mode
   --wican WICAN         WiCAN address: ap, an IP/host, or a URL (default:
                         config transport.host / default_wican=ap, falling back
                         to another configured device when it is unreachable)

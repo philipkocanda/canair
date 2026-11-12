@@ -131,6 +131,19 @@ def wican_devices() -> tuple[dict[str, DeviceEntry], str]:
     return {str(k): DeviceEntry(host=str(v)) for k, v in raw_addrs.items()}, default
 
 
+def device_alias_for_url(base_url: str) -> str | None:
+    """The alias of the configured device that ``base_url`` (or a bare host) points at."""
+
+    def bare(host: str) -> str:
+        return host.split("://", 1)[-1].rstrip("/")
+
+    wanted = bare(base_url)
+    for alias, dev in wican_devices()[0].items():
+        if bare(dev.host) == wanted:
+            return alias
+    return None
+
+
 def fallback_settings() -> tuple[bool, float, list[str] | None]:
     """Return (enabled, connect_timeout, order) for cross-device auto-fallback.
 

@@ -237,13 +237,16 @@ transport uses no WiCAN. The HTTP-only features do not apply: device mode, `wica
 `--reboot`. Reachability is a direct probe of the ELM socket port. The firmware check is opt-in
 (`firmware_check: always`).
 
-`canair wican mode set MODE` keeps `transport.type` in step with the device mode:
+`canair wican mode set MODE` keeps the transport of the switched device in step with the device
+mode:
 
 - Switching to `slcan` sets `slcan-tcp`.
 - Switching to `elm327` sets `wican-ws`.
 
-The command prints the `old -> new` change, or says that the two are already aligned. Pass
-`--no-transport` to switch the device mode and leave the config unchanged.
+The command writes `devices.<alias>.transport` when the switched device has its own `transport`.
+Otherwise it writes `transport.type`, which every device without its own transport uses. The
+command prints the `old -> new` change and the key it wrote, or says that the two are already
+aligned. Pass `--no-transport` to switch the device mode and leave the config unchanged.
 
 ### Firmware generation check
 
