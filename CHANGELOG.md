@@ -15,6 +15,66 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [5.5.0](https://github.com/philipkocanda/canair/compare/v5.4.0...v5.5.0) (2026-11-12)
+
+
+### Added
+
+* **hyundai-ionia-ae-ev:** captures ([d950f9c](https://github.com/philipkocanda/canair/commit/d950f9c7028aacc9521a6470170db63fba8e994e))
+* **hyundai-ioniq-ae-ev:** fix missing ECU ([37e2ed7](https://github.com/philipkocanda/canair/commit/37e2ed70b5bc1679ee0e85330454adb064b85cc6))
+* **hyundai-ioniq-ae-ev:** record the MCU's flash map and its memory-read findings ([b6cfc47](https://github.com/philipkocanda/canair/commit/b6cfc473c3fb83a3ef100b1807a42e04f46b0276))
+* **hyundai-ioniq-ae-ev:** skills, profile and captures fixes ([e85bdd8](https://github.com/philipkocanda/canair/commit/e85bdd88991b74aa0fd8d31d5e24f480a6ec8568))
+* **memory:** show the whole dump's progress, speed and time left, with colour ([0896b6f](https://github.com/philipkocanda/canair/commit/0896b6fc2bf7f90a76add55e6817ff5c1269374c))
+* **monitor:** draw the menu bar black on light grey for contrast ([122e510](https://github.com/philipkocanda/canair/commit/122e510c4225f753fabe54ee718f94c3b20a2d66))
+* **monitor:** fit the values to the body's own width, and name the cycle cost ([4d67039](https://github.com/philipkocanda/canair/commit/4d67039a2856a788ad7e26f2c2a44397250b660b))
+* **monitor:** put the monitor on an application shell ([12400a3](https://github.com/philipkocanda/canair/commit/12400a33e951ae7963fec4a1edd077ed0939a678))
+* **monitor:** size the docked actuator pane to its table ([e782926](https://github.com/philipkocanda/canair/commit/e782926751bf642fb5ec7b7258d98d1e58e6d1e1))
+* **monitor:** start a recording from the TUI when the run began without --save ([881d61d](https://github.com/philipkocanda/canair/commit/881d61d7a28ba6a2bbd9ef2a16069f3bc0c5aa73))
+
+
+### Fixed
+
+* **captures:** drop a GVRET row with a blank data cell instead of shifting its bytes ([bb0a441](https://github.com/philipkocanda/canair/commit/bb0a44135fc3ed4c967231d8f4bc730a45509f04))
+* **captures:** fold a repeat only when the file would spell it the same ([7e7dd06](https://github.com/philipkocanda/canair/commit/7e7dd06c870b725b05997e7181b3fe3702c22aba))
+* **captures:** keep a session's untimed captures under --last-session and --since ([22f7281](https://github.com/philipkocanda/canair/commit/22f7281b5861463293108da2807722d3ed9624f0))
+* **captures:** name the file when a capture file is malformed ([a4ff3a7](https://github.com/philipkocanda/canair/commit/a4ff3a77ea87e0acd262a6427b014dc97beb519e))
+* **captures:** retract a latched state when a cycle reads its signals and nothing matches ([97538cd](https://github.com/philipkocanda/canair/commit/97538cddcf4e1f00804ab3de3192a2e64024949d))
+* **captures:** stop losing, duplicating and misreading saved sessions ([dc812fc](https://github.com/philipkocanda/canair/commit/dc812fc533f768c5b2bdb2c7b078f84c8f1ef370))
+* **hyundai-ioniq-ae-ev:** drop the 0x7C0 probes and stop treating part numbers as identity data ([bf3d60f](https://github.com/philipkocanda/canair/commit/bf3d60fe3956c0024bc97dfb1c6111db8fe9761d))
+* **hyundai-ioniq-ae-ev:** let coverage see the VCU 2101 B23 PWM-code bits ([c2c7bf7](https://github.com/philipkocanda/canair/commit/c2c7bf7bdda0e930b25f09ef39ec597ecf6c6e85))
+* **memory:** cap the image's block search at 64 and retry lost replies ([6ecf6cc](https://github.com/philipkocanda/canair/commit/6ecf6ccf2dfe4fdf7bca43b4b35532cff50e387b))
+* **memory:** grow the dump block back after it halves it ([8fe11e2](https://github.com/philipkocanda/canair/commit/8fe11e29e4df0c4876a742b9a48877a96b7394e8))
+* **memory:** let memory image re-home a dropped link through the monitor's reconnector ([404a0ca](https://github.com/philipkocanda/canair/commit/404a0ca75391f7a687f45f605d9d8e6ae4671047))
+* **monitor:** make the s dialog say what s does, and stop it blanking notes ([c6f7dc3](https://github.com/philipkocanda/canair/commit/c6f7dc3b539c3f038568c78c8e35c96501b8792d))
+* **transport:** report a reply that broke off after its first frame as a drop on slcan-tcp ([38183af](https://github.com/philipkocanda/canair/commit/38183af4c1c9035e3a4c857851d4fe31dc06d88c))
+* **wican:** align the switched device's own transport in mode set ([e8e5ba9](https://github.com/philipkocanda/canair/commit/e8e5ba9b3ea03c643f860347a3cd64a9e1b2cdb9))
+* **wican:** fall back to another device in sniff and the wican device commands ([f8d8830](https://github.com/philipkocanda/canair/commit/f8d88306068dd604aa72ab2b57d604f6532c7c15))
+
+
+### Changed
+
+* **hyundai-ioniq-ae-ev:** split VCU 2101 B26 into shift-by-wire fields ([2b3d4e9](https://github.com/philipkocanda/canair/commit/2b3d4e9f75107d4cd2bea622f92bcdd5826f17ba))
+* **monitor:** let the signal table fit a width, and name the device host ([811bd69](https://github.com/philipkocanda/canair/commit/811bd6945d773392a3a6df62d24419becbfcc01e))
+* **monitor:** type the reconnector's session contract so ty catches drift ([2716bc3](https://github.com/philipkocanda/canair/commit/2716bc31ddf91c3fe24c6bc606d385fdcb037109))
+* **render:** move the signal tables out of formatting into signal_table ([d337369](https://github.com/philipkocanda/canair/commit/d337369e955820188b2c1b7cba38890ccce3c0b3))
+* **tui:** add the application shell kit ([983e68f](https://github.com/philipkocanda/canair/commit/983e68fcf607eac7290a7815dc2de1e5a0f85949))
+
+
+### Documentation
+
+* **architecture:** redraw the connection diagram wider and simpler ([e94329b](https://github.com/philipkocanda/canair/commit/e94329bb805384ca2d5b4208ab9422d27de34c2b))
+* **hyundai-ioniq-ae-ev:** record that the MCU's lost replies come from the slcan-tcp path ([ef2bb53](https://github.com/philipkocanda/canair/commit/ef2bb534ea3f1ec74cddf39218a314abd6740ee4))
+* **hyundai-ioniq-ae-ev:** record the finished MCU flash image ([6330214](https://github.com/philipkocanda/canair/commit/6330214173de18555c6ea80e71e0f13efec4521e))
+* **monitor:** feature the monitor as canair's main screen ([ac0a1fb](https://github.com/philipkocanda/canair/commit/ac0a1fb04476f118c759d3d739bad285f7d7d461))
+* **monitor:** re-record the hero and tour GIFs with the new menu bar ([d51dff0](https://github.com/philipkocanda/canair/commit/d51dff0fc77b92e0302a5689e29bd87c132d7365))
+* **monitor:** show the actuator pane in Switch outputs ([089befe](https://github.com/philipkocanda/canair/commit/089befe5ceab91d1a99f4ec9d757c823a7f1b47c))
+* **plans:** explore an application shell for the monitor TUI ([9ad8795](https://github.com/philipkocanda/canair/commit/9ad8795e613d3be280dd056f022127231c47c481))
+* **plans:** fit the monitor shell mockups to a phone in portrait ([eeb6409](https://github.com/philipkocanda/canair/commit/eeb640914b093b5f110d478af3d01351dc51f538))
+* **readme:** open with a recording of the new monitor ([6d5005c](https://github.com/philipkocanda/canair/commit/6d5005c4f7a5d06589d04302f5c9051b2fcd4232))
+* **style:** align digits in tables with tabular numerals ([d1aafbb](https://github.com/philipkocanda/canair/commit/d1aafbb17d8946418021bdfb9ebc8c5450454766))
+* **style:** tune body size, line height, letter-spacing and prose width ([81bf095](https://github.com/philipkocanda/canair/commit/81bf09587c7427cded581cf55f539d824c098821))
+* switch the site to the modern theme with a blue-grey and amber palette ([f19350d](https://github.com/philipkocanda/canair/commit/f19350de8be1c0902885c6a299f462e810be5c97))
+
 ## [5.4.0](https://github.com/philipkocanda/canair/compare/v5.3.0...v5.4.0) (2026-11-11)
 
 
