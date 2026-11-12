@@ -131,8 +131,10 @@ when you quit. Add `--label`, `--state` and `--notes`, or set them later:
 - **`i`** (**Record › Recording info…**) shows the recording, where its journal is, and the
   recordings that this run finished.
 
-Without `--save`, `s` writes a one-off snapshot of what the monitor captured so far. Each saved
-recording is a capture session: `canair captures uds --sessions` lists them. While canair records,
+Without `--save`, nothing records yet. **`n`** (**Record › Start recording…**) starts a recording
+from that moment: it holds every poll after the keypress, and canair writes it when you quit. Until
+then, `s` (**Record › Save snapshot…**) writes a one-off snapshot of what the monitor captured so
+far. Each saved recording is a capture session: `canair captures uds --sessions` lists them. While canair records,
 it [detects the vehicle state](../concepts/vehicle-states.md) from the decoded values.
 
 ### Check and edit a signal

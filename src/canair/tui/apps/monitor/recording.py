@@ -1,4 +1,4 @@
-"""The monitor's save and new-recording keys: ``s`` labels or saves, ``n`` starts the next.
+"""The monitor's save and new-recording keys: ``s`` labels or saves, ``n`` starts a recording.
 
 :class:`RecordingMixin` is mixed into :class:`~canair.tui.apps.monitor.app.MonitorApp`. It
 opens the :class:`~canair.tui.apps.monitor.dialogs.SaveDialog` pre-filled from the controller
@@ -85,8 +85,8 @@ class RecordingMixin:
         recorder = self.controller.recorder
         recording = recorder.journal is not None
         current_notes = ""
+        new_key = display_key(keys_for("new")[0])
         if recording:
-            new_key = display_key(keys_for("new")[0])
             title = "Edit current recording"
             caption = (
                 "This changes the label, state and notes of the [b]current recording[/] — "
@@ -104,7 +104,7 @@ class RecordingMixin:
                 "[b]snapshot[/]: the payloads captured since the last snapshot, or since "
                 "the monitor started, go to a [b]new capture file[/] now.\n"
                 "[b]Nothing is saved after this[/], and what you do not snapshot is lost "
-                "on quit. [dim]Restart with --save to record continuously.[/]"
+                f"on quit. [dim]Press [b]{new_key}[/b] to start recording continuously.[/]"
             )
             save_button = "Save snapshot"
 
@@ -134,19 +134,19 @@ class RecordingMixin:
         )
 
     def action_new_segment(self) -> None:
-        """Finish the current --save recording (write it now) and start the next one."""
+        """Finish the current recording and start the next; with none running, start one."""
         if self._modal_active():
             return
-        if self.controller.recorder.journal is None:
-            self._flash(
-                "Starting a new recording needs --save (nothing is being recorded)", "warning"
-            )
-            return
+        recording = self.controller.recorder.journal is not None
         suggested, suggested_state, state_options = self._suggested_metadata(next_segment=True)
 
         def _done(result: tuple[str, str, str] | None) -> None:
             if result is None:
-                self._flash("Cancelled — the current recording goes on")
+                self._flash(
+                    "Cancelled — the current recording goes on"
+                    if recording
+                    else "Cancelled — not recording"
+                )
                 return
             label, state, notes = result
             try:
@@ -156,19 +156,32 @@ class RecordingMixin:
             self._flash_result(msg)
             self._update_header()
 
+        if recording:
+            title = "Finish recording & start the next"
+            caption = (
+                "[b]Writes the current recording to a capture file now[/], then "
+                "starts the next one with the label below.\n"
+                "[dim]One monitor run can produce several separately-labelled "
+                "recordings this way; each is a capture session.[/]"
+            )
+            save_button = "Finish & start new"
+        else:
+            title = "Start recording"
+            caption = (
+                "[b]Records every poll from now on[/] under the label below. It is written "
+                "to a capture file when you quit or finish it.\n"
+                "[b]Payloads captured before this moment are not in it.[/] "
+                "[dim]Take a snapshot first if you want them.[/]"
+            )
+            save_button = "Start recording"
         self._app.push_screen(
             SaveDialog(
                 suggested,
                 suggested_state,
                 state_options,
-                title="Finish recording & start the next",
-                caption=(
-                    "[b]Writes the current recording to a capture file now[/], then "
-                    "starts the next one with the label below.\n"
-                    "[dim]One monitor run can produce several separately-labelled "
-                    "recordings this way; each is a capture session.[/]"
-                ),
-                save_button="Finish & start new",
+                title=title,
+                caption=caption,
+                save_button=save_button,
             ),
             _done,
         )

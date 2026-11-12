@@ -2,8 +2,8 @@
 
 :class:`MonitorRecorder` is the collaborator that owns the monitor's *durability*
 concern: per-cycle payload recording (frame accounting + display/`--save`
-history), the write-ahead capture journal, on-demand (`s`) saves, segment rotation
-(`n`), and the current segment's label/state/notes metadata.
+history), the write-ahead capture journal, on-demand (`s`) saves, starting and rotating
+a recording (`n`), and the current segment's label/state/notes metadata.
 
 Factored out of :class:`canair.live.monitor.controller.MonitorController` (mirrors
 :class:`canair.live.monitor.raw_poller.MonitorRawPoller` and
@@ -67,8 +67,8 @@ class MonitorRecorder:
         self.session_states: list[str] = []
         # Write-ahead journal (durability): when --save is on, every polled payload
         # is appended here as it arrives and reconciled into a capture file on exit.
-        # Set by mode_monitor. A dropped connection or crash leaves the journal on
-        # disk for `canair captures uds --recover`.
+        # Set by mode_monitor, or by `n` on a run that began without --save. A dropped
+        # connection or crash leaves the journal on disk for `canair captures uds --recover`.
         self.journal = None
         # True once the user sets a non-empty state via the TUI save dialog, so the
         # end-of-run auto-suggest fallback doesn't clobber their choice.
@@ -356,47 +356,21 @@ class MonitorRecorder:
         return f"Saved {n_payloads} payload(s) across {n_pids} PID(s) → {path.name}"
 
     def new_segment(self, label: str, vehicle_states=None, notes: str | None = None) -> str:
-        """Close the current --save segment and start a fresh one (journal rotate).
+        """Finish the current recording and start the next; with none running, start one.
 
-        Reconciles the current journal into a capture file, then opens a new empty
-        journal carrying the provided label/states/notes. One monitor run can thus
-        produce several independently-labelled sessions. A no-op (with a message)
-        when --save is off, since there is no journal to rotate. Returns a one-line
-        summary; never writes to stdout (the TUI owns the screen) — the destination
-        banner is deferred to :attr:`deferred_saves` and printed after the app exits.
+        With a journal open (``--save``, or an earlier call), reconciles it into a capture
+        file, then opens a new empty journal carrying the provided label/states/notes, so one
+        monitor run can produce several independently-labelled sessions. Without one, only
+        the open step happens: the recording begins now and holds nothing captured before
+        this call. Returns a one-line summary; never writes to stdout (the TUI owns the
+        screen) — the destination banner is deferred to :attr:`deferred_saves` and printed
+        after the app exits.
         """
-        if self.journal is None:
-            return "Start a new session needs --save (nothing is being recorded)."
-
         states = parse_states(vehicle_states)
-
-        # Give the closing segment its states when none were set explicitly: the
-        # union of everything auto-suggested across the segment span (mirroring the
-        # end-of-run reconcile in mode_monitor), not just the state active now.
-        closing_states = list(self.session_states)
-        if not self.state_explicit:
-            backfill = self._backfill_states()
-            if backfill:
-                closing_states = backfill
-                with contextlib.suppress(Exception):
-                    self.journal.update_meta(vehicle_states=backfill)
-
-        # Stamp the closing segment with its transport data-quality footprint.
-        with contextlib.suppress(Exception):
-            quality = self.segment_quality()
-            if quality is not None:
-                self.journal.update_meta(quality=quality)
-
         written = None
-        buf = io.StringIO()
-        with contextlib.suppress(Exception), contextlib.redirect_stdout(buf):
-            with contextlib.redirect_stderr(buf):
-                written = self.journal.reconcile()
-        self._defer_save_output(buf)
-
-        # Record the just-closed segment's summary for the session-info modal
-        # before the metadata is reset for the fresh segment.
-        self._record_closed_segment(closing_states, written)
+        was_recording = self.journal is not None
+        if was_recording:
+            written = self._close_segment()
 
         self.journal = open_journal(self.c, label, states, notes)
         # A disconnect still open belongs to both segments: restate it in the new one.
@@ -425,9 +399,42 @@ class MonitorRecorder:
         self.session_states = list(states or [])
         self.session_notes = notes or ""
 
+        if not was_recording:
+            return f"Now recording {label!r} — written to a capture file when you quit."
         if written is not None:
             return f"Session saved → {written.name}. Now recording {label!r}."
         return f"Now recording new session {label!r}."
+
+    def _close_segment(self):
+        """Reconcile the open journal into a capture file; return the file written, or None.
+
+        Gives the closing segment its states when none were set explicitly (the union of
+        everything auto-suggested across its span, mirroring the end-of-run reconcile in
+        ``mode_monitor``, not just the state active now) and its transport data-quality
+        footprint, and files its summary under :attr:`segments`.
+        """
+        assert self.journal is not None
+        closing_states = list(self.session_states)
+        if not self.state_explicit:
+            backfill = self._backfill_states()
+            if backfill:
+                closing_states = backfill
+                with contextlib.suppress(Exception):
+                    self.journal.update_meta(vehicle_states=backfill)
+
+        with contextlib.suppress(Exception):
+            quality = self.segment_quality()
+            if quality is not None:
+                self.journal.update_meta(quality=quality)
+
+        written = None
+        buf = io.StringIO()
+        with contextlib.suppress(Exception), contextlib.redirect_stdout(buf):
+            with contextlib.redirect_stderr(buf):
+                written = self.journal.reconcile()
+        self._defer_save_output(buf)
+        self._record_closed_segment(closing_states, written)
+        return written
 
     def _record_closed_segment(self, states: list[str], written) -> None:
         """Append a summary of the segment being closed to :attr:`segments`."""

@@ -267,7 +267,10 @@ class TestMonitorApp:
             await pilot.press("q")
 
     @pytest.mark.asyncio
-    async def test_new_segment_without_save_flashes_no_dialog(self):
+    async def test_new_segment_without_save_starts_a_recording(self):
+        """Without --save, 'n' opens a dialog that starts the first recording."""
+        from textual.widgets import Button, Input, Label, Static
+
         from canair.tui.apps.monitor.app import SaveDialog
 
         ctrl = FakeController(journal=None)  # not recording
@@ -276,8 +279,38 @@ class TestMonitorApp:
             await pilot.pause(0.1)
             await pilot.press("n")
             await pilot.pause(0.1)
-            assert not isinstance(app.screen, SaveDialog)
+            assert isinstance(app.screen, SaveDialog)
+            title = _plain(app.screen.query_one("#save-title", Label).render())
+            assert title == "Start recording"
+            caption = _plain(app.screen.query_one("#save-caption", Static).render())
+            assert "before this moment are not in it" in caption
+            assert str(app.screen.query_one("#save", Button).label) == "Start recording"
+            app.screen.query_one("#save-label", Input).value = "first"
+            await pilot.press("enter")
+            await pilot.pause(0.1)
+            assert ctrl.recorder.new_seg is not None
+            assert ctrl.recorder.new_seg[0] == "first"
+            assert ctrl.recorder.saved is None  # not a snapshot
+            # The Record menu now describes a running recording.
+            assert app.shell_catalogue()["label"].label == "Label recording…"
+            assert app.shell_catalogue()["new"].label == "Finish and start new…"
+            await pilot.press("q")
+
+    @pytest.mark.asyncio
+    async def test_cancelling_start_recording_leaves_it_off(self):
+        from canair.tui.apps.monitor.app import SaveDialog
+
+        ctrl = FakeController(journal=None)
+        app = MonitorApp(ctrl)
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause(0.1)
+            await pilot.press("n")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, SaveDialog)
+            await pilot.press("escape")
+            await pilot.pause(0.1)
             assert ctrl.recorder.new_seg is None
+            assert app.shell_catalogue()["label"].label == "Save snapshot…"
             await pilot.press("q")
 
     @pytest.mark.asyncio
@@ -325,6 +358,7 @@ class TestMonitorApp:
             assert "one-off snapshot" in title
             caption = _plain(app.screen.query_one("#save-caption", Static).render())
             assert "not recording" in caption and "Nothing is saved after this" in caption
+            assert "to start recording" in caption
             assert str(app.screen.query_one("#save", Button).label) == "Save snapshot"
             await pilot.press("escape")
             await pilot.press("q")

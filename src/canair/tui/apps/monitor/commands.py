@@ -3,8 +3,8 @@
 The menu bar, the ``ctrl+p`` palette and the help sheet read this one catalogue
 (:mod:`canair.tui.shell.commands`). Each command names an action the app already has, so a
 menu item, a palette entry and the key all end in the same method. The menus depend on the run:
-without ``--save`` the first item saves a snapshot instead of labelling the recording, and the
-Actuators menu exists only with ``--actuate``.
+while nothing records, the first item saves a snapshot instead of labelling the recording and the
+second starts one, and the Actuators menu exists only with ``--actuate``.
 """
 
 from __future__ import annotations
@@ -33,34 +33,41 @@ ACTUATOR_COMMANDS = frozenset({"act_toggle", "act_off", "act_set", "routine_star
 
 
 def _record(recording: bool) -> Menu:
-    first = (
-        Command(
+    if recording:
+        first = Command(
             "label",
             "Label recording…",
             "save",
             role="session",
             help="Change the label, vehicle states and notes of this recording",
         )
-        if recording
-        else Command(
+        second = Command(
+            "new",
+            "Finish and start new…",
+            "new_segment",
+            role="new",
+            help="Write this recording to a capture file and start the next one",
+        )
+    else:
+        first = Command(
             "label",
             "Save snapshot…",
             "save",
             role="session",
             help="Write the payloads captured so far to a capture file (not recording)",
         )
-    )
+        second = Command(
+            "new",
+            "Start recording…",
+            "new_segment",
+            role="new",
+            help="Record every poll from now on; it is written to a capture file on quit",
+        )
     return Menu(
         "Record",
         (
             first,
-            Command(
-                "new",
-                "Finish and start new…",
-                "new_segment",
-                role="new",
-                help="Write this recording to a capture file and start the next one",
-            ),
+            second,
             Command(
                 "info",
                 "Recording info…",
@@ -77,7 +84,13 @@ def _record(recording: bool) -> Menu:
                 help="This run's messages and its link and decode events",
             ),
             SEPARATOR,
-            Command("quit", "Quit", "quit", role="quit", help="Save the recording and exit"),
+            Command(
+                "quit",
+                "Quit",
+                "quit",
+                role="quit",
+                help="Save the recording and exit" if recording else "Exit the monitor",
+            ),
         ),
         short="Rec",
     )
@@ -303,7 +316,7 @@ def _help() -> Menu:
 
 
 def monitor_catalogue(*, recording: bool, actuate: bool) -> Catalogue:
-    """The monitor's menus for a run that records (``--save``) and may actuate (``--actuate``)."""
+    """The monitor's menus, for whether a recording is running and whether ``--actuate`` is on."""
     menus = [_record(recording), _poll(), _view(actuate), _signal()]
     if actuate:
         menus.append(_actuators())

@@ -35,6 +35,7 @@ class FakeRecorder:
 
     def new_segment(self, label, vehicle_states=None, notes=None) -> str:
         self.new_seg = (label, vehicle_states, notes)
+        self.journal = self.journal or object()
         return "Session saved → foo.yaml. Now recording."
 
 

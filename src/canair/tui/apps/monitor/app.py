@@ -23,7 +23,8 @@ pane (:class:`~canair.tui.apps.monitor.panes.ValuesPane`); the app holds the key
 same wherever focus is.
 
 With ``--save`` the recording is journaled as it goes and written on exit; ``s`` labels it and
-``n`` finishes it and starts the next. Without ``--save`` ``s`` writes a one-off snapshot. With
+``n`` finishes it and starts the next. Without ``--save`` nothing records until ``n`` starts a
+recording, and until then ``s`` writes a one-off snapshot. With
 ``--actuate``, ``A`` shows the actuator pane (:mod:`.actuators`). ``p`` swaps what is polled
 without a restart; ``t`` opens a diagnostic session type on one ECU.
 
@@ -147,14 +148,11 @@ class MonitorApp(
         # Set when the user asks to quit, so an in-flight reconnect aborts cleanly.
         self._stopping = False
         self.shell_messages = Messages()
-        self.catalogue = monitor_catalogue(
-            recording=controller.recorder.journal is not None,
-            actuate=controller.actuation is not None,
-        )
+        self._catalogues: dict[bool, Catalogue] = {}
 
     # -- layout ------------------------------------------------------------
     def compose(self) -> ComposeResult:
-        yield MenuBar(self.catalogue.menus, self.SHELL_NAME, id="menubar")
+        yield MenuBar(self.shell_catalogue().menus, self.SHELL_NAME, id="menubar")
         with Container(id="panes"):
             with ValuesPane(id="scroll"):
                 yield Static("", id="body", markup=False)
@@ -186,15 +184,19 @@ class MonitorApp(
 
     # -- the shell -----------------------------------------------------------
     def shell_catalogue(self) -> Catalogue:
-        return self.catalogue
+        """The menus for now: starting a recording (``n``) changes the Record menu's items."""
+        recording = self.controller.recorder.journal is not None
+        if recording not in self._catalogues:
+            self._catalogues[recording] = monitor_catalogue(
+                recording=recording, actuate=self.controller.actuation is not None
+            )
+        return self._catalogues[recording]
 
     def shell_changed(self) -> None:
         self._update_status()
 
     def command_unavailable(self, cmd: Command) -> str | None:
         c = self.controller
-        if cmd.id == "new" and c.recorder.journal is None:
-            return "Starting a new recording needs --save (nothing is being recorded)"
         if cmd.id in SIGNAL_COMMANDS and getattr(self._editor(), "selected", None) is None:
             return SELECT_FIRST
         if cmd.id in ACTUATOR_COMMANDS and not self.actuators_focused():

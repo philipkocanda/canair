@@ -74,14 +74,14 @@ class TestMenus:
             await pilot.press("q")
 
     @pytest.mark.asyncio
-    async def test_a_new_recording_needs_save(self):
+    async def test_an_idle_monitor_offers_to_start_a_recording(self):
         app = MonitorApp(FakeController(journal=None))
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(0.1)
             await pilot.press("alt+r")
             await pilot.pause(0.1)
             options = app.screen.query_one(OptionList)
-            assert options.get_option("new").disabled
+            assert not options.get_option("new").disabled
             await pilot.press("escape")
             await pilot.press("q")
 

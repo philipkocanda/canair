@@ -201,7 +201,7 @@ class SessionInfoModal(OverlayScroll, KitModal[None]):
             out.append(f"  {label:<16}", style=styles.HEADING)
             out.append(f"{value}\n")
 
-        rec = "● yes (--save)" if s.get("recording") else "no (not recording)"
+        rec = "● yes" if s.get("recording") else "no (not recording)"
         states = s.get("states") or []
         states_txt = ", ".join(states) if states else "(auto-detected on save)"
         notes = (s.get("notes") or "").replace("\n", " ").strip() or EMPTY

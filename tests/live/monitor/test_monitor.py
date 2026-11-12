@@ -1000,11 +1000,45 @@ class TestControllerJournal:
         assert len(banners) == 1
         assert str(written) in banners[0]
 
-    def test_new_segment_requires_save(self):
+    def test_new_segment_without_save_starts_a_recording(self, tmp_path):
+        """'n' on a run without --save opens the first journal and holds only what follows."""
         c = make_controller(terminal=None, query_steps=[], pids_data={}, verbose=False, save=False)
+        c.captures_dir = tmp_path
         assert c.recorder.journal is None
-        msg = c.recorder.new_segment("x")
-        assert "needs --save" in msg
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])  # before the start
+        assert c.recorder.save_history  # held for a snapshot, not for the recording
+
+        msg = c.recorder.new_segment("first", "ready", "note")
+        assert "Now recording 'first'" in msg
+        assert c.recorder.journal is not None
+        assert c.recorder.segments == []  # nothing was closed
+        assert list(tmp_path.glob("*.json")) == []
+        assert (c.recorder.session_label, c.recorder.session_states) == ("first", ["READY"])
+
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])])
+        c.recorder.journal.reconcile()  # as the exit path does
+        sessions = [
+            s for f in tmp_path.glob("*.json") for s in json.loads(f.read_text())["sessions"]
+        ]
+        assert [s["label"] for s in sessions] == ["first"]
+        assert [cap["payload"] for cap in sessions[0]["captures"]] == ["6101BB"]
+
+    def test_new_segment_after_a_started_recording_rotates_it(self, tmp_path):
+        c = make_controller(terminal=None, query_steps=[], pids_data={}, verbose=False, save=False)
+        c.captures_dir = tmp_path
+        c.recorder.new_segment("first")
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
+        msg = c.recorder.new_segment("second")
+        assert "Session saved" in msg
+        assert [seg["label"] for seg in c.recorder.segments] == ["first"]
+        c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101BB"}])])
+        c.recorder.journal.reconcile()
+        labels = {
+            s["label"]
+            for f in tmp_path.glob("*.json")
+            for s in json.loads(f.read_text())["sessions"]
+        }
+        assert labels == {"first", "second"}
 
 
 class TestControllerSuggestedState:

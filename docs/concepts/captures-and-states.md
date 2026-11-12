@@ -61,7 +61,7 @@ cadence. Repeats cost little space because canair
 
 The live view collapses each run of identical payloads into one row with its poll count (`×37`).
 It shows the newest few rows (`--keep N` sets how many). The scrollable live view shows a
-blinking `● REC` whenever a `--save` recording is active. These keys control the session:
+blinking `● REC` whenever a recording is active. These keys control the session:
 
 - **`s` (edit current session)** — Change the label, state and notes of the **current**
   recording. The dialog opens with the session's existing label and notes, and it says that it
@@ -75,16 +75,23 @@ blinking `● REC` whenever a `--save` recording is active. These keys control t
     pre-fill unchanged (or leave it blank), the state stays automatic, so states seen after the
     keypress still count. If you type a different state, canair pins it.
 
-    Without `--save`, `s` is a **one-off snapshot**: the dialog says so. canair writes the
-    payloads captured since the previous snapshot (or since the monitor started) to a new
-    capture file, once. Nothing is recorded after that, and anything not snapshotted is lost
-    when you quit. canair pre-fills the state with the union of states seen over that span.
+    While nothing records (no `--save`, and no recording started with `n`), `s` is a **one-off
+    snapshot**: the dialog says so. canair writes the payloads captured since the previous
+    snapshot (or since the monitor started) to a new capture file, once. Nothing is recorded
+    after that, and anything not snapshotted is lost when you quit. canair pre-fills the state
+    with the union of states seen over that span.
 
 - **`n` (finish & start new)** — Write the current session to its own capture file **now**, and
   start a **fresh** recording. You label it through the same modal. canair pre-fills the state
   that is active now, and the state stays automatic unless you change it. Press `n` at each
   phase change (parked → driving → charging) to get several independently-labelled sessions from
-  one run. This key requires `--save`.
+  one run.
+
+    Without `--save`, `n` is **start recording**. The recording begins at the keypress and holds
+    only the polls after it; what the monitor captured earlier is not in it (snapshot it first
+    with `s`). canair journals it like a `--save` recording and writes it when you quit, so
+    nothing is written if you never press `n`. After that, `s` and `n` act as they do with
+    `--save`.
 - **`i` (session info)** — A read-only overlay. It shows these items:
     - the label, state and notes of the current segment
     - the run-level counters (frames, cycles, poll interval and schedule, transport, elapsed

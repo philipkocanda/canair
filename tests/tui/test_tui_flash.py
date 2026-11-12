@@ -91,7 +91,6 @@ class TestSeverityOf:
             "No parameter selected.",
             "SOC: no definition to edit.",
             "No payloads captured yet — nothing to save.",
-            "Start a new session needs --save (nothing is being recorded).",
         ],
     )
     def test_refusals_are_warnings(self, message):
