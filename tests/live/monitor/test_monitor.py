@@ -125,6 +125,22 @@ class TestRenderResults:
         assert "1.2s" in text
         assert "3.0s" in text
 
+    def test_the_tui_leaves_the_cycle_line_out(self):
+        # The TUI's status line carries the cycle; its body starts with the first ECU.
+        results = [("BMS (0x7E4)", [self._make_pid_result()])]
+        t = _render_results(
+            results, verbose=False, cycle=42, elapsed=1.2, interval=3.0, footer=False, title=False
+        )
+        assert "cycle" not in t.plain
+        assert t.plain.lstrip().startswith("BMS (0x7E4)")
+
+    def test_the_signal_table_fits_the_width_it_is_given(self):
+        params = [("AVAIL_DISCHARGE_POWER_MIRROR", 103.15, "kW", "B1", None, False)]
+        results = [("BMS (0x7E4)", [self._make_pid_result(params=params)])]
+        t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0, width=40)
+        row = next(ln for ln in t.plain.splitlines() if "AVAIL" in ln)
+        assert len(row) <= 40 and "103.15 kW" in row
+
     def test_ecu_label_shown(self):
         results = [("BMS (0x7E4)", [self._make_pid_result()])]
         t = _render_results(results, verbose=False, cycle=1, elapsed=0.1, interval=5.0)
@@ -1400,3 +1416,23 @@ class TestElmSessionSwitch:
         assert "not opened" in msg and "NRC 0x12" in msg
         assert c.sessions.active_modes() == {}
         assert "warning" not in capsys.readouterr().err  # the TUI shows it, not stderr
+
+
+class TestDeviceHost:
+    """The status line names the device; it is read off whichever client is active now."""
+
+    def test_an_elm327_terminal_names_its_host(self):
+        from types import SimpleNamespace
+
+        c = make_controller(SimpleNamespace(host="192.0.2.10"), [], {})
+        assert c.device_host() == "192.0.2.10"
+
+    def test_the_raw_client_names_its_bus_host(self):
+        from types import SimpleNamespace
+
+        raw = SimpleNamespace(bus=SimpleNamespace(host="192.0.2.11"))
+        c = make_controller(None, [], {}, raw_client=raw)
+        assert c.device_host() == "192.0.2.11"
+
+    def test_a_client_that_does_not_say_gives_none(self):
+        assert make_controller(None, [], {}).device_host() is None

@@ -16,6 +16,24 @@ from canair.render import ansi, glyphs
 from canair.render.console import console
 from canair.render.formatting import format_value, param_byte_index_str, render_hex_line
 
+#: The narrowest a shortened name column gets: enough to tell most signals apart.
+_MIN_NAME = 8
+
+
+def _name_width(max_name: int, fixed: int, width: int | None) -> int:
+    """The name column's width: the widest name, or less when the row must fit ``width``.
+
+    ``fixed`` is every other column of the row. The name gives way first, down to
+    :data:`_MIN_NAME`, so the value and the verified mark stay on the line on a phone.
+    """
+    if width is None or max_name + fixed <= width:
+        return max_name
+    return max(_MIN_NAME, width - fixed)
+
+
+def _fit_name(name: str, width: int) -> str:
+    return name if len(name) <= width else name[: width - 1] + glyphs.ELLIPSIS
+
 
 def render_param_table(
     params: list[ParamRow],
@@ -25,6 +43,7 @@ def render_param_table(
     display: ByteDisplay | None = None,
     selected_name: str | None = None,
     changed_styles: dict[str, str] | None = None,
+    width: int | None = None,
 ) -> Text:
     """Render decoded signal rows as an aligned Rich Text block.
 
@@ -45,13 +64,15 @@ def render_param_table(
     backgrounds a signal's name/value cells with the highlight variant of the
     changed byte it decodes, linking a byte flash to the value it produced. The
     ``▶`` selection style takes precedence when a row is both selected and changed.
+
+    ``width`` is the space the table has (the monitor's pane). When the rows are wider, the
+    names are shortened (``…``) so the rows fit; without it the names keep their full length.
     """
     changed_styles = changed_styles or {}
     t = Text()
     if not params:
         return t
 
-    max_name = max(len(r[0]) for r in params)
     max_val = max(
         len(format_value(r[1], r[2], r[6] if len(r) > 6 else "") if r[1] is not None else "")
         for r in params
@@ -65,9 +86,14 @@ def render_param_table(
             byte_strs[idx] = param_byte_index_str(row[3], display)
         max_bytes_w = max((len(s) for s in byte_strs.values()), default=0)
 
+    bytes_w = 2 + max_bytes_w if display is not None else 0
+    fixed = len(indent) + 2 + max_val + 2 + 1 + bytes_w
+    max_name = _name_width(max(len(r[0]) for r in params), fixed, width)
+
     for idx, row in enumerate(params):
         name, value, unit, expression, perr, verified = row[:6]
         disp_expr = row[6] if len(row) > 6 else ""
+        shown = _fit_name(name, max_name)
         mark_style = "green" if verified else "yellow"
         mark_char = glyphs.OK if verified else "?"
         is_sel = selected_name is not None and name == selected_name
@@ -79,12 +105,12 @@ def render_param_table(
         changed_style = changed_styles.get(name, "")
         name_style = "reverse bold" if is_sel else changed_style
         if perr or value is None:
-            t.append(f"{name_prefix}{name:<{max_name}}  ", style=name_style)
+            t.append(f"{name_prefix}{shown:<{max_name}}  ", style=name_style)
             t.append(f"{glyphs.FAIL} {perr or 'no value'}\n", style="red")
             continue
 
         val_str = format_value(value, unit, disp_expr)
-        t.append(f"{name_prefix}{name:<{max_name}}  ", style=name_style)
+        t.append(f"{name_prefix}{shown:<{max_name}}  ", style=name_style)
         t.append(f"{val_str:<{max_val}}  ", style=name_style)
         t.append(mark_char, style=mark_style)
         if display is not None:
@@ -127,6 +153,7 @@ def render_param_ranges(
     *,
     indent: str = "      ",
     selected_name: str | None = None,
+    width: int | None = None,
 ) -> Text:
     """Render each signal's captured value *span* as an aligned Rich Text block.
 
@@ -135,15 +162,19 @@ def render_param_ranges(
     ``{indent}{name}  {range}  ✓|?  n=N`` — the numeric min–max (or distinct
     labels) accumulated across the run, the way ``canair investigate``/``decode``
     report a signal's range. ``selected_name`` marks the in-place-edit cursor row
-    with ``▶``. Returns an empty ``Text`` when there are no stats.
+    with ``▶``. Returns an empty ``Text`` when there are no stats. ``width`` shortens the names
+    to fit, as in :func:`render_param_table`.
     """
     t = Text()
     if not stats:
         return t
     names = list(stats)
-    max_name = max(len(n) for n in names)
     range_strs = {n: _format_range_value(stats[n]) for n in names}
     max_val = max(len(v) for v in range_strs.values())
+    max_n = max(len(f"  n={stats[n].get('n', 0)}") for n in names)
+    max_name = _name_width(
+        max(len(n) for n in names), len(indent) + 2 + max_val + 2 + 1 + max_n, width
+    )
 
     for name in names:
         stat = stats[name]
@@ -153,7 +184,7 @@ def render_param_ranges(
         is_sel = selected_name is not None and name == selected_name
         name_prefix = (indent[:-2] + "▶ ") if is_sel and len(indent) >= 2 else indent
         name_style = "reverse bold" if is_sel else ""
-        t.append(f"{name_prefix}{name:<{max_name}}  ", style=name_style)
+        t.append(f"{name_prefix}{_fit_name(name, max_name):<{max_name}}  ", style=name_style)
         t.append(f"{range_strs[name]:<{max_val}}  ", style=name_style)
         t.append(mark_char, style=mark_style)
         t.append(f"  n={stat.get('n', 0)}\n", style="dim")

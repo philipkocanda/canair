@@ -91,6 +91,26 @@ class TestRenderParamTable:
         rows = [("A", 1.0, "", "B0", None, True)]
         assert render_param_table(rows, indent="::").plain.startswith("::A")
 
+    def test_a_narrow_width_shortens_the_names_not_the_values(self):
+        rows = [
+            ("AVAIL_DISCHARGE_POWER_MIRROR", 103.15, "kW", "B1", None, False),
+            ("SOC_BMS", 85.5, "%", "B9/2", None, True),
+        ]
+        lines = [ln for ln in render_param_table(rows, width=36).plain.splitlines() if ln]
+        assert all(len(ln) <= 36 for ln in lines)
+        assert lines[0].startswith("      AVAIL_DISCHARGE…  103.15 kW")
+        assert "103.15 kW" in lines[0] and lines[0].endswith("?")
+        assert "SOC_BMS" in lines[1] and lines[1].endswith("✓")
+
+    def test_a_width_the_rows_fit_changes_nothing(self):
+        rows = [("SOC", 50.0, "%", "B09/2", None, True)]
+        assert render_param_table(rows, width=200).plain == render_param_table(rows).plain
+
+    def test_a_name_keeps_at_least_eight_columns(self):
+        rows = [("AVAIL_DISCHARGE_POWER_MIRROR", 1.0, "", "B1", None, True)]
+        line = render_param_table(rows, width=10).plain.splitlines()[0]
+        assert "AVAIL_D…" in line
+
     def test_byte_column_shown_with_display(self):
         # Rendered in the display's notation — WiCAN by default, so it echoes B09.
         rows = [("X", 1.0, "", "B09", None, True)]

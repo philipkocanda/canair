@@ -60,6 +60,7 @@ def entry_signature(
     notation: ByteNotation = ByteNotation.WICAN,
     stale_label: str = "",
     note: str = "",
+    width: int | None = None,
 ) -> tuple:
     """A hashable signature of everything that affects one PID entry's render.
 
@@ -96,6 +97,7 @@ def entry_signature(
         stat_sig,
         notation,
         note,
+        width,
     )
 
 

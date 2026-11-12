@@ -247,6 +247,16 @@ class MonitorController:
         src = self.raw_client if self.raw else self.terminal
         return getattr(src, "link", None)
 
+    def device_host(self) -> str | None:
+        """The host of the device the run talks to now, or None when the client does not say.
+
+        Read from the active client, so it follows a reconnect onto another device. The ELM327
+        terminals carry it themselves; the raw client's SLCAN bus does.
+        """
+        if self.raw:
+            return getattr(getattr(self.raw_client, "bus", None), "host", None)
+        return getattr(self.terminal, "host", None)
+
     def reload_pids(self) -> None:
         """Re-read PID definitions after an in-place edit and rebuild the index.
 

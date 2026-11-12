@@ -71,6 +71,7 @@ def _render_entry(
     notation: ByteNotation = ByteNotation.WICAN,
     stale_label: str = "",
     note: str = "",
+    width: int | None = None,
 ) -> Text:
     """Render one PID entry (mark line, param table, hex/history) to its own Text.
 
@@ -87,7 +88,8 @@ def _render_entry(
     byte-reference column are drawn in (the user's ``display.byte_notation``).
 
     ``stale_label`` (see :func:`stale_age`) says how long a stale value has been held, and
-    ``note`` is appended to the PID's line (the slow-PID backoff's).
+    ``note`` is appended to the PID's line (the slow-PID backoff's). ``width`` is the room the
+    signal table has; its names are shortened to fit (``render_param_table``).
     """
     pid = entry["pid"]
     error = entry.get("error")
@@ -133,12 +135,14 @@ def _render_entry(
     # "ranges" view: the accumulated value span per signal, not the live table.
     if view_mode == "ranges":
         if pid_stats:
-            entry_text.append_text(render_param_ranges(pid_stats, selected_name=sel_name))
+            entry_text.append_text(
+                render_param_ranges(pid_stats, selected_name=sel_name, width=width)
+            )
         elif params:
             # No accumulated stats yet (first cycle / error-only) — fall back to
             # the live table so the row isn't blank.
             entry_text.append_text(
-                render_param_table(params, verbose=verbose, selected_name=sel_name)
+                render_param_table(params, verbose=verbose, selected_name=sel_name, width=width)
             )
         elif decode:
             entry_text.append(f"      {decode}\n")
@@ -176,6 +180,7 @@ def _render_entry(
                 display=byte_display,
                 selected_name=sel_name,
                 changed_styles=changed_styles,
+                width=width,
             )
         )
     elif decode:
@@ -252,6 +257,8 @@ def _render_results(
     notation: ByteNotation = ByteNotation.WICAN,
     pid_notes: dict[tuple[str, str], str] | None = None,
     now: float | None = None,
+    width: int | None = None,
+    title: bool = True,
 ) -> Text:
     """Render all ECU query results as a Rich Text object for display.
 
@@ -284,6 +291,10 @@ def _render_results(
     ``pid_notes`` adds a note to a PID's row, keyed by ``(ECU label, PID)`` (the slow-PID
     backoff's). ``now`` is the wall clock a stale value's age is measured against.
 
+    ``width`` fits each signal table to the room it has (the TUI passes its pane's width).
+    ``title`` draws the ``Monitor — cycle N`` line; the TUI leaves it out, since its status line
+    says the same.
+
     ``view_mode`` (see :data:`~canair.live.monitor.view.VIEW_MODES`) selects the presentation: ``"ecus"``
     lists only the responding ECUs (+ a PID/signal count); ``"ranges"`` shows
     each signal's accumulated value span (from ``param_stats``, a
@@ -294,12 +305,13 @@ def _render_results(
     now = time.time() if now is None else now
     text = Text()
 
-    view_note = "" if view_mode == "full" else f"  ·  view: {view_mode}"
-    rate = interval if isinstance(interval, str) else f"{interval:.1f}s"
-    text.append(
-        f"  Monitor — cycle {cycle}  (last: {elapsed:.1f}s, interval: {rate}){view_note}\n",
-        style="dim",
-    )
+    if title:
+        view_note = "" if view_mode == "full" else f"  ·  view: {view_mode}"
+        rate = interval if isinstance(interval, str) else f"{interval:.1f}s"
+        text.append(
+            f"  Monitor — cycle {cycle}  (last: {elapsed:.1f}s, interval: {rate}){view_note}\n",
+            style="dim",
+        )
 
     if prev_hex is None:
         prev_hex = {}
@@ -369,6 +381,7 @@ def _render_results(
                     notation=notation,
                     stale_label=stale_label,
                     note=note,
+                    width=width,
                 )
                 block = cache.get(hex_key, sig)
                 if block is None:
@@ -388,6 +401,7 @@ def _render_results(
                         notation=notation,
                         stale_label=stale_label,
                         note=note,
+                        width=width,
                     )
                     cache.put(hex_key, sig, block)
             else:
@@ -407,6 +421,7 @@ def _render_results(
                     notation=notation,
                     stale_label=stale_label,
                     note=note,
+                    width=width,
                 )
             text.append_text(block)
 
@@ -428,8 +443,11 @@ class MonitorRenderer:
         self.c = controller
         self._cache = RenderCache()
 
-    def render(self) -> Text:
-        """The current view as a Rich Text (rendered by the TUI / printed on exit)."""
+    def render(self, width: int | None = None, *, title: bool = True) -> Text:
+        """The current view as a Rich Text (rendered by the TUI / printed on exit).
+
+        The TUI passes its pane's ``width`` and ``title=False`` (see :func:`_render_results`).
+        """
         c = self.c
         c.editor.ensure_valid(c.last_queries)
         return _render_results(
@@ -450,4 +468,6 @@ class MonitorRenderer:
             param_stats=c.param_stats,
             notation=c.notation,
             pid_notes=c.health.pid_notes(c.last_queries),
+            width=width,
+            title=title,
         )
