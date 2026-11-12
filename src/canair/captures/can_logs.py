@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 from canair.core import yaml_io
 from canair.core.yaml_rt import dump as _dump
 from canair.core.yaml_rt import round_trip_yaml as _yaml
+from canair.render import messages
 
 if TYPE_CHECKING:
     from canair.profile.model import Profile
@@ -170,14 +171,19 @@ def _iter_gvret(path: Path):
             ts_k, id_k, ext_k, len_k = key["time stamp"], key["id"], key["extended"], key["len"]
             data_ks = [key[f"d{i}"] for i in range(1, 9) if f"d{i}" in key]
             bus_k = key.get("bus")
+            skipped = 0
             for row in reader:
                 try:
                     ts_us = int(row[ts_k])
                     arb_id = int(row[id_k], 16)
                     dlc = int(row[len_k])
-                    data = bytes(int(row[dk], 16) for dk in data_ks[:dlc] if row.get(dk))
+                    # A blank cell inside LEN would shift every later byte one place left.
+                    data = bytes(int(row[dk], 16) for dk in data_ks[:dlc])
+                    if len(data) != dlc:
+                        raise ValueError("fewer data columns than LEN")
                 except (ValueError, TypeError, KeyError):
-                    continue  # skip malformed rows
+                    skipped += 1
+                    continue
                 ext = str(row.get(ext_k, "")).strip().lower() in ("true", "1")
                 try:
                     channel = int(row[bus_k]) if bus_k else None
@@ -191,6 +197,8 @@ def _iter_gvret(path: Path):
                     timestamp=ts_us / 1_000_000.0,
                     channel=channel,
                 )
+            if skipped:
+                messages.warning(f"{path.name}: skipped {skipped} malformed row(s)")
     except CanLogError:
         raise
     except OSError as e:

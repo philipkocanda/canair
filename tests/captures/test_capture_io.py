@@ -199,3 +199,32 @@ class TestDumpSafety:
         path.chmod(0o664)
         capture_io.dump_capture_file(path, {"sessions": []})
         assert path.stat().st_mode & 0o777 == 0o664
+
+
+class TestGvretRows:
+    HEADER = "Time Stamp,ID,Extended,Dir,Bus,LEN,D1,D2,D3,D4,D5,D6,D7,D8\n"
+
+    def _read(self, tmp_path, *rows):
+        from canair.captures import can_logs
+
+        path = tmp_path / "log.csv"
+        path.write_text(self.HEADER + "".join(r + "\n" for r in rows))
+        return list(can_logs.iter_frames(path, "gvret"))
+
+    def test_a_blank_cell_inside_len_drops_the_row_instead_of_shifting_its_bytes(
+        self, tmp_path, capsys
+    ):
+        frames = self._read(
+            tmp_path,
+            "1000,7EC,false,Rx,0,4,11,,33,44,,,,",
+            "2000,7EC,false,Rx,0,4,11,22,33,44,,,,",
+        )
+        assert [m.data.hex() for m in frames] == ["11223344"]
+        assert "skipped 1 malformed row" in capsys.readouterr().err
+
+    def test_fewer_data_columns_than_len_drops_the_row(self, tmp_path):
+        assert self._read(tmp_path, "1000,7EC,false,Rx,0,8,11,22,,,,,,") == []
+
+    def test_blank_cells_beyond_len_are_ignored(self, tmp_path):
+        [frame] = self._read(tmp_path, "1000,7EC,false,Rx,0,2,11,22,,,,,,")
+        assert frame.data.hex() == "1122"
