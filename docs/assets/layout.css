@@ -4,6 +4,22 @@
   max-width: 76rem;
 }
 
+/* Body text: a little larger than the theme default, with a calmer line height and no
+   negative letter-spacing (headings keep their own). Print keeps the theme's smaller size. */
+@media not print {
+  .md-typeset {
+    font-size: 0.8rem;
+    line-height: 1.65;
+    letter-spacing: 0;
+  }
+}
+
+/* Tables and code read better with tighter lines than prose. */
+.md-typeset table:not([class]) {
+  line-height: 1.5;
+}
+
+/* 72ch follows the font size, so the line stays about 72 characters at any screen size. */
 .md-typeset > p,
 .md-typeset > ul,
 .md-typeset > ol,
@@ -13,5 +29,5 @@
 .md-typeset > h2,
 .md-typeset > h3,
 .md-typeset > h4 {
-  max-width: 43rem;
+  max-width: 72ch;
 }
