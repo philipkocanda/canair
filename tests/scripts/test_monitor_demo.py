@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import os
 from pathlib import Path
 
 import pytest
@@ -21,8 +22,15 @@ def demo():
     spec = importlib.util.spec_from_file_location("monitor_demo", SCRIPT)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    # Importing the script pins CANAIR_VARIANT in os.environ; give it back afterwards, or it
+    # reaches every later test in this worker and breaks profiles that declare no variants.
+    saved = dict(os.environ)
+    try:
+        spec.loader.exec_module(module)
+        yield module
+    finally:
+        os.environ.clear()
+        os.environ.update(saved)
 
 
 def test_the_replay_moves_the_values_and_stays_out_of_the_repo(demo, tmp_path):
