@@ -189,11 +189,39 @@ class TestInferStateSpans:
             ("10:10:00", []),
         ]
 
+    def test_a_state_ending_on_an_or_predicate_with_an_unreadable_side_is_retracted(self):
+        """``False or UNKNOWN`` is UNKNOWN, so no predicate is falsified, yet the cycle did
+        read a signal the state depends on and it no longer holds."""
+        rules = [
+            StateRule(
+                "CHARGING",
+                predicate=compile_predicate("BMS.CURRENT < -1 or OBC.A > 0.5"),
+                expr="BMS.CURRENT < -1 or OBC.A > 0.5",
+            )
+        ]
+        caps = [
+            _cap("BMS", "2101", "620101F0", time="10:00:00"),  # CURRENT=-16: charging
+            _cap("BMS", "2101", "62010100", time="10:30:00"),  # CURRENT=0, OBC not answering
+            _cap("BMS", "2101", "62010100", time="11:30:00"),
+        ]
+        inf = infer_state_spans(caps, rules, _span_ecu_index(), profile=active())
+        assert [(s["at"], s["states"]) for s in inf.spans] == [
+            ("10:00:00", ["CHARGING"]),
+            ("10:30:00", []),
+        ]
+
     def test_a_cycle_with_no_relevant_signal_is_not_an_observation(self):
         caps = [_cap("AAF", "2101", "620101FF", time="10:00:00")]
         inf = infer_state_spans(caps, _span_rules(), _span_ecu_index(), profile=active())
         assert inf.spans == []
         assert inf.n_informative == 0
+
+    def test_a_capture_whose_time_is_an_empty_string_is_untimed(self):
+        """The capture store writes ``time: ""`` for a reading that has none."""
+        caps = [{**_cap("VCU", "2101", "62010101"), "time": ""}]
+        inf = infer_state_spans(caps, _span_rules(), _span_ecu_index(), profile=active())
+        assert inf.spans == []
+        assert inf.n_untimed == 1
 
     def test_untimed_captures_are_counted_not_placed(self):
         caps = [_cap("VCU", "2101", "62010101")]

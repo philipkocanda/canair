@@ -255,26 +255,27 @@ def infer_state_spans(
 
     for cycle in cycles:
         when = cycle[0].get("time") if cycle else None
-        if when is None:
+        if not when:  # the store spells "no time" as an empty string
             n_untimed += 1
             continue
         values = _decode_cycle(cycle, ecu_index)
         if not values:
             continue
         matched, definitely_false = suggest_states(rules, values, None)
-        if not matched and not definitely_false:
-            continue
-        n_informative += 1
-
         seen = {k.upper() for k in values}
-        matched_now = set(matched)
-        held |= matched_now
-        held -= {
+        matched_now, false_now = set(matched), set(definitely_false)
+        retracted = {
             name
             for name in held
             if name not in matched_now
-            and (name in set(definitely_false) or refs_by_state.get(name, frozenset()) & seen)
+            and (name in false_now or refs_by_state.get(name, frozenset()) & seen)
         }
+        # Fresh evidence about a held state counts even when no predicate matched or was
+        # falsified: an OR with one unreadable side is UNKNOWN, never False.
+        if not matched_now and not false_now and not retracted:
+            continue
+        n_informative += 1
+        held = (held | matched_now) - retracted
         observations.append((when, order_states(sorted(held), profile=profile)))
 
     spans = build_spans(observations)
