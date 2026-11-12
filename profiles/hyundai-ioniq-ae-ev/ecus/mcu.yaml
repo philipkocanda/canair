@@ -822,15 +822,46 @@ MCU:
         the AC charge stopped (VCU_POWER_STATE 7 -> 6, VCU_IG3_ON 0). No charge schedule was set. No
         ECU stored a new code; the charge resumed when restarted at the car.
       notes: >-
-        Treat the MCU as unsafe to memory-read while charging. The 1-byte map probes answered across
-        the whole 0x000000-0xFFFFFF space, so the MCU probably decodes few address bits or maps
-        something there; the map was not kept. The MCU is probably an MPC56xx part (00 5A boot
-        header at 0x000000); on those, a read of an unimplemented address raises a machine check,
-        which may reset the MCU and make the VCU end the charge. Not proven: the stop may have
-        another cause. Do not repeat on a car in use; a bench EPCU is the place to find the MCU's
-        real flash size.
+        Treat the MCU as unsafe to memory-read above 0x3FFFFF. The 1-byte map probes answered across
+        the whole 0x000000-0xFFFFFF space, so the MCU does not check the range of a memory read. The
+        MCU is probably an MPC56xx part (00 5A boot header at 0x000000); on those, a read of an
+        unimplemented address raises a machine check, which may reset the MCU and make the VCU end
+        the charge. Not proven: the stop may have another cause. The samples up to 0x863000
+        answered, so reads above 4 MiB do not always fail. Reads stay inside 0x000000-0x3FFFFF (the
+        2026-11-12 entry and plans/2026-11-12-mcu-flash-image.md).
       sources:
         - canair logs (run ec52bbec), canair memory image MCU --plan-only, 2026-11-08
+    - type: verify
+      target: ReadMemoryByAddress (0x23) flash image 0x000000-0x3FFFFF
+      status: captured
+      priority: P1
+      vehicle_states: [READY]
+      created: "2026-11-12"
+      updated: "2026-11-12"
+      date: "2026-11-12"
+      result: >-
+        In READY over slcan-tcp the MCU answered 0x23 across 0x000000-0x3FFFFF and stayed up. It
+        ignored 32 of about 2,200 reads; every ignored read had a multi-frame reply, and none of
+        1,024 1-byte (single-frame) reads was lost. The 1-byte check after each ignored read
+        answered. The VCU and OBC on the same link lost none of about 133 reads, and their boot
+        blocks equal the dumps made while charging.
+      notes: >-
+        Boot block: the first 4 KiB equal the VCU's except 3 bytes. The start-up code clears SRAM up
+        to 0x4003FFFF (256 KiB, as on the VCU), and the reset code calls the application at 0x100000
+        (the VCU: 0x180000). So the chip is probably the VCU's class (MPC5674F, 4 MiB flash;
+        inferred). The survey found no aliasing and data in 0x000000-0x0062BF, 0x00FFC0-0x010CBF,
+        0x011140-0x013F3F, 0x062100-0x0653FF, 0x080000-0x0A57BF, 0x100000-0x1637FF and
+        0x164940-0x167CBF (632 KiB); the rest reads erased. The block search sent one 128-byte read,
+        which drew no answer. The ignored reads were at 64, 32 and 16 bytes, about 1 in 38 survey
+        reads, so they do not depend on size. Open: whether late flow control over the link or the
+        MCU's load in READY causes them.
+      sources:
+        - plans/2026-11-12-mcu-flash-image.md
+        - canair logs, memory image MCU --plan-only, 2026-11-12
+      what_to_test:
+        - Loss rate by reply shape (1, 2 and 10 frames) in READY, against the VCU on the same link
+        - The same 64-byte reads with flow control from the dongle (wican-ws or a LAN link)
+      capture_protocol: Phase 2 of plans/2026-11-12-mcu-flash-image.md
 
   sessions:
     "81":
@@ -846,3 +877,12 @@ MCU:
       supported: false
       nrc: 0x12
       nrc_desc: "subFunctionNotSupported"
+  memory:
+    format: "kwp"
+    max_block: 64
+    regions:
+      - start: 0x000000
+        end: 0x3FFFFF
+        result: readable
+        software: "8D:EAEEHEL-MS2-D000"
+        scanned: "2026-11-12"
