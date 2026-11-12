@@ -15,6 +15,21 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [5.5.1](https://github.com/philipkocanda/canair/compare/v5.5.0...v5.5.1) (2026-11-12)
+
+
+### Documentation
+
+* **hyundai-ioniq-ae-ev:** MCU firmware findings, diagnostic server and the 0x21 records ([de827c9](https://github.com/philipkocanda/canair/commit/de827c981621a49591e5da89d085b94f956748c4))
+* **hyundai-ioniq-ae-ev:** MCU firmware findings, DTCs, CAN frames and never-send list ([be819d0](https://github.com/philipkocanda/canair/commit/be819d0d4432027b510f437358ef6504ccedc9ed))
+* **hyundai-ioniq-ae-ev:** MCU firmware findings, fix table sizes and the P0A78 condition ([8451b89](https://github.com/philipkocanda/canair/commit/8451b89ca346aa4fbe598c0fe1f60281ab31da51))
+* **hyundai-ioniq-ae-ev:** MCU firmware findings, image layout and the 0x23 reach ([b216caa](https://github.com/philipkocanda/canair/commit/b216caa737f622217ff7c219ae4343d211ace5bb))
+* **hyundai-ioniq-ae-ev:** MCU firmware findings, list what went into mcu.yaml ([935cff7](https://github.com/philipkocanda/canair/commit/935cff7757289c883630cf8b875335cb77674025))
+* **hyundai-ioniq-ae-ev:** MCU firmware findings, say what is kept locally ([b65ca8d](https://github.com/philipkocanda/canair/commit/b65ca8d3f185a0fe17a87ac73eb550a14cc1ad4c))
+* **hyundai-ioniq-ae-ev:** MCU signals and research entries from the firmware read ([0987cf3](https://github.com/philipkocanda/canair/commit/0987cf3d9ffacd2b18fc2389e7c5abac848e63b6))
+* **hyundai-ioniq-ae-ev:** the MCU flash image passes its checksum ([014ad54](https://github.com/philipkocanda/canair/commit/014ad541e7dd9b5bf85bd53352a9e1cafca93fdb))
+* **style:** restyle tables and drop link underlines ([540f954](https://github.com/philipkocanda/canair/commit/540f95463b826678738c965539f8c585dd921392))
+
 ## [5.5.0](https://github.com/philipkocanda/canair/compare/v5.4.0...v5.5.0) (2026-11-12)
 
 
