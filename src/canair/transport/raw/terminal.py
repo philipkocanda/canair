@@ -39,7 +39,11 @@ from canair.transport.functional import (
 )
 from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES, build_isotp_params
 from canair.transport.raw.functional import raw_functional_exchange
-from canair.transport.raw.isotp_stack import build_isotp_stack
+from canair.transport.raw.isotp_stack import (
+    ReceptionFaults,
+    build_isotp_stack,
+    hint_transport_choice,
+)
 from canair.transport.raw.slcan_tcp import SlcanTcpBus
 from canair.transport.stats import TransportStats
 from canair.transport.timeouts import (
@@ -61,7 +65,7 @@ from canair.uds.echo import positive_response_suppressed
 from canair.uds.frame_counts import FrameCountLedger, count_key, frames_for_payload
 from canair.uds.nrc import is_negative_response, is_response_pending
 from canair.uds.parse import parse_uds_response
-from canair.uds.response import UdsResponse
+from canair.uds.response import CAT_DROP, UdsResponse
 from canair.uds.services import TESTER_PRESENT_REQUEST
 
 logging.getLogger("isotp").setLevel(logging.ERROR)
@@ -141,6 +145,7 @@ class RawTerminal:
         # Measured at the TCP handshake, so the flow-control budgets below and
         # every per-request deadline can account for the network's share.
         self.link = self.bus.link
+        hint_transport_choice(self.link)
         self.notifier = can.Notifier(self.bus, [], timeout=0.1)
         self._params = build_isotp_params(isotp_config, self.link.budget)
         # An ECU with its own `isotp:` block gets its stack built from both
@@ -161,6 +166,9 @@ class RawTerminal:
         # profile skip the device's own wait.
         self.frame_counts = FrameCountLedger()
         self._stacks: dict[int, isotp.NotifierBasedCanStack] = {}
+        # Whether a reply that never arrived had started (its first frame came).
+        self._rx_faults = ReceptionFaults()
+        self._broken: str | None = None
         self._cur: int | None = None
         # The ECU a request goes to is `_cur`, set by `set_header`: shared state, the
         # same as an ELM327 header. One lock guards it and the exchange, so another task
@@ -232,6 +240,10 @@ class RawTerminal:
                     protocol=protocol,
                     request=service_pid,
                 )
+                if resp_bytes is None and self._broken is not None:
+                    # The ECU answered, but its reply broke off: a drop, as on the ELM path.
+                    resp["error"] = f"truncated ISO-TP: {self._broken}"
+                    resp["error_kind"] = CAT_DROP
                 if resp_bytes is not None and self._classic_can:
                     # parse_uds_response counts response *lines*, and this path hands it
                     # exactly one — the already-reassembled message — so its count is
@@ -366,6 +378,7 @@ class RawTerminal:
                 self._ecu_params.get(tx_id, self._params),
                 fc_id=addr.fc_id,
             )
+            self._rx_faults.watch(st, tx_id)
             st.start()
             self._stacks[tx_id] = st
             time.sleep(0.05)  # brief settle for a freshly-started stack
@@ -391,10 +404,12 @@ class RawTerminal:
             st = self._stack(tx_id)
             while st.available():
                 st.recv()
+            self._rx_faults.clear(tx_id)
             st.send(req)
             deadline = time.monotonic() + t
             r = _recv_answer(st, req[0], deadline)
             if r is None:
+                self._broken = self._rx_faults.take(st, tx_id)
                 return None
             # Wait through UDS ResponsePending (0x78) so slow services (DTC reads,
             # routines) return their final answer instead of the "still working"
@@ -408,6 +423,7 @@ class RawTerminal:
             return r
 
         self.cmd_count += 1
+        self._broken = None
         t0 = time.monotonic()
         try:
             return await asyncio.get_event_loop().run_in_executor(None, _io)

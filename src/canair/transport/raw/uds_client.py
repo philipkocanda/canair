@@ -28,11 +28,15 @@ from typing import Any
 import can
 import isotp
 
-from canair.core.eventlog import log_event
 from canair.safety.blocklist import SafetyBlocked, SessionPolicy, check_command_safety
 from canair.transport.isotp_params import build_isotp_params
 from canair.transport.link_latency import LinkLatency
-from canair.transport.raw.isotp_stack import EcuStacks, build_isotp_stack
+from canair.transport.raw.isotp_stack import (
+    EcuStacks,
+    ReceptionFaults,
+    build_isotp_stack,
+    hint_transport_choice,
+)
 from canair.transport.stats import TransportStats
 from canair.transport.timeouts import PENDING_RECV_TIMEOUT, pending_deadline
 from canair.transport.timing import TimingRecorder
@@ -76,16 +80,6 @@ _MAX_OWED_RESPONSES = 4
 # Without it the opening frames are lost to warmup (observed: the whole first poll
 # cycle dropped). Named so tests can zero it instead of patching `time.sleep`.
 STACK_WARMUP_S = 0.2
-
-# Measured round trip above which `slcan-tcp` is the wrong transport for this link.
-#
-# canair runs ISO-TP itself on this transport, so every flow-control frame of a
-# multi-frame response crosses the network. `wican-ws` hands ISO-TP to the dongle,
-# which keeps the flow control on the car's side of the link. Adaptive budgets buy
-# tolerance, not parity: they stop a slow link from *aborting* a read, but they
-# cannot stop it from costing a round trip per block. Past this, the transport
-# choice — not the timeouts — is what limits a session.
-_TRANSPORT_HINT_RTT_S = 0.25
 
 
 class RawUdsClient:
@@ -131,6 +125,8 @@ class RawUdsClient:
         # recognised as an earlier request's even when it echoes the right PID.
         self._owed: dict[str, int] = defaultdict(int)
         self.notifier = can.Notifier(bus, [], timeout=0.1)
+        # Whether a reply that never arrived had started (its first frame came).
+        self._rx_faults = ReceptionFaults()
         # One exchange per ECU at a time (the module docstring): stacks, ids and locks.
         self._ecus = EcuStacks(self._build_stack, lambda: time.sleep(STACK_WARMUP_S))
         self._stacks = self._ecus.stacks
@@ -147,7 +143,7 @@ class RawUdsClient:
         self._isotp_config = isotp_config
         self._ecu_isotp = ecu_isotp or {}
         self._params = build_isotp_params(isotp_config, self.link.budget)
-        self._hint_transport_choice()
+        hint_transport_choice(self.link)
         for name, address in addresses.items():
             self._ecus.add(name, address)
         # Let the notifier thread + stacks settle before the first request so the
@@ -157,13 +153,22 @@ class RawUdsClient:
     def _build_stack(self, address: EcuAddress) -> isotp.NotifierBasedCanStack:
         own = self._ecu_isotp.get(address.tx_id)
         params = build_isotp_params(self._isotp_config, self.link.budget, own) if own else None
-        return build_isotp_stack(
+        stack = build_isotp_stack(
             self.bus,
             self.notifier,
             build_isotp_address(address),
             params or self._params,
             fc_id=address.fc_id,
         )
+        self._rx_faults.watch(stack, address.tx_id)
+        return stack
+
+    def _lost(self, ecu: str) -> TimeoutError:
+        """The error for a request ``ecu`` did not answer by its deadline (a ledger entry)."""
+        error, owed = self._rx_faults.lost(self._stacks[ecu], self._tx_ids[ecu], ecu)
+        if owed:
+            self._abandon(ecu)
+        return error
 
     def ensure_ecu(self, name: str, address: EcuAddress) -> None:
         """Give ``name`` an ISO-TP stack if it has none yet (thread-safe; call off the loop)."""
@@ -221,25 +226,6 @@ class RawUdsClient:
             self._owed[ecu] = max(0, self._owed[ecu] - discarded)
         return discarded
 
-    def _hint_transport_choice(self) -> None:
-        """Say once, on a slow link, that the transport is the limiting factor.
-
-        Only the user can act on this — it is a connection choice, not a tunable —
-        so it is stated once per session rather than per failed read, where it
-        would read as a symptom instead of a cause.
-        """
-        rtt = self.link.rtt
-        if rtt is None or rtt < _TRANSPORT_HINT_RTT_S:
-            return
-        log_event(
-            "config",
-            f"link round trip measured at {rtt * 1000.0:.0f}ms; on slcan-tcp every "
-            "flow-control frame of a multi-frame response crosses it. "
-            "`--transport wican-ws` moves ISO-TP onto the dongle (WiCAN Pro only).",
-            level=logging.INFO,
-            transport="slcan-tcp",
-        )
-
     def _budget(self, ecu: str, forced: float | None) -> float:
         """Per-request deadline: the ECU's think time plus the network's share.
 
@@ -277,6 +263,7 @@ class RawUdsClient:
         pid = request.hex().upper()
         t = self._budget(ecu, timeout)
         t0 = time.monotonic()
+        self._rx_faults.clear(self._tx_ids[ecu])
         stack.send(request)
         deadline = t0 + t
         owed = self._owed[ecu]
@@ -291,9 +278,9 @@ class RawUdsClient:
                     # "pending" answer, as before, rather than a bare timeout.
                     resp = last_pending
                     break
-                self.diag.record("no_data", ecu=ecu, pid=pid)
-                self._abandon(ecu)
-                raise TimeoutError(f"no UDS response from {ecu}")
+                error = self._lost(ecu)
+                self.diag.record_raw(error, ecu=ecu, pid=pid)
+                raise error
             resp = bytes(resp_raw)
             # Wait through UDS ResponsePending (0x78) so slow services return their
             # final answer — parity with the ELM327 path + RawTerminal.
@@ -406,6 +393,7 @@ class RawUdsClient:
                     # the previous round was being harvested is stale for this one.
                     self._drain(ecu)
                     now = time.monotonic()
+                    self._rx_faults.clear(self._tx_ids[ecu])
                     self._stacks[ecu].send(req)
                     # Per-ECU budget applies unless the caller forced a timeout.
                     ecu_t = timeout if timeout is not None else self._budget(ecu, None)
@@ -461,8 +449,7 @@ class RawUdsClient:
                             _resolve(ecu, info, resp)
                             progressed = True
                         elif now >= info["deadline"]:
-                            self._abandon(ecu)
-                            _resolve(ecu, info, TimeoutError("no response"))
+                            _resolve(ecu, info, self._lost(ecu))
                             progressed = True
                     if pending and not progressed:
                         time.sleep(0.002)  # yield to the notifier thread reassembling frames

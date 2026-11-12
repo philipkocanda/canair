@@ -26,7 +26,9 @@ import logging
 import time
 
 from canair.core.eventlog import log_event
+from canair.transport.errors import BrokenReplyError
 from canair.uds.response import (
+    CAT_DROP,
     CAT_NRC,
     CAT_OK,
     ERROR_CATEGORIES,
@@ -44,8 +46,11 @@ def classify_raw_value(value) -> str:
     returns reassembled bytes, an ``Exception`` (per-request failure), or
     ``None``/``TimeoutError`` (no answer) — it does not go through
     :func:`parse_uds_response`. Map those to the same taxonomy so raw-path drops
-    and timeouts count alongside the ELM path's.
+    and timeouts count alongside the ELM path's. A :class:`BrokenReplyError` (a reply
+    that broke off after its first frame) is a ``drop``.
     """
+    if isinstance(value, BrokenReplyError):
+        return CAT_DROP
     if value is None or isinstance(value, TimeoutError):
         return "no_data"
     if isinstance(value, Exception):

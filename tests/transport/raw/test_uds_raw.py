@@ -6,6 +6,7 @@ from typing import ClassVar
 
 import pytest
 
+from canair.transport.errors import BrokenReplyError
 from canair.transport.raw import uds_client as uds_raw
 from canair.transport.raw.uds_client import RawUdsClient, response_id
 from canair.uds.addressing import EcuAddress
@@ -288,6 +289,9 @@ class TestRawUdsClient:
                     return bytearray(r) if r is not None else None
                 return None
 
+            def is_rx_active(self):
+                return False
+
         stacks = {
             0x770: DelayedStack(0x770, None, 999),  # SLOW: silent (never answers)
             0x7E4: DelayedStack(0x7E4, bytes.fromhex("6101BB"), 0.1),  # FAST: ready at 0.1s
@@ -522,3 +526,56 @@ class TestEnsureEcu:
         c.ensure_ecu("IGPM", EcuAddress(0x770, 0x778))
         assert c._stacks["IGPM"] is stack and stack.started
         assert c.read("IGPM", bytes.fromhex("22BC03")) == bytes.fromhex("62BC03AA")
+
+
+class TestBrokenReply:
+    """A reply that broke off after its first frame is a drop, not NO DATA."""
+
+    MCU: ClassVar[dict[str, tuple[int, int]]] = {"MCU": (0x7E3, 0x7EB)}
+    READ = bytes.fromhex("230000403F")
+
+    @staticmethod
+    def _client(monkeypatch, stack_class):
+        monkeypatch.setattr(uds_raw.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(
+            uds_raw.isotp,
+            "NotifierBasedCanStack",
+            lambda bus, notifier, address=None, params=None: stack_class(address._txid, {}),
+        )
+        monkeypatch.setattr(uds_raw, "STACK_WARMUP_S", 0)
+        return RawUdsClient(bus=object(), addresses=_addrs(TestBrokenReply.MCU), timeout=0.05)
+
+    class Broken(FakeStack):
+        def send(self, data, *a, **k):
+            super().send(data)
+            self.error_handler(uds_raw.isotp.errors.ConsecutiveFrameTimeoutError("x"))
+
+    class StillArriving(FakeStack):
+        def is_rx_active(self):
+            return True
+
+    def test_read_raises_a_broken_reply_and_counts_a_drop(self, monkeypatch):
+        c = self._client(monkeypatch, self.Broken)
+        with pytest.raises(BrokenReplyError, match="then ConsecutiveFrameTimeoutError"):
+            c.read("MCU", self.READ)
+        assert c.diag.counts["drop"] == 1 and c.diag.counts["no_data"] == 0
+        assert c._owed["MCU"] == 0  # the ECU gave up on it: nothing more is coming
+
+    def test_a_reply_still_arriving_is_still_owed(self, monkeypatch):
+        c = self._client(monkeypatch, self.StillArriving)
+        with pytest.raises(BrokenReplyError, match="incomplete at the deadline"):
+            c.read("MCU", self.READ)
+        assert c._owed["MCU"] == 1
+
+    def test_poll_resolves_a_broken_reply_as_a_drop(self, monkeypatch):
+        c = self._client(monkeypatch, self.Broken)
+        out = c.poll([("MCU", self.READ)])
+        assert isinstance(out[("MCU", self.READ)], BrokenReplyError)
+        assert c.diag.counts["drop"] == 1 and c._owed["MCU"] == 0
+
+    def test_a_reply_that_never_started_is_still_no_data(self, monkeypatch):
+        c = self._client(monkeypatch, FakeStack)
+        out = c.poll([("MCU", self.READ)])
+        value = out[("MCU", self.READ)]
+        assert isinstance(value, TimeoutError) and not isinstance(value, BrokenReplyError)
+        assert c.diag.counts["no_data"] == 1 and c._owed["MCU"] == 1

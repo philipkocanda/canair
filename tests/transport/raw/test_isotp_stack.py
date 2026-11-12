@@ -11,7 +11,7 @@ import can
 import isotp
 
 from canair.transport.isotp_params import build_isotp_params
-from canair.transport.raw.isotp_stack import _FcAddressStack, build_isotp_stack
+from canair.transport.raw.isotp_stack import ReceptionFaults, _FcAddressStack, build_isotp_stack
 from canair.uds.addressing import AddressingMode, EcuAddress, build_isotp_address
 
 
@@ -201,3 +201,38 @@ class TestFcOverrideRealStack:
         assert fc is not None, "stack never emitted a Flow Control frame"
         assert fc.arbitration_id == 0x740
         assert fc.is_extended_id is False
+
+
+class TestReceptionFaultsRealStack:
+    """A real stack that gets a first frame and no consecutive frame reports a broken reply.
+
+    can-isotp tells only its error handler and then drops the partial message, so this
+    guards the ``error_handler`` attribute and the error class against a library change.
+    """
+
+    def test_a_first_frame_with_no_consecutive_frame_is_reported(self):
+        addr = EcuAddress(0x7E3, 0x7EB, AddressingMode.NORMAL_11BIT)
+        ff = can.Message(
+            arbitration_id=0x7EB,
+            is_extended_id=False,
+            data=bytes([0x10, 0x41, 0x63, 0x00, 0x5A, 0x00, 0x00, 0x00]),
+        )
+        bus = _QueuedBus([ff])
+        notifier = can.Notifier(bus, [], timeout=0.02)
+        params = {**build_isotp_params(None), "rx_consecutive_frame_timeout": 50}
+        st = build_isotp_stack(bus, notifier, _addr(addr), params)
+        faults = ReceptionFaults()
+        faults.watch(st, 0x7E3)
+        try:
+            st.start()
+            time.sleep(0.1)
+            bus.release = True
+            assert st.recv(block=True, timeout=1.0) is None
+            assert faults.take(st, 0x7E3) == (
+                "a first frame came, then ConsecutiveFrameTimeoutError"
+            )
+            assert faults.take(st, 0x7E3) is None  # taken once
+        finally:
+            st.stop()
+            notifier.stop()
+            bus.shutdown()

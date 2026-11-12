@@ -32,6 +32,15 @@ class AdapterRefusedError(ConnectionError):
     """
 
 
+class BrokenReplyError(TimeoutError):
+    """A reply began (its first frame came) and then broke off before it was whole.
+
+    The raw path runs ISO-TP itself, so it can see this; to a caller it is still a timeout
+    (a :class:`TimeoutError`, handled the same everywhere). The diagnostics count it as a
+    ``drop``, as the ELM327 path counts a truncated reply, not as ``no_data``.
+    """
+
+
 class TransportUnsupported(Exception):
     """A capability the selected transport does not have (not a link failure).
 

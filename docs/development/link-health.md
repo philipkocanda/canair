@@ -120,7 +120,11 @@ underestimate orphans a reply.
     - `Elm327Terminal._resync` scales its quiet window.
 
 - Two once-per-session INFO hints come from the measurement and not from a hostname heuristic:
-  `isotp_params._warn_blocksize_cost` and `raw/uds_client.py::_hint_transport_choice`.
+  `isotp_params._warn_blocksize_cost` and `raw/isotp_stack.py::hint_transport_choice` (both raw
+  clients call it).
+- On `slcan-tcp`, a reply that stops after its first frame (a late flow-control frame is one
+  cause) is a `drop` ("truncated ISO-TP: a first frame came, then …"), not `no_data`:
+  `raw/isotp_stack.py::ReceptionFaults` reads can-isotp's reception errors.
 
 Plan: `plans/2026-08-08-high-latency-link-hardening.md`.
 

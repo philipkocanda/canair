@@ -153,8 +153,9 @@ Follow the **contributing-code** skill. Each change gets tests on the fake ECU
 - C3: `ReceptionFaults` in `transport/raw/isotp_stack.py` records can-isotp's reception errors.
   `RawTerminal.send_uds` then reports the read as a `drop` ("truncated ISO-TP: a first frame
   came, then ConsecutiveFrameTimeoutError", or "… incomplete at the deadline"). A drop of a known
-  size goes straight to the C2 retry, without the 1-byte check. The monitor's `RawUdsClient`
-  still logs such a read as `no_data`; E1 needs only the memory path.
+  size goes straight to the C2 retry, without the 1-byte check. The pipelined `RawUdsClient`
+  (the monitor) raises a `BrokenReplyError` (a `TimeoutError`, counted as a `drop`) for the same
+  case, and no longer counts a reply that broke off as one the ECU still owes.
 
 ### Phase 2: find the conditions with the fewest lost replies (on the car)
 

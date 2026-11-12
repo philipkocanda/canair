@@ -6,6 +6,7 @@ import io
 import pytest
 
 from canair.transport.link_latency import LinkLatency
+from canair.transport.raw import isotp_stack
 from canair.transport.raw import terminal as raw_terminal
 
 
@@ -67,6 +68,9 @@ class FakeStack:
         r, self._resp = self._resp, None
         return bytearray(r) if r is not None else None
 
+    def is_rx_active(self):
+        return False
+
 
 @pytest.fixture
 def make_terminal(monkeypatch):
@@ -119,6 +123,60 @@ class TestRawTerminalSendUds:
         r = await t.send_uds("22BC03")
         assert r["ok"] is False
         assert "NO DATA" in r["error"]
+        await t.close()
+
+    @staticmethod
+    def _terminal_on(monkeypatch, stack_class):
+        monkeypatch.setattr(raw_terminal, "SlcanTcpBus", FakeBus)
+        monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
+        monkeypatch.setattr(
+            raw_terminal.isotp,
+            "NotifierBasedCanStack",
+            lambda bus, notifier, address=None, params=None: stack_class(address._txid, {}),
+        )
+        monkeypatch.setattr(raw_terminal.time, "sleep", lambda *_a, **__: None)
+        return raw_terminal.RawTerminal("h", 3333, 500000, timeout=0.3)
+
+    @pytest.mark.asyncio
+    async def test_a_reply_that_broke_off_after_its_first_frame_is_a_drop(self, monkeypatch):
+        """can-isotp reports it only to the error handler; without it, it reads as NO DATA."""
+
+        class BrokenStack(FakeStack):
+            def send(self, data, *a, **k):
+                self.error_handler(raw_terminal.isotp.errors.ConsecutiveFrameTimeoutError("x"))
+
+        t = self._terminal_on(monkeypatch, BrokenStack)
+        await t.set_header(0x7E3)
+        r = await t.send_uds("23000000403F")
+        assert r["error_kind"] == "drop"
+        assert r["error"] == (
+            "truncated ISO-TP: a first frame came, then ConsecutiveFrameTimeoutError"
+        )
+        assert t.diag.counts["drop"] == 1 and t.diag.counts["no_data"] == 0
+        await t.close()
+
+    @pytest.mark.asyncio
+    async def test_a_reply_still_arriving_at_the_deadline_is_a_drop(self, monkeypatch):
+        class MidReplyStack(FakeStack):
+            def is_rx_active(self):
+                return True
+
+        t = self._terminal_on(monkeypatch, MidReplyStack)
+        await t.set_header(0x7E3)
+        r = await t.send_uds("23000000403F")
+        assert r["error_kind"] == "drop" and "incomplete at the deadline" in r["error"]
+        await t.close()
+
+    @pytest.mark.asyncio
+    async def test_a_send_side_error_is_not_a_broken_reply(self, monkeypatch):
+        class FlowControlLost(FakeStack):
+            def send(self, data, *a, **k):
+                self.error_handler(raw_terminal.isotp.errors.FlowControlTimeoutError("x"))
+
+        t = self._terminal_on(monkeypatch, FlowControlLost)
+        await t.set_header(0x7E3)
+        r = await t.send_uds("23000000403F")
+        assert r["error_kind"] == "no_data"
         await t.close()
 
     @pytest.mark.asyncio
@@ -242,6 +300,9 @@ class TestRawTerminalSendUds:
             def recv(self, block=False, timeout=None):
                 r, self._pending = self._pending, None
                 return bytearray(r) if r is not None else None
+
+            def is_rx_active(self):
+                return False
 
         responses = [None, bytes.fromhex("62BC03FDEE")]
         monkeypatch.setattr(raw_terminal, "SlcanTcpBus", FakeBus)
@@ -686,3 +747,19 @@ class TestRawTerminalHeader:
         assert judged == [0x770]
         assert sent == [(0x770, bytes.fromhex("22BC03"))]
         await t.close()
+
+
+def test_a_slow_link_is_told_the_transport_is_the_limit(monkeypatch):
+    """The terminal runs ISO-TP over the link too, so it gives the same advice as the client."""
+    seen: list[str] = []
+    monkeypatch.setattr(isotp_stack, "log_event", lambda cat, detail="", **kw: seen.append(cat))
+
+    class SlowBus(FakeBus):
+        def __init__(self, *a, **k):
+            super().__init__()
+            self.link.seed(0.4)
+
+    monkeypatch.setattr(raw_terminal, "SlcanTcpBus", SlowBus)
+    monkeypatch.setattr(raw_terminal.can, "Notifier", FakeNotifier)
+    raw_terminal.RawTerminal("h", 3333, 500000)
+    assert seen == ["config"]

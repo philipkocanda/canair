@@ -35,6 +35,9 @@ class FakeStack:
         r, self._resp = self._resp, None
         return bytearray(r) if r is not None else None
 
+    def is_rx_active(self):
+        return False
+
 
 class FakeNotifier:
     def __init__(self, *a, **k):

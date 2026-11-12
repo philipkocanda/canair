@@ -20,20 +20,109 @@ lock that allows one exchange on that ECU at a time. The client hands it the fac
 the bus, the notifier and the ISO-TP parameters). An ECU that joins after the client was built
 (one the monitor's picker adds, a session step's target that is not polled, an actuator's ECU)
 gets its stack from :meth:`EcuStacks.ensure` on first use, from any thread.
+
+:class:`ReceptionFaults` tells a reply that broke off after its first frame from one that
+never started, and :func:`hint_transport_choice` says once when the link is too slow for
+client-side ISO-TP.
 """
 
 from __future__ import annotations
 
+import logging
 import threading
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import isotp
 
+from canair.core.eventlog import log_event
+from canair.transport.errors import BrokenReplyError
+from canair.transport.link_latency import LinkLatency
 from canair.uds.addressing import EcuAddress
 
 if TYPE_CHECKING:
     import can
+
+#: Measured round trip above which ``slcan-tcp`` is the wrong transport for this link. Adaptive
+#: budgets stop a slow link from aborting a read, but cannot stop it costing a round trip per
+#: flow-control frame.
+TRANSPORT_HINT_RTT_S = 0.25
+
+#: The can-isotp errors that mean a reply began (a first frame came) and then broke off.
+_BROKEN_RECEPTION: tuple[type[isotp.errors.IsoTpError], ...] = (
+    isotp.errors.ConsecutiveFrameTimeoutError,
+    isotp.errors.WrongSequenceNumberError,
+    isotp.errors.ReceptionInterruptedWithSingleFrameError,
+    isotp.errors.ReceptionInterruptedWithFirstFrameError,
+)
+
+
+class ReceptionFaults:
+    """Per stack, whether the last reply that never arrived had started: a broken reception.
+
+    can-isotp reports a reply that stops after its first frame only to its error handler, and
+    then drops the partial message. Without this, a reply that broke off looks the same as an
+    ECU that never answered. On ``slcan-tcp`` canair sends the flow-control frame itself, over
+    the network, so a late one shows up here.
+    """
+
+    def __init__(self) -> None:
+        self._last: dict[int, str] = {}
+
+    def watch(self, stack: Any, key: int) -> None:
+        """Note ``stack``'s broken receptions under ``key`` (its public ``error_handler``)."""
+
+        def note(error: Exception) -> None:
+            if isinstance(error, _BROKEN_RECEPTION):
+                self._last[key] = type(error).__name__
+
+        stack.error_handler = note
+
+    def clear(self, key: int) -> None:
+        """Forget ``key``'s earlier faults: call it before each request."""
+        self._last.pop(key, None)
+
+    def take(self, stack: Any, key: int) -> str | None:
+        """Why the reply on ``stack`` did not arrive, when it had started; else ``None``."""
+        name = self._last.pop(key, None)
+        if name is not None:
+            return f"a first frame came, then {name}"
+        if stack.is_rx_active():
+            return "a first frame came, and the reply was incomplete at the deadline"
+        return None
+
+    def lost(self, stack: Any, key: int, ecu: str) -> tuple[TimeoutError, bool]:
+        """The error for a reply ``ecu`` did not deliver by its deadline, and whether it is owed.
+
+        A reply that never started may still come, and so may one still arriving. One that
+        broke off will not: the ECU gave up on it.
+        """
+        in_flight = stack.is_rx_active()
+        broken = self.take(stack, key)
+        if broken is None:
+            return TimeoutError(f"no UDS response from {ecu}"), True
+        return BrokenReplyError(f"truncated ISO-TP: {broken}"), in_flight
+
+
+def hint_transport_choice(link: LinkLatency) -> None:
+    """Say once, on a slow link, that the transport is the limiting factor.
+
+    canair runs ISO-TP itself on ``slcan-tcp``, so every flow-control frame of a multi-frame
+    response crosses the network; ``wican-ws`` keeps it on the dongle. Only the user can act on
+    this (a connection choice, not a tunable), so it is stated once per session rather than per
+    failed read, where it would read as a symptom instead of a cause.
+    """
+    rtt = link.rtt
+    if rtt is None or rtt < TRANSPORT_HINT_RTT_S:
+        return
+    log_event(
+        "config",
+        f"link round trip measured at {rtt * 1000.0:.0f}ms; on slcan-tcp every "
+        "flow-control frame of a multi-frame response crosses it. "
+        "`--transport wican-ws` moves ISO-TP onto the dongle (WiCAN Pro only).",
+        level=logging.INFO,
+        transport="slcan-tcp",
+    )
 
 
 class _FcAddressStack(isotp.NotifierBasedCanStack):

@@ -27,6 +27,7 @@ from types import SimpleNamespace
 import pytest
 
 from canair.transport.link_latency import LinkLatency
+from canair.transport.raw import isotp_stack
 from canair.transport.raw import uds_client as uds_raw
 from canair.transport.raw.uds_client import _MAX_OWED_RESPONSES, RawUdsClient
 from canair.uds.addressing import EcuAddress
@@ -68,6 +69,9 @@ class QueuedStack:
 
     def available(self) -> bool:
         return bool(self.inbox)
+
+    def is_rx_active(self) -> bool:
+        return False
 
     def send(self, data, *a, **k) -> None:
         self.sent.append(bytes(data))
@@ -345,7 +349,7 @@ class TestTransportChoiceHint:
     def _logged(monkeypatch):
         seen: list[tuple[str, str]] = []
         monkeypatch.setattr(
-            uds_raw, "log_event", lambda cat, detail="", **kw: seen.append((cat, detail))
+            isotp_stack, "log_event", lambda cat, detail="", **kw: seen.append((cat, detail))
         )
         return seen
 
