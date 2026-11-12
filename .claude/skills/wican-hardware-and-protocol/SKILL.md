@@ -38,9 +38,9 @@ Companion analysis with the full throughput argument and the reclaimable-win ran
 **Do not load this skill for normal work.** It is for people editing
 `src/canair/transport/`, chasing a desync or timeout, calling a device API, or reading the firmware.
 
-**Every device call in this skill needs the user's explicit approval** (`AGENTS.md` → The car):
+**Every device call in this skill needs the user's "yes" for the session** (`AGENTS.md` → The car):
 `canair status`, `canair repl`, a timing run, an HTTP or WebSocket route, a reboot. Read the
-firmware source freely. Propose any call against the device, and wait for an explicit "yes".
+firmware source freely. Propose the first call against the device, and wait for an explicit "yes".
 
 ## Where the detail lives — load only the file you need
 

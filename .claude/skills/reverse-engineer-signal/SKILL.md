@@ -32,9 +32,10 @@ result upstream).
 Full policy: `docs/concepts/safety.md`. The essentials:
 
 - **NEVER interact with the car without the user's explicit approval** (`AGENTS.md` → The car).
-  Approval is never implied by the task or by this skill. Every step below that sends something
-  to the car (discover, scan, capture, a live check, a retry) means: propose the exact commands,
-  then wait for an explicit "yes". Steps 1 and 5–9 work on the existing captures and need no car.
+  Approval is never implied by the task or by this skill. Before the first step that sends
+  something to the car (discover, scan, capture, a live check), propose the exact commands and
+  wait for an explicit "yes". That "yes" then covers the session, as `AGENTS.md` says. Steps 1
+  and 5–9 work on the existing captures and need no car.
 - **NEVER** open a programming session (`10 02`) or do any firmware write/upload —
   ECUs can be bricked. canair blocks these; never work around it. The same guard refuses
   ECU resets (`11`), silencing an ECU's traffic (`28`), memory writes (`2E`/`3B`/`3D`) and
@@ -143,8 +144,8 @@ discover` shows what answers now (it talks to the car: approval first).
 
 ### 3. Discover — which DIDs respond
 
-Steps 3 and 4 send requests to the car. Propose the commands, and run them only after the
-user's explicit approval of those exact commands.
+Steps 3 and 4 send requests to the car. Propose the commands, and run them only once the user
+has said "yes" in this session (`AGENTS.md` → The car).
 
 ```bash
 canair scan MCU --service 21 --range 01-FF --save                        # KWP live data

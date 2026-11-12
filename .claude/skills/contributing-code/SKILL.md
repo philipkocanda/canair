@@ -212,7 +212,7 @@ Anything that changes ECU or device state (clearing DTCs, IOControl, actuating r
 writes, reboots) must **confirm before acting** with an explicit `--yes` escape hatch for scripting
 — follow the DTC-clear and routine-start paths. A read needs no prompt in the code, but stay
 gentle: old, slow ECUs and one connection at a time. "No prompt" is a rule for the code only. An
-agent still needs the user's explicit approval for every read it runs on the car.
+agent still needs the user's "yes" for the session before any read it runs on the car.
 
 ## Data & generated artifacts — the plumbing you maintain
 
