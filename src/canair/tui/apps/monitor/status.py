@@ -213,8 +213,8 @@ def hint_items(c, *, actuators: bool = False) -> list[StatusItem]:
     """
     if actuators:
         return actuator_hint_items()
-    # While recording (--save), `s` labels the session and `n` finishes it and
-    # starts a new one; without --save, `s` is a one-off save and `n` is N/A.
+    # While recording (--save), `s` edits the current session and `n` finishes it and
+    # starts a new one; without --save, `s` is a one-off snapshot and `n` is N/A.
     recording = c.recorder.journal is not None
     items: list[StatusItem] = []
 
@@ -234,7 +234,7 @@ def hint_items(c, *, actuators: bool = False) -> list[StatusItem]:
     # Changing what is polled is the key a newcomer most needs and would not
     # guess, so it leads the hints, undimmed, and outlives the other keys.
     items.append(StatusItem(f"[b]{PICK_HINT}[/]", P_HIGH))
-    items.append(hint_item(key_hint("session", "label" if recording else "save"), P_HIGH))
+    items.append(hint_item(key_hint("session", "label" if recording else "snapshot"), P_HIGH))
     if recording:
         items.append(hint_item(key_hint("new", "new session"), P_HIGH))
     if ed is not None:

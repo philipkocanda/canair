@@ -66,8 +66,9 @@ class SaveDialog(KitModal["tuple[str, str, str] | None"]):
     be composite, e.g. ``ready, parked``) augmented with a filtering autocomplete
     dropdown of the profile's known states and a live warning for any token
     outside the vocabulary. The label is optional: an empty one uses the suggested
-    label, which the placeholder names. Dismisses with ``(label, state, notes)`` on
-    save, or ``None`` on cancel.
+    label, which the placeholder names. ``current_notes`` pre-fills the notes of a recording
+    that already has some, so confirming the dialog never blanks them. Dismisses with
+    ``(label, state, notes)`` on save, or ``None`` on cancel.
     """
 
     CSS = (
@@ -105,10 +106,12 @@ class SaveDialog(KitModal["tuple[str, str, str] | None"]):
         title: str = "Save captures to profile",
         caption: str = "",
         save_button: str = "Save",
+        current_notes: str = "",
     ):
         super().__init__()
         self._suggested = suggested_label
         self._suggested_state = suggested_state
+        self._current_notes = current_notes
         self._title = title
         self._caption = caption
         self._save_button = save_button
@@ -135,7 +138,9 @@ class SaveDialog(KitModal["tuple[str, str, str] | None"]):
                 yield OptionList(id="save-state-options")
                 yield Label("", id="save-state-status")
                 yield Label("", id="save-state-warning")
-                yield Input(placeholder="Notes (optional)", id="save-notes")
+                yield Input(
+                    value=self._current_notes, placeholder="Notes (optional)", id="save-notes"
+                )
             # Docked, so the buttons and the hint stay in view when 24 rows make the form scroll.
             with Vertical(id="save-footer"):
                 with Horizontal(id="save-buttons"):

@@ -125,7 +125,16 @@ ROLES: dict[str, KeyRole] = {
         _r("start_routine", "exclamation_mark", "start routine"),
         _r("stop_routine", "S", "stop routine"),
         # -- the session / the device --------------------------------------
-        _r("session", "s", "session", "save / label", "save", "label", "sessions & notes"),
+        _r(
+            "session",
+            "s",
+            "session",
+            "save / label",
+            "save",
+            "label",
+            "snapshot",
+            "sessions & notes",
+        ),
         _r("new", "n", "new", "new session"),
         _r("event_log", "E", "errors/log"),
         _r("reconnect", "R", "reconnect"),

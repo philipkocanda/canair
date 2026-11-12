@@ -17,12 +17,11 @@ each pane declares the keys that act on it, and the app only the ones that mean 
 wherever focus is.
 
 With ``--save`` a blinking ``● REC`` (bold, never red: red means an error) marks the active
-recording. Because every
-payload is journaled and written to a capture file automatically on exit, ``s``
-only *labels* the current recording (label / state / notes) — it doesn't write a
-separate file. ``n`` **finishes** the current session (writing it to a capture
-file now) and starts a fresh, separately-labelled one, so a single run can yield
-several sessions. Without ``--save``, ``s`` performs a one-off write of the
+recording. Because every payload is journaled and written to a capture file automatically on
+exit, ``s`` only *edits* the current session (label / state / notes, pre-filled with the
+existing values): it writes no file and starts no new session. ``n`` **finishes** the current
+session (writing it to a capture file now) and starts a fresh, separately-labelled one, so a
+single run can yield several sessions. Without ``--save``, ``s`` performs a one-off write of the
 payloads captured so far and ``n`` is unavailable.
 
 ``V`` cycles the display view mode (``ecus`` → ``ranges`` → ``signals`` →

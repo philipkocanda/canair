@@ -63,9 +63,11 @@ The live view collapses each run of identical payloads into one row with its pol
 It shows the newest few rows (`--keep N` sets how many). The scrollable live view shows a
 blinking `● REC` whenever a `--save` recording is active. These keys control the session:
 
-- **`s` (label recording)** — Set or edit the label, state and notes of the **current**
-  recording. canair already journaled everything, so this only *labels* the session. It does not
-  write a separate file.
+- **`s` (edit current session)** — Change the label, state and notes of the **current**
+  recording. The dialog opens with the session's existing label and notes, and it says that it
+  does not start a new session. The new values apply to everything in the session, before and
+  after the keypress, and replace the old ones. canair already journaled everything, so this
+  does not write a separate file. Press `n` to start a new session instead.
 
     The state field is free text (comma-separated). canair pre-fills it with the **union of every
     state auto-suggested so far in the segment**. This is not only the state that is active when
@@ -73,8 +75,10 @@ blinking `● REC` whenever a `--save` recording is active. These keys control t
     pre-fill unchanged (or leave it blank), the state stays automatic, so states seen after the
     keypress still count. If you type a different state, canair pins it.
 
-    Without `--save`, `s` instead writes the payloads captured since the previous `s` to a new
-    capture file. canair pre-fills the state with the union of states seen over that span.
+    Without `--save`, `s` is a **one-off snapshot**: the dialog says so. canair writes the
+    payloads captured since the previous snapshot (or since the monitor started) to a new
+    capture file, once. Nothing is recorded after that, and anything not snapshotted is lost
+    when you quit. canair pre-fills the state with the union of states seen over that span.
 
 - **`n` (finish & start new)** — Write the current session to its own capture file **now**, and
   start a **fresh** recording. You label it through the same modal. canair pre-fills the state

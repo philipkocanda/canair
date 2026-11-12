@@ -927,7 +927,7 @@ class TestControllerJournal:
         )
         c._record([("BMS (0x7E4)", [{"pid": "2101", "raw_hex": "6101AA"}])])
         msg = c.recorder.save_now("edited", "ready", "note")
-        assert "Label set" in msg
+        assert "Session updated" in msg
         # No immediate write — journal reconciles once on exit.
         assert list(tmp_path.glob("*.json")) == []
         written = c.recorder.journal.reconcile()

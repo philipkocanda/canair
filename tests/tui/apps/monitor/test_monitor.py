@@ -267,13 +267,15 @@ class TestMonitorApp:
             await pilot.press("q")
 
     @pytest.mark.asyncio
-    async def test_save_dialog_labels_when_recording(self):
-        """With --save active, 's' opens a 'Label recording' dialog (metadata only)."""
-        from textual.widgets import Button, Label
+    async def test_save_dialog_edits_current_session_when_recording(self):
+        """With --save active, 's' edits the current session: it shows its label and notes."""
+        from textual.widgets import Button, Input, Label, Static
 
         from canair.tui.apps.monitor.app import SaveDialog
 
         ctrl = FakeController(journal=object())  # recording
+        ctrl.recorder.session_label = "door open"
+        ctrl.recorder.session_notes = "front left, twice"
         app = MonitorApp(ctrl)
         async with app.run_test(size=(100, 30)) as pilot:
             await pilot.pause(0.1)
@@ -281,16 +283,20 @@ class TestMonitorApp:
             await pilot.pause(0.1)
             assert isinstance(app.screen, SaveDialog)
             title = _plain(app.screen.query_one("#save-title", Label).render())
-            assert "Label recording" in title
+            assert "Edit current session" in title
+            caption = _plain(app.screen.query_one("#save-caption", Static).render())
+            assert "does not start a new session" in caption
+            assert app.screen.query_one("#save-label", Input).value == "door open"
+            assert app.screen.query_one("#save-notes", Input).value == "front left, twice"
             btn = app.screen.query_one("#save", Button)
-            assert "label" in str(btn.label).lower()
+            assert "update" in str(btn.label).lower()
             await pilot.press("escape")
             await pilot.press("q")
 
     @pytest.mark.asyncio
-    async def test_save_dialog_saves_when_not_recording(self):
-        """Without --save, 's' opens a 'Save captures now' dialog (writes a file)."""
-        from textual.widgets import Button, Label
+    async def test_save_dialog_is_an_explicit_snapshot_when_not_recording(self):
+        """Without --save, 's' opens a dialog that says it is a one-off snapshot."""
+        from textual.widgets import Button, Label, Static
 
         from canair.tui.apps.monitor.app import SaveDialog
 
@@ -302,8 +308,10 @@ class TestMonitorApp:
             await pilot.pause(0.1)
             assert isinstance(app.screen, SaveDialog)
             title = _plain(app.screen.query_one("#save-title", Label).render())
-            assert "Save captures now" in title
-            assert str(app.screen.query_one("#save", Button).label) == "Save"
+            assert "one-off snapshot" in title
+            caption = _plain(app.screen.query_one("#save-caption", Static).render())
+            assert "not recording" in caption and "Nothing is saved after this" in caption
+            assert str(app.screen.query_one("#save", Button).label) == "Save snapshot"
             await pilot.press("escape")
             await pilot.press("q")
 

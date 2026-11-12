@@ -65,12 +65,13 @@ class RecordingMixin:
         return suggested, suggested_state, state_options
 
     def action_save(self) -> None:
-        """Label the recording (--save) or write captures now (no --save).
+        """Edit the current session (--save) or write a one-off snapshot (no --save).
 
         With --save active every payload is already journaled and written to a
-        capture file automatically on exit, so ``s`` only *labels* the current
-        recording (label / state / notes). Without --save it performs an on-demand
-        write of the payloads captured so far to a new capture file.
+        capture file automatically on exit, so ``s`` only *edits* the current
+        session (label / state / notes). Without --save nothing is recording: ``s``
+        writes the payloads captured since the previous snapshot to a new capture
+        file, once, and the dialog says so.
         """
         if self._modal_active():
             return
@@ -78,23 +79,30 @@ class RecordingMixin:
             self._flash("No payloads captured yet — nothing to save", "warning")
             return
         suggested, suggested_state, state_options = self._suggested_metadata()
-        recording = self.controller.recorder.journal is not None
+        recorder = self.controller.recorder
+        recording = recorder.journal is not None
+        current_notes = ""
         if recording:
-            title = "Label recording"
+            title = "Edit current session"
             caption = (
-                "This recording is [b]already being saved[/] — every payload is "
-                "written automatically when you quit or start a new session.\n"
-                "[dim]Here you only set its label / state / notes. "
-                "Use [b]n[/b] to finish this session and start a fresh one.[/]"
+                "This changes the label, state and notes of the [b]current session[/] — "
+                "everything recorded in it, before and after this moment.\n"
+                "[b]It does not start a new session.[/] "
+                "[dim]Press [b]n[/b] to finish this session and start a fresh one.[/]"
             )
-            save_button = "Set label"
+            save_button = "Update session"
+            suggested = recorder.session_label or suggested
+            current_notes = recorder.session_notes
         else:
-            title = "Save captures now"
+            title = "Save a one-off snapshot"
             caption = (
-                "Writes the payloads captured so far to a [b]new capture file[/].\n"
-                "[dim](Not recording with --save — this is a one-off snapshot save.)[/]"
+                "[b]This monitor is not recording[/] (no --save). This writes a single "
+                "[b]snapshot[/]: the payloads captured since the last snapshot, or since "
+                "the monitor started, go to a [b]new capture file[/] now.\n"
+                "[b]Nothing is saved after this[/], and what you do not snapshot is lost "
+                "on quit. [dim]Restart with --save to record continuously.[/]"
             )
-            save_button = "Save"
+            save_button = "Save snapshot"
 
         def _done(result: tuple[str, str, str] | None) -> None:
             if result is None:
@@ -116,6 +124,7 @@ class RecordingMixin:
                 title=title,
                 caption=caption,
                 save_button=save_button,
+                current_notes=current_notes,
             ),
             _done,
         )

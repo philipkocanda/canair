@@ -307,7 +307,7 @@ class MonitorRecorder:
                 self.state_explicit = True
             state_txt = f", state={', '.join(states)}" if states else ""
             return (
-                f"Label set: {label!r}{state_txt} — recording continues "
+                f"Session updated: {label!r}{state_txt} — recording continues "
                 "(auto-saved on quit / new session)."
             )
 
