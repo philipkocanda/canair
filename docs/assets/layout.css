@@ -17,6 +17,7 @@
 /* Tables and code read better with tighter lines than prose. */
 .md-typeset table:not([class]) {
   line-height: 1.5;
+  font-variant-numeric: tabular-nums;
 }
 
 /* 72ch follows the font size, so the line stays about 72 characters at any screen size. */
