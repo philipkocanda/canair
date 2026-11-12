@@ -63,6 +63,41 @@ def test_a_block_too_large_is_halved(tmp_path):
     assert load_dump(run.dump.path).stretches[0].data == _expected(0x0, 0xFF)
 
 
+def _multi_byte_sizes(ecu):
+    reads = (parse_memory_request(r, UDS) for r in ecu.sent if r.startswith("23"))
+    return {r.size for r in reads if r is not None and r.size > 1}
+
+
+def test_a_lost_reply_of_a_known_size_is_read_again_at_that_size(tmp_path):
+    """The Ioniq's MCU loses a multi-frame reply now and then, at every size."""
+    ecu = MemoryEcu([(0x0, 0xFFF, None)], lose={0x110: 1})
+    run = _dump(ecu, [(0x100, 0x13F)], tmp_path, block=16, target=_target(max_block=16))
+    assert (run.retries, run.halvings) == (1, 0)
+    assert _multi_byte_sizes(ecu) == {16, 15}
+    assert load_dump(run.dump.path).stretches[0].data == _expected(0x100, 0x13F)
+
+
+def test_a_reply_lost_twice_halves_the_block(tmp_path):
+    ecu = MemoryEcu([(0x0, 0xFFF, None)], lose={0x110: 2})
+    run = _dump(ecu, [(0x100, 0x13F)], tmp_path, block=16, target=_target(max_block=16))
+    assert (run.retries, run.halvings) == (1, 1)
+    assert load_dump(run.dump.path).stretches[0].data == _expected(0x100, 0x13F)
+
+
+def test_a_lost_reply_halves_at_once_when_no_size_is_known(tmp_path):
+    ecu = MemoryEcu([(0x0, 0xFFF, None)], lose={0x110: 1})
+    run = _dump(ecu, [(0x100, 0x13F)], tmp_path, block=16)
+    assert (run.retries, run.halvings) == (0, 1)
+
+
+def test_a_cut_short_reply_of_a_known_size_is_read_again(tmp_path):
+    ecu = MemoryEcu([(0x0, 0xFFF, None)], drop_once={0x110})
+    run = _dump(ecu, [(0x100, 0x13F)], tmp_path, block=16, target=_target(max_block=16))
+    assert run.retries == 1
+    assert _multi_byte_sizes(ecu) == {16, 15}
+    assert load_dump(run.dump.path).stretches[0].data == _expected(0x100, 0x13F)
+
+
 def test_locked_is_left_alone_for_the_rest_of_the_range(tmp_path):
     ecu = MemoryEcu([(0x0, 0x3F, None), (0x40, 0xFFFF, 0x33)])
     run = _dump(ecu, [(0x0, 0xFFF)], tmp_path, block=0x20)

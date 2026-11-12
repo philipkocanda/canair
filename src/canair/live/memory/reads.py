@@ -11,6 +11,11 @@ Silence is ambiguous: an ECU that refuses an address by not answering looks like
 stopped answering. After a silent read the reader asks one byte at the last address that
 answered. An answer makes the silence a refusal; no answer raises :class:`EcuSilent`, and the
 command decides what that means (``memory dump`` ends, ``memory image`` pauses).
+
+A lost reply (silence or a cut-short reply) of a size at or below the ECU's recorded
+``max_block`` is not a size signal: that size has worked. The reader asks the same size once
+more and halves only when that read is lost too. The Ioniq's motor controller loses about one
+multi-frame reply in 40 in READY, at every size.
 """
 
 from __future__ import annotations
@@ -42,8 +47,9 @@ READ_TIMEOUT_S = 3.0
 #: is taken to have stopped answering.
 SILENT_LIMIT = 3
 
-#: The events a span read reports, one per read that did not simply work.
-OK, REREAD, HALVING, DROP = "ok", "reread", "halving", "drop"
+#: The events a span read reports, one per read that did not simply work. ``RETRY`` is a lost
+#: reply of a size the ECU is known to deliver, read again at that size.
+OK, REREAD, HALVING, DROP, RETRY = "ok", "reread", "halving", "drop", "retry"
 
 
 class MemoryTargetError(ValueError):
@@ -154,7 +160,8 @@ class BlockReader:
     """Reads spans of one ECU's memory in checked blocks; its block and throttle can change.
 
     ``on_event`` hears every read's outcome (:data:`OK`, :data:`REREAD`, :data:`HALVING`,
-    :data:`DROP`); the image's rate controller listens there and sets :attr:`block`.
+    :data:`DROP`, :data:`RETRY`); the image's rate controller listens there and sets
+    :attr:`block`.
     """
 
     def __init__(
@@ -173,12 +180,16 @@ class BlockReader:
         self.block = max(1, min(block, fmt.max_size))
         self.throttle_s = throttle_s
         self.on_event = on_event
+        #: The largest read the ECU is known to deliver (its ``max_block``), or None.
+        self.known_block: int | None = target.memory.max_block if target.memory else None
         self.last_answered: int | None = None
         self.reads = 0
         self.rereads = 0
         self.halvings = 0
+        self.retries = 0
         self.last_size = 0
         self._silent = 0
+        self._retried_at: int | None = None
 
     def fresh_size(self, size: int) -> int:
         """``size``, or one less when the previous read had that size."""
@@ -217,6 +228,8 @@ class BlockReader:
             self.rereads += 1
         elif kind == HALVING:
             self.halvings += 1
+        elif kind == RETRY:
+            self.retries += 1
         if self.on_event is not None:
             self.on_event(kind)
 
@@ -248,6 +261,7 @@ class BlockReader:
                 resp, result = await self.read(address, size)
             if result is RegionResult.READABLE:
                 self._silent = 0
+                self._retried_at = None
                 span.pieces.append(Stretch(address, data_of(resp)))
                 self._event(span, OK)
                 address += size
@@ -289,15 +303,17 @@ class BlockReader:
         """Handle a read nothing answered; False when the rest of the span is refused."""
         if size > 1 and resp.get("error_kind") == CAT_DROP:
             # A reply that arrived cut short: the transport lost frames, the ECU answered.
-            self.block = max(1, size // 2)
-            self._event(span, DROP)
+            if not self._retry(span, address, size):
+                self.block = max(1, size // 2)
+                self._event(span, DROP)
             return True
         alive = await self.alive()
         if alive is False:
             raise EcuSilent(address)
         if size > 1:
-            self.block = max(1, size // 2)
-            self._event(span, HALVING)
+            if not self._retry(span, address, size):
+                self.block = max(1, size // 2)
+                self._event(span, HALVING)
             return True
         if alive:
             # The ECU answers elsewhere, so this address refuses by silence.
@@ -307,6 +323,15 @@ class BlockReader:
         self._silent += 1
         if self._silent >= SILENT_LIMIT:
             raise EcuSilent(address)
+        return True
+
+    def _retry(self, span: SpanRead, address: int, size: int) -> bool:
+        """Ask ``size`` at ``address`` once more when the ECU is known to deliver that size."""
+        known = self.known_block
+        if known is None or size > known or self._retried_at == address:
+            return False
+        self._retried_at = address
+        self._event(span, RETRY)
         return True
 
     async def _byte_readable(self, address: int) -> tuple[RegionResult, int | None]:

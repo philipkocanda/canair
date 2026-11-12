@@ -39,6 +39,12 @@ def test_one_error_does_not_back_off():
     assert (rate.block, rate.throttle_ms) == (61, 0)
 
 
+def test_a_retry_is_neither_an_error_nor_a_clean_read():
+    rate = _run(start_rate(61), ["retry"] * 10)
+    assert (rate.block, rate.throttle_ms, rate.errors, rate.clean) == (61, 0, (), 0)
+    assert rate.count == 10
+
+
 def test_two_errors_in_the_window_halve_and_throttle():
     rate = _run(start_rate(61), ["reread", *["ok"] * (ERROR_WINDOW - 2), "drop"])
     assert (rate.block, rate.throttle_ms) == (30, THROTTLE_STEP_MS)

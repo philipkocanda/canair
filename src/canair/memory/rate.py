@@ -13,7 +13,8 @@ A pure function of the events of the last reads (:func:`advance`). The rules:
   block (to :data:`FLOOR`) and add :data:`THROTTLE_STEP_MS` of throttle;
   :data:`RECOVER_AFTER` clean reads take one step back up.
 - **Silence is never a rate signal.** A silent read goes to the liveness check, and the
-  controller never hears of it.
+  controller never hears of it. A ``retry`` (a lost reply of a size the ECU is known to
+  deliver, read again) is neither an error nor a clean read.
 """
 
 from __future__ import annotations
@@ -31,6 +32,8 @@ THROTTLE_STEP_MS: Final = 20
 
 #: The read outcomes that count as errors (the reader's ``reread``, ``halving``, ``drop``).
 ERRORS: Final = frozenset({"reread", "halving", "drop"})
+#: The reader's ``retry``: counted as a read, and nothing else.
+NEUTRAL: Final = frozenset({"retry"})
 
 
 def ceiling(max_block: int | None, block_limit: int | None, format_max: int) -> int:
@@ -77,6 +80,8 @@ def start_rate(preferred: int, *, block: int | None = None, throttle_ms: int = 0
 def advance(rate: Rate, event: str) -> Rate:
     """The rate after one read whose outcome is ``event``."""
     count = rate.count + 1
+    if event in NEUTRAL:
+        return replace(rate, count=count)
     if event in ERRORS:
         recent = (*tuple(n for n in rate.errors if count - n < ERROR_WINDOW), count)
         if len(recent) >= 2:

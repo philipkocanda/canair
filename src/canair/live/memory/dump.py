@@ -44,6 +44,7 @@ class DumpRun:
     stopped: str | None = None
     rereads: int = 0
     halvings: int = 0
+    retries: int = 0
 
 
 def extents_of(start: int, end: int, size: int = EXTENT_SIZE) -> Iterator[tuple[int, int]]:
@@ -177,6 +178,6 @@ async def mode_memory_dump(
         raise
     finally:
         line.clear()
-        run.rereads, run.halvings = reader.rereads, reader.halvings
+        run.rereads, run.halvings, run.retries = reader.rereads, reader.halvings, reader.retries
         writer.finish(run.stopped is None, rest_gaps(dump, pending, rest))
     return run

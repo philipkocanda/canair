@@ -60,7 +60,7 @@ from .liveness import (
     unmet,
 )
 from .reads import EcuSilent, MemoryTarget, maybe_session
-from .scan import DEFAULT_BLOCK_LIMIT, ScanStopped, space_and_step
+from .scan import ScanStopped, space_and_step
 from .survey import MapFailed, Survey, find_block, map_ranges, recorded_regions, survey
 
 
@@ -193,8 +193,10 @@ async def _map(ctx: _Context, software: str | None) -> tuple[list[tuple[int, int
     if ctx.target.memory is None or ctx.target.memory.max_block is None:
         job.line.update("    finding the largest block…")
         biggest = max(regions, key=lambda r: r[1] - r[0])
-        limit = opts.block_limit or DEFAULT_BLOCK_LIMIT
+        # The run's own ceiling (--block-limit, else 64), never the scan's wider default.
+        limit = block_for(ctx.target, opts.block_limit)
         found_block = await find_block(job.reader, fmt, biggest, limit)
+        job.reader.known_block = found_block
         job.set_preferred(preferred_block(found_block, digit=opts.digit))
     if (fresh or found_block is not None) and not opts.dry_run:
         job.line.clear()

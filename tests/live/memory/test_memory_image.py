@@ -421,10 +421,40 @@ class TestDefaultSpace:
         probes = [r for r in _memory_reads(ecu) if r.size == 1 and r.address % 0x10000 == 0]
         assert len({r.address for r in probes}) <= 257  # about 256 probes, 64 KiB apart
         (write,) = recorded
-        assert write["fmt"] == self.UDS13 and write["max_block"] == 64  # 128 failed
+        assert write["fmt"] == self.UDS13 and write["max_block"] == 64  # the search's top
         first = write["regions"][0]
         assert (first.start, first.end, first.result) == (0, 0xFFFF, "readable")
         assert run.plan.ceiling == 64 and run.written == tmp_path / "ecu.yaml"
+
+    def test_the_block_search_stops_at_64_by_default(self, tmp_path, recorded):
+        """`--help` promises 64 when no max_block is recorded: the search asks no more."""
+        ecu = _ecu(max_block=255)
+        target = _target(max_block=None)
+        run = _image(ecu, tmp_path, target=target, options=ImageOptions(plan_only=True))
+        assert run.plan is not None and run.plan.ceiling == 64
+        assert max(r.size for r in _memory_reads(ecu)) == 64
+        assert recorded[0]["max_block"] == 64
+
+    def test_a_block_limit_lets_the_search_climb_further(self, tmp_path, recorded):
+        ecu = _ecu(max_block=255)
+        target = _target(max_block=None)
+        options = ImageOptions(plan_only=True, block_limit=128)
+        run = _image(ecu, tmp_path, target=target, options=options)
+        assert run.plan is not None and run.plan.ceiling == 128
+        assert recorded[0]["max_block"] == 128
+
+
+def test_lost_replies_in_the_survey_do_not_shrink_the_block(tmp_path):
+    """Lost replies of a known size are read again, so the estimate keeps the full block."""
+
+    def estimate(store, lose):
+        ecu = _ecu(lose=dict(lose))
+        run = _image(ecu, store, options=ImageOptions(plan_only=True))
+        assert run.estimate is not None
+        return run.estimate.reads
+
+    lossy = dict.fromkeys(range(0x1000, 0x8000, 0x1000), 1)
+    assert estimate(tmp_path / "a", lossy) == estimate(tmp_path / "b", {})
 
     def test_a_region_of_another_software_build_is_mapped_again(self, tmp_path, recorded):
         old = (MemoryRegion(0, 0xFFF, "readable", None, "F189:0.99", "2026-01-01"),)

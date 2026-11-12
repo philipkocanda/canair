@@ -112,6 +112,11 @@ reads one byte at the last address that answered:
 - **It does not answer**: the ECU is offline. `scan memory` and `memory dump` stop.
   `memory image` pauses.
 
+A lost reply of a size the ECU is known to deliver (at or below its `max_block`) does not mean
+the block is too large. canair reads the same size again once, and halves the block only when
+that read is lost too. The motor controller of the Ioniq loses about one multi-frame reply in 40
+in READY, at every size. Halving each time took its survey down to 16-byte reads.
+
 ## A whole memory image
 
 `canair memory image ECU` reads the readable memory of one ECU into one dump:
@@ -122,9 +127,10 @@ reads one byte at the last address that answered:
 2. **Map.** It takes the readable regions that `scan memory` recorded for this software build.
     When there are none (or with `--range`), it first maps the space itself, using `--range` or
     the default space above. With no `max_block` recorded, it then finds the largest block the way
-    `scan memory` does, from 16 bytes up to `--block-limit` (128). It writes the map, the format
-    and the block to the `memory:` section of the ECU (`--dry-run` does not). Without `--range`,
-    it stops here when the readable regions cover the whole default space (see Safety).
+    `scan memory` does, from 16 bytes up to `--block-limit` (64 by default, lower than the scan's
+    128). It writes the map, the format and the block to the `memory:` section of the ECU
+    (`--dry-run` does not). Without `--range`, it stops here when the readable regions cover the
+    whole default space (see Safety).
 3. **Size and aliases.** It matches the readable span against the common flash sizes. It also
     tests whether the ECU ignores its high address bits and repeats one image. If it does, the
     image reads the first period only.
@@ -151,7 +157,8 @@ The block stays within the `max_block` of the ECU and `--block-limit`. On an ELM
 run prefers 61-byte blocks. A 62-byte reply fits the 9 Controller Area Network (CAN) frames that
 the expected-frame-count digit of the adapter can ask for. The adapter then answers without
 waiting out its `ATST` budget ([frame counts](../development/frame-counts.md)). Two errors within
-50 reads halve the block (down to 16 bytes) and add 20 ms of throttle. After 500 clean reads, the
+50 reads halve the block (down to 16 bytes) and add 20 ms of throttle. A lost reply that is read
+again at the same size (see [Silence](#silence)) is not an error. After 500 clean reads, the
 block doubles (up to the preferred size) and the throttle drops by 20 ms.
 
 ### Pause and resume
@@ -200,8 +207,9 @@ dump them this way. What each one gives:
 - **OBC:** its flash (`0x000000`-`0x3FFFFF`), read with that `--range` while charging.
 - **Climate unit:** no memory. It ignores the low 16 address bits and returns its transmit buffer.
   An address with a high byte of `01`-`FF` draws NRC `0x52`.
-- **MCU:** do not read it while the car charges. A survey of its address space ended an AC charge
-  on 2026-11-08.
+- **MCU:** its flash (`0x000000`-`0x3FFFFF`), read with that `--range`. It answers every address
+  of its 16 MiB space, and a survey that went above `0x3FFFFF` ended an AC charge on 2026-11-08.
+  In READY it ignores about 1 in 40 reads whose reply needs more than one CAN frame.
 
 The details are in `plans/2026-11-05-read-memory-by-address.md` and in the `research:` entries of
 each ECU.

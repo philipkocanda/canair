@@ -26,7 +26,8 @@ class MemoryEcu:
     reads draw ``too_large_nrc`` (``None``: no answer at all, like a transport that cannot
     carry the reply). ``stale_once`` answers the read at that address once with the previous
     reply, as a desynchronised pipe would; ``drop_once`` cuts the reply at that address
-    short once.
+    short once; ``lose`` answers nothing to the multi-byte read at an address that many times
+    (a lost multi-frame reply from an ECU that is still up).
 
     The rest models what a long unattended read meets: ``silent_above`` refuses every
     address above it by not answering; ``alias`` makes the ECU ignore the address bits above
@@ -41,6 +42,7 @@ class MemoryEcu:
     too_large_nrc: int | None = 0x14
     stale_once: set[int] = field(default_factory=set)
     drop_once: set[int] = field(default_factory=set)
+    lose: dict[int, int] = field(default_factory=dict)
     hangs: bool = False  # after a read larger than max_block, never answer again
     sent: list[str] = field(default_factory=list)
     sessions: list[str] = field(default_factory=list)
@@ -94,6 +96,9 @@ class MemoryEcu:
         if read.address in self.stale_once:
             self.stale_once.discard(read.address)
             return self._last
+        if read.size > 1 and self.lose.get(read.address, 0) > 0:
+            self.lose[read.address] -= 1
+            return "NO DATA"
         if read.size > self.max_block:
             self._hung = self.hangs
             return "NO DATA" if self.too_large_nrc is None else f"7F23{self.too_large_nrc:02X}"
