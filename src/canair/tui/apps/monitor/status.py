@@ -130,12 +130,19 @@ def poll_zone(c, *, paused: bool) -> Zone:
         items.append(
             StatusItem(f"[{styles.WARNING}]slow {escape(summarize_slowed(slowed))}[/]", P_HIGH)
         )
-    # The ELM path reports commands and time spent in the ELM327; the raw path UDS requests.
+    # What the last cycle cost: the ELM path reports commands and the time spent in the
+    # ELM327, the raw path its UDS requests.
     if getattr(c, "raw", False):
         cost = f"{c.last_cmds}[{styles.MUTED}] req[/]"
     else:
-        cost = f"{c.last_cmds}[{styles.MUTED}] cmds ·[/] {c.last_elm_time:.1f}[{styles.MUTED}]s[/]"
-    items.append(StatusItem(f"{c.elapsed:.1f}[{styles.MUTED}]s ·[/] {cost}", P_LOW - 1))
+        cost = (
+            f"{c.last_cmds}[{styles.MUTED}] cmds ·[/] {c.last_elm_time:.1f}[{styles.MUTED}]s ELM[/]"
+        )
+    items.append(
+        StatusItem(
+            f"[{styles.MUTED}]took[/] {c.elapsed:.1f}[{styles.MUTED}]s ·[/] {cost}", P_LOW - 1
+        )
+    )
     return Zone("poll", tuple(items))
 
 

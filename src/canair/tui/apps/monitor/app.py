@@ -244,7 +244,11 @@ class MonitorApp(
             body = self.screen_stack[0].query_one("#body", Static)
         except (NoMatches, IndexError):
             return
-        width = scroll.content_size.width - 2 if scroll.content_size.width else None
+        # The body's own content width (inside the scrollbar gutter and its padding); before the
+        # first layout, the pane's width less those three columns.
+        width = body.content_size.width or (
+            scroll.content_size.width - 3 if scroll.content_size.width else None
+        )
         body.update(self.controller.renderer.render(width, title=False))
         self._update_status()
 
