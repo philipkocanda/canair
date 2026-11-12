@@ -77,6 +77,11 @@ ROLES: dict[str, KeyRole] = {
         _r("quit_force", "ctrl+c ctrl+q", "quit"),
         _r("help", "question_mark", "help"),
         _r("back", "escape", "back", "cancel", "deselect"),
+        # The application shell (tui/shell/): the menu bar and the command palette. A menu's
+        # mnemonic (alt+ its underlined letter) is derived from its title by the menu bar,
+        # because the letters belong to each app's menus; it is not a role.
+        _r("menu", "f10", "menu"),
+        _r("palette", "ctrl+p", "commands"),
         # -- moving around -------------------------------------------------
         _r("move_down", "j down", "down", "scroll down", "select down", "scroll", "select"),
         _r("move_up", "k up", "up", "scroll up", "select up", "scroll", "select"),
