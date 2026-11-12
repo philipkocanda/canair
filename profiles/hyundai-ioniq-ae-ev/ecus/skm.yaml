@@ -135,10 +135,16 @@ SKM:
           expression: B12:0
           source: GDS Current Data list order (shop manual 0417) vs the support map
           notes: GDS 'Driver Door Handle Toggle Button Switch'. 0 in every capture.
+          min: "0"
+          max: "1"
+          verified: true
         ASSIST_DOOR_HANDLE_BUTTON:
           expression: B12:3
           source: GDS Current Data list order (shop manual 0417) vs the support map
           notes: GDS 'Assist Door Handle Toggle Button Switch'. 0 in every capture.
+          min: "0"
+          max: "1"
+          verified: true
         SKM_ACC_B005_B12:
           expression: B12:6
           source: ""
