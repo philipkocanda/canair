@@ -14,10 +14,69 @@
   }
 }
 
-/* Tables and code read better with tighter lines than prose. */
+/* Tables and code read better with tighter lines than prose. Tables use a size close to the
+   body text, fill the content width and separate rows with light rules. */
 .md-typeset table:not([class]) {
+  font-size: 0.75rem;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
+  display: table;
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.md-typeset table:not([class]) th:first-child {
+  border-top-left-radius: 0.4rem;
+}
+
+.md-typeset table:not([class]) th:last-child {
+  border-top-right-radius: 0.4rem;
+}
+
+.md-typeset table:not([class]) th {
+  background: var(--md-default-fg-color--lightest);
+  border-bottom: 2px solid var(--md-default-fg-color--lighter);
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.md-typeset table:not([class]) th,
+.md-typeset table:not([class]) td {
+  padding: 0.5em 0.9em;
+  border-top: 0;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  vertical-align: top;
+}
+
+.md-typeset table:not([class]) tbody tr:hover {
+  background: var(--md-accent-fg-color--transparent);
+}
+
+/* Markdown needs a header row, so a key/value table writes `| | |`. Hide a header with no text. */
+.md-typeset table:not([class]) thead:not(:has(th:not(:empty))) {
+  display: none;
+}
+
+.md-typeset table:not([class]) thead:not(:has(th:not(:empty))) + tbody tr:first-child td {
+  border-top: 2px solid var(--md-default-fg-color--lighter);
+}
+
+/* Keep a path or command in the first column on one line. */
+.md-typeset table:not([class]) td:first-child code {
+  white-space: nowrap;
+}
+
+/* Links are told apart by colour; they underline only on hover. */
+.md-typeset a:not(.md-button, .headerlink) {
+  text-decoration: none;
+}
+
+.md-typeset a:not(.md-button, .headerlink):hover {
+  text-decoration: underline;
 }
 
 /* 72ch follows the font size, so the line stays about 72 characters at any screen size. */
