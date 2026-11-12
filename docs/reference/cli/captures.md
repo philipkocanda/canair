@@ -428,12 +428,12 @@ Git merge driver for append-only capture files (captures/*.json).
 
 Invoked by git during a merge as `merge-driver %O %A %B %P`; unions the
 session lists so two machines' same-day appends merge cleanly instead of
-conflicting. Falls back to normal conflict markers on a genuine divergent
+conflicting. Writes conflict markers into the file on a genuine divergent
 edit.
 
 Run `canair captures merge-driver --install` once per clone to register it
 in .git/config (git never loads a driver command from a tracked file, so
-this local step is required; until then merges just fall back to markers).
+this local step is required; until then git uses its own line-based merge).
 
 positional arguments:
   base        git %O — common ancestor version

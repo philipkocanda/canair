@@ -38,6 +38,7 @@ from canair.privacy import sensitive
 from canair.profile.model import Profile, ProfileError
 from canair.render import messages
 from canair.states.spans import span_keys, states_at
+from canair.states.tokens import state_tokens
 from canair.uds.support_map import map_byte_indices
 from canair.variants import VariantsError, load_variants
 from canair.variants import tags as variant_tags
@@ -183,13 +184,11 @@ def flatten_session(
 
     Takes the file's ``path`` so each row carries the display ``file`` and the ``_path``.
     """
-    if rx_index is None:
-        rx_index = _rx_index(profile=profile)
-
+    rx_index = rx_index if rx_index is not None else _rx_index(profile=profile)
     date = session.get("date", "")
     label = session.get("label", "")
     version = session.get("version", "")
-    vehicle_states = session.get("vehicle_states") or []
+    vehicle_states = state_tokens(session.get("vehicle_states"))
     spans = session_spans(session)
     keys = span_keys(spans) if spans else None
     session_notes = session.get("notes", "")

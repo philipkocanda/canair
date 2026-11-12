@@ -27,7 +27,7 @@ def _decode_payload(
         return None
 
     ecu_def = ecu_index[ecu_key]
-    pid_info = ecu_def.get("pids", {}).get(pid)
+    pid_info = ecu_def.get("pids", {}).get(str(pid).upper())
     if not pid_info or not pid_info.get("parameters"):
         return None
 

@@ -356,6 +356,8 @@ def resolve_scope_bounds(
                 f"vocabulary ({', '.join(sorted(allowed_states(profile=profile)))}) — nothing can match."
             )
     n = scope.last_sessions
+    if n is not None and n < 1:
+        return since, until, "--last-sessions needs a number of 1 or more"
     if n:
         label = scope.label
         starts = _session_starts(since, until, state, label, captures_dir, profile=profile)

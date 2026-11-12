@@ -11,13 +11,14 @@ Two uses:
 
 * ``canair captures merge-driver %O %A %B [%P]`` — invoked *by git* during a
   merge. Reads the base/ours/theirs versions, writes the union into the ours
-  file (``%A``), and exits 0. On a genuine divergent edit (or unparseable input)
-  it exits non-zero so git falls back to normal conflict markers.
+  file (``%A``), and exits 0. On a genuine divergent edit it writes a line-based merge
+  with conflict markers into ``%A`` and exits non-zero. On unparseable input it exits
+  non-zero and leaves ``%A`` as it was.
 * ``canair captures merge-driver --install`` — one-time local registration: write
   the ``[merge "canair-captures"]`` stanza into the repo's ``.git/config`` so the
   ``.gitattributes`` rule takes effect. Git deliberately never reads a driver
   *command* from a tracked file, so every clone must run this once; until it does,
-  merges simply fall back to markers (nothing breaks).
+  merges use git's own line-based merge and its markers (nothing breaks).
 """
 
 from __future__ import annotations
@@ -51,13 +52,33 @@ def _load_base(path: Path) -> capture_io.CaptureFile:
     return capture_io.load_capture_file(path)
 
 
+def _write_conflict_markers(base: str, ours: Path, theirs: str) -> None:
+    """Leave a line-based merge with conflict markers in ``ours``.
+
+    Git keeps whatever the driver leaves in ``%A`` when it exits non-zero and writes no markers
+    of its own, so without this the working file would hold only our side, and a later
+    ``git add`` would drop their sessions without a word. Best effort: on any failure ``ours``
+    stays as it was.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "merge-file", "-p", str(ours), base, theirs],
+            capture_output=True,
+            text=True,
+        )
+    except OSError:
+        return
+    if 0 < out.returncode < 128 and out.stdout:
+        ours.write_text(out.stdout, encoding="utf-8")
+
+
 def _run_driver(base: str, ours: str, theirs: str, path: str | None = None) -> int:
     """Perform the union merge git asked for. Returns a git-style exit code.
 
     ``ours`` (git's ``%A``) is both an input and the output file: on success the
     merged result is written back to it. ``path`` (git's ``%P``) is the merged
     file's real pathname, used only for diagnostics. Exit 0 = resolved; non-zero
-    = leave it to git (normal conflict markers).
+    = a conflict, left for a human (markers are in ``ours``).
     """
     label = path or ours
     ours_path = Path(ours)
@@ -73,6 +94,7 @@ def _run_driver(base: str, ours: str, theirs: str, path: str | None = None) -> i
         merged = captures_merge.merge_documents(base_doc, ours_doc, theirs_doc)
     except captures_merge.MergeConflict as exc:
         messages.error(f"{label}: {exc}")
+        _write_conflict_markers(base, ours_path, theirs)
         return 1
 
     # Write via the shared seam so the on-disk shape (indent, ordering, trailing
@@ -161,11 +183,11 @@ def add_parser(kinds) -> argparse.ArgumentParser:
             "Git merge driver for append-only capture files (captures/*.json).\n\n"
             "Invoked by git during a merge as `merge-driver %O %A %B %P`; unions the\n"
             "session lists so two machines' same-day appends merge cleanly instead of\n"
-            "conflicting. Falls back to normal conflict markers on a genuine divergent\n"
+            "conflicting. Writes conflict markers into the file on a genuine divergent\n"
             "edit.\n\n"
             "Run `canair captures merge-driver --install` once per clone to register it\n"
             "in .git/config (git never loads a driver command from a tracked file, so\n"
-            "this local step is required; until then merges just fall back to markers)."
+            "this local step is required; until then git uses its own line-based merge)."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

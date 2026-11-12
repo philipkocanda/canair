@@ -177,11 +177,12 @@ class TestDriverCommand:
         self._write(base, _doc(a))
         self._write(ours, _doc(_session("a", "10:00:00", payload="6101BB")))
         self._write(theirs, _doc())
-        ours_before = ours.read_text()
 
         rc = merge_driver._run_driver(str(base), str(ours), str(theirs))
         assert rc != 0
-        assert ours.read_text() == ours_before  # untouched → git shows markers
+        # git writes no markers for a driver's failure, so the driver leaves them itself
+        assert "<<<<<<<" in ours.read_text()
+        assert ">>>>>>>" in ours.read_text()
 
     def test_run_driver_unreadable_input_returns_nonzero(self, tmp_path):
         base = tmp_path / "base.json"
@@ -359,3 +360,17 @@ def _has_branch(repo: Path, name: str) -> bool:
         ["git", "branch", "--list", name], cwd=repo, capture_output=True, text=True
     )
     return bool(out.stdout.strip())
+
+
+class TestMergeEdges:
+    def test_both_sides_deleting_the_same_session_is_not_a_conflict(self):
+        a, b = _session("a", "10:00:00"), _session("b", "11:00:00")
+        merged = captures_merge.merge_documents(_doc(a, b), _doc(b), _doc(b))
+        assert [s["label"] for s in merged["sessions"]] == ["b"]
+
+    def test_sessions_tied_on_date_label_and_time_merge_in_one_order(self):
+        x = _session("same", "10:00:00", payload="6101AA")
+        y = _session("same", "10:00:00", payload="6101BB")
+        forward = captures_merge.merge_documents(_doc(), _doc(x), _doc(y))
+        backward = captures_merge.merge_documents(_doc(), _doc(y), _doc(x))
+        assert forward == backward

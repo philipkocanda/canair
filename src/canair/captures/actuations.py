@@ -88,7 +88,7 @@ def actuation_record(
         "action": action,
     }
     if request:
-        rec["request"] = request.upper()
+        rec["request"] = request.upper().replace(" ", "")
     if outcome:
         rec["outcome"] = outcome
     if response and outcome == "ok":
@@ -173,7 +173,7 @@ def actuations_in(entries: Iterable[Mapping[str, Any]]) -> list[tuple[datetime, 
         seen.add(session)
         for act in entry.get("session_actuations") or ():
             try:
-                when = datetime.fromisoformat(f"{entry.get('date', '')}T{act['at']}")
+                when = datetime.fromisoformat(f"{str(entry.get('date', ''))[:10]}T{act['at']}")
             except (KeyError, ValueError):
                 continue
             out.append((when, act))

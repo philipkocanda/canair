@@ -21,14 +21,16 @@ that bypasses them (a bare ``json.loads``) sees the folded form.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import tempfile
+import threading
 from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 from canair.captures.folding import CaptureFormatError, expand_file, fold_file
 from canair.captures.types import CaptureFile
@@ -192,6 +194,13 @@ _ONE_LINE_ITEMS: dict[tuple[str, ...], tuple[str, str]] = {
 }
 
 
+def _key(key: Any) -> str:
+    """A dict key as ``json.dumps`` writes it: a non-string key becomes a quoted string."""
+    if isinstance(key, str):
+        return json.dumps(key, ensure_ascii=False)
+    return json.dumps({key: 0}, ensure_ascii=False)[1:-4]
+
+
 def _render(value: Any, level: int, path: tuple[str, ...]) -> str:
     """``json.dumps(value, indent=2)``, with the :data:`_ONE_LINE_ITEMS` lists one item per line.
 
@@ -200,10 +209,7 @@ def _render(value: Any, level: int, path: tuple[str, ...]) -> str:
     """
     pad, close = "  " * (level + 1), "  " * level
     if isinstance(value, dict) and value:
-        items = (
-            f"{pad}{json.dumps(k, ensure_ascii=False)}: " + _render(v, level + 1, (*path, k))
-            for k, v in value.items()
-        )
+        items = (f"{pad}{_key(k)}: " + _render(v, level + 1, (*path, k)) for k, v in value.items())
         return "{\n" + ",\n".join(items) + f"\n{close}}}"
     if isinstance(value, list) and value:
         separators = _ONE_LINE_ITEMS.get(path)
@@ -224,14 +230,137 @@ def dump_capture_file(path: Path, data: Any) -> None:
     ``os.replace`` so a crash never leaves a half-written file.
     """
     text = capture_text(data)
+    json.loads(text)  # never replace a readable file with text that does not parse
+    if path.is_symlink():
+        path = path.resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
+    mode = os.stat(path).st_mode & 0o7777 if path.exists() else None
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(text)
             f.flush()
             os.fsync(f.fileno())
+        if mode is not None:
+            os.chmod(tmp, mode)
         os.replace(tmp, path)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise
+
+
+# -- journal files and write locking -------------------------------------------------
+
+# Both locks use ``flock(2)``, which the kernel drops when the holding process dies, so neither
+# can go stale and neither needs a pid check.
+#
+# * A **journal lock** is held on a journal's own file for as long as its writer lives. A journal
+#   nobody holds is an orphan to recover. One somebody holds belongs to a running session, and
+#   recovering it would delete the file under the writer and split the session in two.
+# * The **write lock** serialises read-modify-write of the capture files in one captures
+#   directory. Two sessions that reconcile at once would otherwise both read the day's file, each
+#   append their own session and write: the later write drops the earlier session.
+
+JOURNAL_RECONCILED = "reconciled"
+
+
+def read_records(path: Path) -> list[dict]:
+    """The JSON objects of a journal, skipping what a kill left unreadable.
+
+    A killed process can leave a truncated last line, cut in the middle of a multi-byte
+    character too. That line is dropped, never the journal.
+    """
+    records: list[dict] = []
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(rec, dict):
+                records.append(rec)
+    return records
+
+
+def mark_reconciled(path: Path, date: str) -> None:
+    """Record that the session for ``date`` is saved, so a retry does not save it twice.
+
+    A journal that spans midnight saves one session per day. If the second save fails, the
+    journal stays for recovery, and without this mark the recovery would save the first day
+    again.
+    """
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"type": JOURNAL_RECONCILED, "date": date}) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+
+
+def reconciled_dates(records: list[dict]) -> set[str]:
+    """The dates whose sessions an earlier, interrupted reconcile already saved."""
+    return {str(r.get("date")) for r in records if r.get("type") == JOURNAL_RECONCILED}
+
+
+WRITE_LOCK_NAME = "write.lock"
+
+
+class _DirLock:
+    """One captures directory's write lock: a thread lock in front of the ``flock``."""
+
+    def __init__(self) -> None:
+        self.guard = threading.RLock()
+        self.depth = 0
+
+
+_dir_locks: dict[Path, _DirLock] = {}
+_registry_guard = threading.Lock()
+
+
+def lock_journal(fh: IO) -> bool:
+    """Take the journal lock on the open file ``fh``; False when another holder has it."""
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        return False
+    return True
+
+
+def journal_in_use(path: Path) -> bool:
+    """Whether a live writer holds the journal at ``path``."""
+    try:
+        with open(path, "rb") as fh:
+            if lock_journal(fh):
+                return False
+    except OSError:
+        return False
+    return True
+
+
+@contextmanager
+def write_lock(captures_dir: Path) -> Generator[None]:
+    """Hold the write lock of ``captures_dir``; reentrant within a thread.
+
+    The lock file lives in the journal directory, which git does not track.
+    """
+    lock_dir = captures_dir / ".journal"
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    with _registry_guard:
+        lock = _dir_locks.setdefault(lock_dir.resolve(), _DirLock())
+    with lock.guard:
+        if lock.depth:
+            lock.depth += 1
+            try:
+                yield
+            finally:
+                lock.depth -= 1
+            return
+        with open(lock_dir / WRITE_LOCK_NAME, "a") as fh:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+            lock.depth = 1
+            try:
+                yield
+            finally:
+                lock.depth = 0
+                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)

@@ -15,6 +15,7 @@ from canair.captures.types import (
     SessionMeta,
 )
 from canair.core.id_ranges import IdRange, as_id_ranges, format_id_ranges
+from canair.states.tokens import state_tokens
 from canair.uds.response import UdsResponse
 from canair.uds.services import identifier_width
 
@@ -28,7 +29,7 @@ def _today() -> str:
 
 
 def _session_meta(
-    vehicle_states: Sequence[str] | None,
+    vehicle_states: Sequence[str] | str | None,
     notes: str | None,
     transport: str | None = None,
 ) -> SessionMeta:
@@ -43,7 +44,7 @@ def _session_meta(
     """
     meta: SessionMeta = {}
     if vehicle_states:
-        meta["vehicle_states"] = list(vehicle_states)
+        meta["vehicle_states"] = state_tokens(vehicle_states)
     if notes:
         meta["notes"] = notes
     if transport:

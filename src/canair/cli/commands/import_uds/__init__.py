@@ -44,7 +44,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from canair.captures.build import build_manual_session
@@ -111,6 +111,15 @@ def run(args) -> int:
         return 2
 
     named_car("import uds")
+
+    try:
+        if args.date:
+            date.fromisoformat(args.date)
+        if args.time:
+            datetime.strptime(args.time, "%H:%M:%S")
+    except ValueError as e:
+        messages.error(f"--date must be YYYY-MM-DD and --time HH:MM:SS ({e})")
+        return 2
 
     name_index = build_name_tx_index(profile=active())
 

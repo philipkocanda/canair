@@ -145,14 +145,19 @@ def _first_time(session: dict) -> str:
     return ""
 
 
-def _sort_key(session: dict) -> tuple[str, str, str]:
-    """Deterministic order: date, then first-capture time, then label.
+def _sort_key(session: dict) -> tuple[str, str, str, str]:
+    """Deterministic order: date, then first-capture time, then label, then content.
 
     Keeps the merged file chronological (matching the append order) and, crucially,
     makes the merge **order-independent** — ``merge(A, B)`` and ``merge(B, A)``
     produce byte-identical output, so the result is stable and re-mergeable.
     """
-    return (str(session.get("date") or ""), _first_time(session), str(session.get("label") or ""))
+    return (
+        str(session.get("date") or ""),
+        _first_time(session),
+        str(session.get("label") or ""),
+        session_key(session),
+    )
 
 
 def _replacement(
@@ -214,6 +219,8 @@ def merge_sessions(base: Any, ours: Any, theirs: Any) -> list[dict]:
             continue
         ours_x = _replacement(b, base_anchors, base_keys, ours_s)
         theirs_x = _replacement(b, base_anchors, base_keys, theirs_s)
+        if ours_x is None and theirs_x is None:
+            continue  # both sides dropped it: an agreed deletion, not a conflict
         if ours_x is not None and theirs_x is not None:
             if session_key(ours_x) == session_key(theirs_x):
                 continue

@@ -169,3 +169,32 @@ def wants_save(
     layering inversion.
     """
     return bool(save or label is not None or state is not None or notes is not None)
+
+
+#: A journal's payload row: (ecu, pid, hex, time, date, elapsed_ms).
+JournalRow = tuple[str, str, str, str, str, int | None]
+
+
+def dedup_rows(rows: list[JournalRow], keep_mode: KeepMode | None) -> list[JournalRow]:
+    """Apply keep-mode dedup to (ecu, pid, hex, time, date, elapsed_ms) rows, preserving order.
+
+    ``changes`` is **run-length**: drop a row only when its payload equals the
+    *immediately preceding* kept payload for that PID. A stationary signal
+    collapses to one row, but genuine oscillation (``A→B→A→B``) is preserved in
+    full, and each stored row is a real transition (so dwell durations are
+    recoverable from the timestamps). Every other mode keeps every row — including
+    a journal left by an older canair that recorded the retired ``unique`` mode,
+    which then reconciles with no dedup claimed, rather than with a dedup nothing
+    implements any more.
+    """
+    if keep_mode != KEEP_CHANGES:
+        return rows
+    last: dict[tuple[str, str, str], str] = {}
+    out: list[JournalRow] = []
+    for row in rows:
+        key = (row[4], row[0], row[1])  # per day: each day's file starts with a row per PID
+        if last.get(key) == row[2]:
+            continue  # immediate repeat for this PID — collapse the run
+        last[key] = row[2]
+        out.append(row)
+    return out

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Any
+
 # The canonical base power-state vocabulary shared across every vehicle profile.
 # This is the **powertrain-neutral ignition-switch ladder** every road vehicle
 # has. The universal switch positions are OFF → ACC → ON → START; canair names
@@ -89,7 +92,7 @@ def parse_states(value) -> list[str]:
     """Normalize a ``vehicle_states`` value into an UPPER-cased token list.
 
     Accepts a comma-separated string (as typed on ``--state``), a list/tuple of
-    tokens, or None. Tokens are stripped and UPPER-cased; empties are dropped.
+    tokens or comma-separated strings (a repeated ``--state``), or None. Tokens are stripped and UPPER-cased; empties are dropped.
     Kept deliberately permissive (no vocabulary check) — validation soft-warns
     on unknown tokens elsewhere. Casing is normalized here so any casing typed
     on the CLI (``charging``/``Charging``/``CHARGING``) lands as the canonical
@@ -97,11 +100,20 @@ def parse_states(value) -> list[str]:
     """
     if value is None:
         return []
-    if isinstance(value, (list, tuple)):
-        toks = [str(v).strip() for v in value]
-    else:
-        toks = [t.strip() for t in str(value).split(",")]
+    items = value if isinstance(value, (list, tuple)) else [value]
+    toks = [t.strip() for v in items for t in str(v).split(",")]
     return [t.upper() for t in toks if t]
+
+
+def state_tokens(value: Sequence[Any] | str | None) -> list:
+    """A ``vehicle_states`` value as a token list: a bare string is split, a list is kept as is.
+
+    Unlike :func:`parse_states` this does not re-case a list, so stored tokens round-trip.
+    Never ``list(value)`` a state value: on a string that yields its characters.
+    """
+    if isinstance(value, str):
+        return parse_states(value)
+    return list(value or [])
 
 
 def join_states(states) -> str:

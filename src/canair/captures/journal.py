@@ -47,7 +47,20 @@ from typing import cast
 
 from canair.captures.actuations import actuations_by_date
 from canair.captures.build import build_query_session
-from canair.captures.keepmode import KEEP_CHANGES, KeepMode, PersistedKeepMode, parse_keep_mode
+from canair.captures.io import (
+    journal_in_use,
+    lock_journal,
+    mark_reconciled,
+    read_records,
+    reconciled_dates,
+)
+from canair.captures.keepmode import (
+    JournalRow,
+    KeepMode,
+    PersistedKeepMode,
+    dedup_rows,
+    parse_keep_mode,
+)
 from canair.captures.link_events import (
     JOURNAL_EVENT,
     JOURNAL_EVENT_END,
@@ -61,11 +74,16 @@ from canair.captures.types import CaptureSession, Quality
 from canair.privacy import sensitive
 from canair.privacy.sensitive import SensitiveSet
 from canair.profile.model import Profile
+from canair.states.tokens import state_tokens
 from canair.variants.tags import TAG_FIELDS
 
 JOURNAL_VERSION = 1
 JOURNAL_DIRNAME = ".journal"
 JOURNAL_SUFFIX = ".jsonl"
+
+
+class JournalInUseError(RuntimeError):
+    """The journal is still being written by a running session."""
 
 
 def _journal_dir(captures_dir: Path) -> Path:
@@ -98,7 +116,7 @@ class CaptureJournal:
         *,
         profile: Profile,
         label: str | None = None,
-        vehicle_states: list | None = None,
+        vehicle_states: list | str | None = None,
         notes: str | None = None,
         source: str = "query",
         keep_mode: PersistedKeepMode | None = None,
@@ -120,12 +138,13 @@ class CaptureJournal:
             n += 1
         journal = cls(path, captures_dir, profile)
         journal._fh = open(path, "a", encoding="utf-8")
+        lock_journal(journal._fh)  # held until the writer exits: marks the journal as live
         meta: dict = {
             "v": JOURNAL_VERSION,
             "type": "meta",
             "date": datetime.now().strftime("%Y-%m-%d"),
             "label": label or "",
-            "vehicle_states": list(vehicle_states or []),
+            "vehicle_states": state_tokens(vehicle_states),
             "notes": notes or "",
             "source": source,
             "keep_mode": keep_mode,
@@ -256,7 +275,7 @@ class CaptureJournal:
     def update_meta(
         self,
         label: str | None = None,
-        vehicle_states: list | None = None,
+        vehicle_states: list | str | None = None,
         notes: str | None = None,
         transport: str | None = None,
         quality: Quality | None = None,
@@ -272,7 +291,7 @@ class CaptureJournal:
         if label is not None:
             rec["label"] = label
         if vehicle_states is not None:
-            rec["vehicle_states"] = list(vehicle_states)
+            rec["vehicle_states"] = state_tokens(vehicle_states)
         if notes is not None:
             rec["notes"] = notes
         if transport is not None:
@@ -294,8 +313,7 @@ class CaptureJournal:
         Returns the capture file path, or None if there was nothing to save.
         """
         self._close_fh()
-        result = reconcile_file(self.path, keep_mode=keep_mode, profile=self.profile)
-        return result
+        return reconcile_file(self.path, keep_mode=keep_mode, profile=self.profile)
 
     def discard(self) -> None:
         """Close and delete the journal without saving (e.g. user cancelled)."""
@@ -321,48 +339,6 @@ class CaptureJournal:
 # ---------------------------------------------------------------------------
 
 
-def _read_records(path: Path) -> list[dict]:
-    records: list[dict] = []
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                records.append(json.loads(line))
-            except json.JSONDecodeError:
-                # Tolerate a truncated final line from an unclean kill.
-                continue
-    return records
-
-
-def _dedup(
-    rows: list[tuple[str, str, str, str, str, int | None]], keep_mode: KeepMode | None
-) -> list[tuple[str, str, str, str, str, int | None]]:
-    """Apply keep-mode dedup to (ecu, pid, hex, time, date, elapsed_ms) rows, preserving order.
-
-    ``changes`` is **run-length**: drop a row only when its payload equals the
-    *immediately preceding* kept payload for that PID. A stationary signal
-    collapses to one row, but genuine oscillation (``A→B→A→B``) is preserved in
-    full, and each stored row is a real transition (so dwell durations are
-    recoverable from the timestamps). Every other mode keeps every row — including
-    a journal left by an older canair that recorded the retired ``unique`` mode,
-    which then reconciles with no dedup claimed, rather than with a dedup nothing
-    implements any more.
-    """
-    if keep_mode == KEEP_CHANGES:
-        last: dict[tuple[str, str], str] = {}
-        out: list[tuple[str, str, str, str, str, int | None]] = []
-        for row in rows:
-            key2 = (row[0], row[1])
-            if last.get(key2) == row[2]:
-                continue  # immediate repeat for this PID — collapse the run
-            last[key2] = row[2]
-            out.append(row)
-        return out
-    return rows
-
-
 def build_session_from_records(
     records: list[dict],
     keep_mode: KeepMode | None = None,
@@ -382,7 +358,7 @@ def build_session_from_records(
     """
     meta = {"label": "", "vehicle_states": [], "notes": "", "keep_mode": None, "date": ""}
     session_records: list[dict] = []
-    rows: list[tuple[str, str, str, str, str, int | None]] = []
+    rows: list[JournalRow] = []
     non_answers: list[tuple[str, str, str, str]] = []
     meta_date = ""
     transport: str | None = None
@@ -430,7 +406,7 @@ def build_session_from_records(
 
     # meta values come from a loosely-typed journal dict: coerce for build_query_session.
     label = str(meta.get("label") or "Recovered session")
-    vehicle_states = list(meta.get("vehicle_states") or [])
+    vehicle_states = state_tokens(meta.get("vehicle_states"))
     notes = str(meta.get("notes") or "")
     if recovered:
         notes = f"{notes} [recovered]".strip()
@@ -458,7 +434,7 @@ def build_session_from_records(
     if not rows and not non_answers:
         return []
 
-    rows = _dedup(rows, effective_keep)
+    rows = dedup_rows(rows, effective_keep)
 
     # Group by capture date: each day becomes its own session, in order of first appearance.
     by_date: dict[str, list[tuple[str, str, str, str, int | None]]] = {}
@@ -503,18 +479,16 @@ def reconcile_file(
     if not path.exists():
         return None
     captures_dir = path.parent.parent
-    records = _read_records(path)
+    records = read_records(path)
     sessions = build_session_from_records(
         records, keep_mode=keep_mode, recovered=recovered, profile=profile
     )
-    sessions = [s for s in sessions if s.get("captures")]
-    if not sessions:
-        # Nothing worth keeping — drop the journal.
-        path.unlink(missing_ok=True)
-        return None
+    saved = reconciled_dates(records)
+    sessions = [s for s in sessions if s.get("captures") and str(s.get("date")) not in saved]
     written: Path | None = None
     for session in sessions:
         written = save_session(session, captures_dir, stamp_variant=False, profile=profile)
+        mark_reconciled(path, str(session.get("date")))
     path.unlink(missing_ok=True)
     return written
 
@@ -525,11 +499,14 @@ def reconcile_file(
 
 
 def list_orphans(captures_dir: Path) -> list[Path]:
-    """Return leftover journal files under ``captures_dir/.journal/`` (sorted)."""
+    """Return leftover journal files under ``captures_dir/.journal/`` (sorted).
+
+    A journal a running session still writes is not an orphan, and is left out.
+    """
     jdir = _journal_dir(captures_dir)
     if not jdir.is_dir():
         return []
-    return sorted(jdir.glob(f"*{JOURNAL_SUFFIX}"))
+    return [p for p in sorted(jdir.glob(f"*{JOURNAL_SUFFIX}")) if not journal_in_use(p)]
 
 
 def recover(path: Path, discard: bool = False, *, profile: Profile) -> Path | None:
@@ -539,6 +516,8 @@ def recover(path: Path, discard: bool = False, *, profile: Profile) -> Path | No
     journal is deleted without saving. Returns the capture file path (recover) or
     None (discard / empty).
     """
+    if journal_in_use(Path(path)):
+        raise JournalInUseError(f"{Path(path).name} belongs to a running session")
     if discard:
         Path(path).unlink(missing_ok=True)
         return None

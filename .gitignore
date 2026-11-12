@@ -64,3 +64,6 @@ profiles/*/captures/.journal/
 # stress-test — see scripts/research/blind_rediscovery.py and src/canair/blind.py). Contains
 # held-out ground truth; never committed.
 /rediscovery/
+
+# Atomic-write temp files a killed canair can leave behind
+profiles/*/captures/.*.tmp

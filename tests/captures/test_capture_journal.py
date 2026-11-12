@@ -38,6 +38,15 @@ class TestJournalBasics:
         assert meta["vehicle_states"] == ["ready"]
         assert meta["source"] == "monitor"
 
+    def test_string_states_are_split_into_tokens_not_characters(self, tmp_path):
+        j = CaptureJournal.open(
+            tmp_path, label="L", vehicle_states="charging, parked", profile=active()
+        )
+        j.update_meta(vehicle_states="CHARGING")
+        metas = [json.loads(x) for x in j.path.read_text().splitlines() if '"meta"' in x]
+        assert metas[0]["vehicle_states"] == ["CHARGING", "PARKED"]
+        assert metas[-1]["vehicle_states"] == ["CHARGING"]
+
     def test_append_is_buffered_and_flush_syncs_once(self, tmp_path, monkeypatch):
         # append() is buffered (no per-row fsync); flush() syncs the whole batch
         # once — the per-cycle durability model for the monitor.

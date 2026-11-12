@@ -1,11 +1,13 @@
 """Saving a session: the version stamp, the capture tag, the file write and the banner."""
 
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import cast
 
 from canair.captures import io as capture_io
+from canair.captures.io import write_lock
 from canair.captures.session_edit import annotate_session_spans, set_session_field
 from canair.captures.tags import capture_tag
 from canair.captures.types import (
@@ -18,6 +20,8 @@ from canair.privacy import sensitive
 from canair.privacy.sensitive import take_withheld_note
 from canair.profile.model import Profile
 from canair.variants.tags import TAG_FIELDS, narrow_to_captured
+
+_FILE_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def _stamp_version(session: CaptureSession) -> CaptureSession:
@@ -162,21 +166,25 @@ def save_session(
     )
     # Use the session's own date (leading YYYY-MM-DD, tolerating a same-day
     # suffix like "2026-04-17-b") so the file matches when the payloads were
-    # actually acquired; only fall back to "now" when the session has no date.
-    raw_date = str(session.get("date") or "").strip()
-    file_date = raw_date[:10] if len(raw_date) >= 10 else datetime.now().strftime("%Y-%m-%d")
+    # actually acquired; fall back to "now" when the session has no usable date,
+    # so a malformed one can never name a path outside ``captures_dir``.
+    raw_date = str(session.get("date") or "").strip()[:10]
+    file_date = raw_date if _FILE_DATE.fullmatch(raw_date) else datetime.now().strftime("%Y-%m-%d")
     capture_file = captures_dir / f"{file_date}{capture_io.CAPTURE_SUFFIX}"
 
-    if capture_file.exists():
-        data = capture_io.load_capture_file(capture_file)
-        if "sessions" not in data:
-            data = {"sessions": []}
-        data["sessions"].append(session)
-    else:
-        data = {"sessions": [session]}
+    # Read, append, write and annotate as one step: two sessions saving into the same day's
+    # file at once would otherwise each write over the other's session.
+    with write_lock(captures_dir):
+        if capture_file.exists():
+            data = capture_io.load_capture_file(capture_file)
+            if "sessions" not in data:
+                data = {"sessions": []}
+            data["sessions"].append(session)
+        else:
+            data = {"sessions": [session]}
 
-    capture_io.dump_capture_file(capture_file, data)
-    annotate_session_spans(capture_file, profile=profile)
+        capture_io.dump_capture_file(capture_file, data)
+        annotate_session_spans(capture_file, profile=profile)
 
     print(saved_banner(capture_file, len(session.get("captures", []))), file=sys.stderr)
     return capture_file

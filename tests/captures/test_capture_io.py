@@ -180,3 +180,21 @@ def test_migrate_then_load_all_captures_roundtrip(tmp_path):
     entries = load_all_captures(tmp_path, profile=active())
     assert [e["pid"] for e in entries] == ["2101", "2102"]
     assert [e["payload"] for e in entries] == ["6101AA", "6102BB"]
+
+
+class TestDumpSafety:
+    def test_a_non_string_key_is_written_as_a_quoted_key(self, tmp_path):
+        from canair.captures import io as capture_io
+
+        path = tmp_path / "2026-11-01.json"
+        capture_io.dump_capture_file(path, {"sessions": [{"revisions": {1: "a"}, "captures": []}]})
+        assert capture_io.load_capture_file(path)["sessions"][0]["revisions"] == {"1": "a"}
+
+    def test_a_rewrite_keeps_the_file_mode(self, tmp_path):
+        from canair.captures import io as capture_io
+
+        path = tmp_path / "2026-11-01.json"
+        capture_io.dump_capture_file(path, {"sessions": []})
+        path.chmod(0o664)
+        capture_io.dump_capture_file(path, {"sessions": []})
+        assert path.stat().st_mode & 0o777 == 0o664

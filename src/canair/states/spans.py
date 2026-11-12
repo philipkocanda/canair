@@ -35,6 +35,8 @@ from __future__ import annotations
 from bisect import bisect_right
 from typing import TYPE_CHECKING, Any, TypedDict
 
+from canair.states.tokens import state_tokens
+
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
 
@@ -134,7 +136,7 @@ def states_at(
     idx = bisect_right(keys, key) - 1
     if idx < 0:
         return None
-    return [str(s) for s in spans[idx].get("states") or []]
+    return [str(s) for s in state_tokens(spans[idx].get("states"))]
 
 
 def span_state_union(spans: Sequence[Mapping[str, Any]]) -> set[str]:
@@ -146,5 +148,5 @@ def span_state_union(spans: Sequence[Mapping[str, Any]]) -> set[str]:
     """
     out: set[str] = set()
     for span in spans:
-        out.update(str(s) for s in span.get("states") or [])
+        out.update(str(s) for s in state_tokens(span.get("states")))
     return out
