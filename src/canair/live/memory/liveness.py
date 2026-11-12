@@ -26,6 +26,7 @@ from canair.ecus.memory import protocol_of
 from canair.ecus.pid_status import pid_status
 from canair.expression.decoding import decode_param_rows
 from canair.live.identity.software import read_software_version
+from canair.live.monitor.reconnect import Reconnector
 from canair.states.predicates import StateRule, predicate_references
 from canair.transport.errors import transport_error_types
 from canair.transport.protocol import Terminal
@@ -159,15 +160,14 @@ async def answers_at(terminal: Terminal, target: MemoryTarget, address: int) -> 
 class Link:
     """The terminal a run reads through, swapped by a mid-session reconnect.
 
-    Shaped like the monitor's controller (``close_client``, ``rebind``, ``setup``,
-    ``actuation``), so the monitor's reconnector re-homes it: a run has one reconnect path, not
-    two.
+    A :class:`~canair.live.monitor.reconnect.ReconnectTarget`, so the monitor's reconnector
+    re-homes it: a run has one reconnect path, not two.
     """
 
     #: A memory run holds no actuator, so the reconnector has none to restore.
     actuation = None
 
-    def __init__(self, terminal: Terminal, reconnect: Callable[..., Awaitable[bool]] | None):
+    def __init__(self, terminal: Terminal, reconnect: Reconnector | None):
         self.terminal = terminal
         self._reconnect = reconnect
         self.dropped = False

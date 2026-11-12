@@ -35,6 +35,7 @@ from canair.ecus.can_buses import bus_neighbours
 from canair.ecus.memory import MemoryRegion
 from canair.live.dtc import read_ecu_dtcs
 from canair.live.identity.software import read_software_version
+from canair.live.monitor.reconnect import Reconnector
 from canair.memory.job import SAMPLE_SIZE, SPARSE, JobPlan, job_plan
 from canair.memory.plan import DEFAULT_STRIDE, Estimate, answers_everywhere, estimate
 from canair.memory.rate import Rate, ceiling, preferred_block
@@ -290,7 +291,7 @@ async def mode_memory_image(
     provenance: Mapping[str, Any] | None = None,
     confirm_plan: ConfirmPlan = lambda _run: True,
     resume: Dump | None = None,
-    reconnect: Callable[..., Awaitable[bool]] | None = None,
+    reconnect: Reconnector | None = None,
     skip: Callable[[], bool] = lambda: False,
     notice: Callable[[str], None] = lambda _m: None,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,

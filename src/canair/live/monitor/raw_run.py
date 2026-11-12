@@ -78,7 +78,7 @@ def build_raw_reconnector(
     ecus: dict[str, EcuAddress],
     conn: ConnectionOptions,
     pids_data: dict,
-):
+) -> MonitorReconnector:
     """A :class:`MonitorReconnector` that re-homes to a reachable slcan-tcp device.
 
     Restricts the candidate list to raw (slcan-tcp) devices and reuses

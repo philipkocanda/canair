@@ -22,7 +22,7 @@
     "canair.yaml_edit.text": 777
   },
   "long_modules": {},
-  "deferred_internal_imports": 87,
+  "deferred_internal_imports": 86,
   "deferred_imports_without_reason": 0,
   "parser_build_modules": 650,
   "ambient_profile_calls": 0,

@@ -6,7 +6,9 @@ transport drops, re-probe the (same-transport) candidate list until one answers,
 rebuild the client, and rebind it onto the running
 :class:`~canair.live.monitor.controller.MonitorController` — preserving its journal and
 history so the ``--save`` session simply continues (the gap shows in the
-timestamps).
+timestamps). ``canair memory image`` re-homes its run through the same reconnector
+(:class:`~canair.live.memory.liveness.Link`). Both satisfy :class:`ReconnectTarget`, the
+list of what the reconnector uses.
 
 The transport-specific "connect to this candidate" step is supplied by the
 caller (``build_elm_reconnector`` in :mod:`canair.cli.live.connect`,
@@ -33,7 +35,6 @@ from ...transport.fallback import wait_for_reachable
 
 if TYPE_CHECKING:
     from ...transport.config import TransportConfig
-    from .controller import MonitorController
 
 # A transport-specific "connect to this candidate, return the ready client".
 ConnectFn = Callable[["TransportConfig"], Awaitable[Any]]
@@ -43,12 +44,36 @@ NoticeFn = Callable[[str], None]
 StopFn = Callable[[], bool]
 
 
+class ReconnectActuation(Protocol):
+    """The part of a session's actuators that a reconnect restores."""
+
+    async def after_reconnect(self) -> None: ...
+
+
+class ReconnectTarget(Protocol):
+    """What a reconnector uses on the session it re-homes, and nothing more.
+
+    The monitor's controller and a memory image run's ``Link`` both satisfy it, so ty
+    checks each of them against this list: an attribute the reconnector starts to use must
+    be added here, and every session it re-homes must then provide it.
+    """
+
+    async def close_client(self) -> None: ...
+
+    def rebind(self, client: Any, /) -> None: ...
+
+    async def setup(self, session_steps: list[dict] | None, /) -> None: ...
+
+    @property
+    def actuation(self) -> ReconnectActuation | None: ...
+
+
 class Reconnector(Protocol):
-    """Callable that re-homes a dropped monitor session; returns True if resumed."""
+    """Callable that re-homes a dropped session; returns True if resumed."""
 
     async def __call__(
         self,
-        controller: MonitorController,
+        controller: ReconnectTarget,
         session_steps: list[dict] | None,
         *,
         stop: StopFn | None = None,
@@ -127,7 +152,7 @@ class MonitorReconnector:
 
     async def __call__(
         self,
-        controller: MonitorController,
+        controller: ReconnectTarget,
         session_steps: list[dict] | None,
         *,
         stop: StopFn | None = None,

@@ -163,7 +163,9 @@ async def connect_elm_terminal(transport, pids_data: dict, conn: ConnectionOptio
         raise
 
 
-def build_elm_reconnector(candidates, pids_data: dict, conn: ConnectionOptions):
+def build_elm_reconnector(
+    candidates, pids_data: dict, conn: ConnectionOptions
+) -> MonitorReconnector:
     """A :class:`MonitorReconnector` that re-homes to a reachable ELM device.
 
     ``candidates`` is the resolved transport list, restricted here to the ELM
