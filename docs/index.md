@@ -98,8 +98,6 @@ canair helps you capture, decode, correlate and document this data. The result i
   </div>
 </div>
 
-![canair analysis commands and the interactive decode --plot signal explorer in action](screenshots/tour.gif)
-
 ## Where do I start?
 
 Answer these questions in order. Take the first path that fits.

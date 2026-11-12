@@ -114,6 +114,12 @@ shots:
     args: [--size, 120x34, --keys, "ctrl+p,r,e,c"]
     caption: "canair monitor — the command palette (ctrl+p) finds a command by name"
 
+  - id: monitor-actuators
+    kind: tui
+    script: scripts/gen/monitor_demo.py
+    args: [--size, 120x40, --actuate, IGPM, --keys, "A,down,down"]
+    caption: "canair monitor --actuate IGPM — the actuator pane under the values (nothing switched)"
+
   - id: monitor-phone
     kind: tui
     script: scripts/gen/monitor_demo.py

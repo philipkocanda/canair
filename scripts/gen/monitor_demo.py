@@ -118,13 +118,20 @@ def _tx_to_rx(pids_data: dict) -> dict[int, int]:
 
 
 async def build_controller(
-    workdir: Path, query: str = QUERY, label: str = LABEL, *, rows: int | None = None
+    workdir: Path,
+    query: str = QUERY,
+    label: str = LABEL,
+    *,
+    rows: int | None = None,
+    actuate: tuple[str, ...] = (),
 ) -> MonitorController:
     """The production controller over the replay terminal, on a scratch profile in ``workdir``.
 
     ``query`` is what ``canair monitor`` would take (the PIDs must be in the recorded session).
     ``rows`` keeps that many payloads per PID on screen (``--keep N``); the newest is compared
     with the one before it, so its changed bytes light up. None keeps the monitor's default.
+    ``actuate`` names the ECUs whose actuator pane the run offers (``--actuate``). The replay
+    terminal answers no actuation request, so a key that would switch an output only fails.
     """
     bundled = _bundled_profile()
     profile = _scratch_profile(bundled, workdir)
@@ -139,6 +146,7 @@ async def build_controller(
         vehicle_states=STATES,
         keep_mode="changes" if rows is None else "last",
         keep_n=rows,
+        actuate=actuate,
     )
     controller = MonitorController(terminal, options, pids_data, profile=profile)
     controller.transport_type = "replay"
@@ -163,7 +171,9 @@ async def _svg(controller, out: Path, size: tuple[int, int], keys: list[str], wa
 
 async def main_async(args) -> int:
     with tempfile.TemporaryDirectory(prefix="canair-demo-") as tmp:
-        controller = await build_controller(Path(tmp), args.query, args.label, rows=args.rows)
+        controller = await build_controller(
+            Path(tmp), args.query, args.label, rows=args.rows, actuate=tuple(args.actuate)
+        )
         try:
             if args.check:
                 for _ in range(3):
@@ -190,6 +200,9 @@ def main() -> int:
     parser.add_argument("--query", default=QUERY, help="what to poll, as canair monitor takes it")
     parser.add_argument("--label", default=LABEL, help="the recording's label (the menu bar title)")
     parser.add_argument("--rows", type=int, help="payloads kept on screen per PID (--keep N)")
+    parser.add_argument(
+        "--actuate", action="append", default=[], help="offer this ECU's actuator pane (repeatable)"
+    )
     return asyncio.run(main_async(parser.parse_args()))
 
 

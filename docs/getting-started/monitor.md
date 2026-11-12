@@ -192,9 +192,17 @@ for example `(stale 12s)`.
 ### Switch outputs
 
 With **`--actuate ECU`**, the monitor can switch the IOControl outputs and start the routines of
-that ECU while it keeps polling. **`A`** shows the actuator pane and the **Actuators** menu, and
-`tab` moves between the values and the pane. Every output that the run switched on shows in the
-car zone, and the monitor releases them when it exits. Read [Safety](../concepts/safety.md) first.
+that ECU while it keeps polling. **`A`** shows the actuator pane, and `tab` moves between the
+values and the pane. The pane lists each output and routine with its state, the readback signal
+that shows its effect, and the last reply of the ECU. On a terminal of 160 columns or more it sits
+beside the values; otherwise it sits below them:
+
+![canair monitor --actuate IGPM — the actuator pane under the values](../screenshots/monitor-actuators.svg)
+
+With a row selected, **`enter`** switches the output on or off, **`O`** hands it back to the ECU,
+**`w`** sends a value, and **`!`** and **`S`** start and stop a routine. The **Actuators** menu has
+the same commands. Every output that the run switched on shows in the car zone (`⚠ 1 ON`), and
+the monitor releases them when it exits. Read [Safety](../concepts/safety.md) first.
 
 ## On a phone
 

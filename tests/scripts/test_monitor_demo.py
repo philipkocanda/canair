@@ -41,3 +41,17 @@ def test_the_replay_moves_the_values_and_stays_out_of_the_repo(demo, tmp_path):
     # The definitions, the captures and the journal are all in the scratch copy.
     assert Path(controller.profile.root).is_relative_to(tmp_path)
     assert Path(controller.captures_dir).is_relative_to(tmp_path)
+
+
+def test_the_actuator_pane_is_offered_without_switching_anything(demo, tmp_path):
+    """--actuate builds the pane's rows from the profile; the replay sends nothing to switch."""
+
+    async def run():
+        controller = await demo.build_controller(tmp_path, actuate=("IGPM",))
+        await controller.poll_once()
+        return controller
+
+    controller = asyncio.run(run())
+    assert controller.actuation is not None and controller.actuation.actuators()
+    assert controller.actuation.on_count() == 0
+    assert not any(req.startswith("2F") for req in controller.terminal.sent)
