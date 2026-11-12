@@ -14,7 +14,7 @@ and (for captures) ``session_label`` keys, so any capture-shaped dict works.
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -173,6 +173,54 @@ def _parse_time(raw: str) -> time | None:
     return None
 
 
+def _session_key(entry: Mapping[str, Any]) -> tuple[str, int]:
+    """The recorded session an entry belongs to.
+
+    Keyed by full path: a layered profile's base and overlay share date file names, and a
+    bare name would fold their sessions together.
+    """
+    return (entry.get("_path") or entry.get("file", ""), entry.get("_session_idx", 0))
+
+
+def session_anchors(entries: Sequence[Mapping[str, Any]]) -> dict[tuple[str, int], datetime]:
+    """Where each session sits on the timeline, to place the captures that have no time.
+
+    A session with timed captures starts at its earliest one. A session with none (a scan,
+    an identity read, an import) is placed just after everything recorded before it in the
+    same file, because a day's sessions are appended in the order they were recorded; the
+    first session of a file with no earlier timed one starts at midnight. Sessions without a
+    usable date have no place and are left out.
+    """
+    first: dict[tuple[str, int], datetime] = {}
+    last: dict[tuple[str, int], datetime] = {}
+    day: dict[tuple[str, int], date] = {}
+    for e in entries:
+        key = _session_key(e)
+        d = entry_date(e)
+        if d is None:
+            continue
+        day.setdefault(key, d)
+        dt = entry_datetime(e)
+        if dt is not None:
+            first[key] = min(first.get(key, dt), dt)
+            last[key] = max(last.get(key, dt), dt)
+
+    anchors: dict[tuple[str, int], datetime] = {}
+    latest: dict[str, datetime] = {}
+    for key in sorted(day):
+        path = key[0]
+        if key in first:
+            anchors[key] = first[key]
+            latest[path] = max(latest.get(path, last[key]), last[key])
+        else:
+            after = latest.get(path)
+            anchors[key] = (
+                after + timedelta(microseconds=1) if after else _as_lower_datetime(day[key])
+            )
+            latest[path] = anchors[key]
+    return anchors
+
+
 def filter_by_date_range[Row: Mapping[str, Any]](
     entries: list[Row],
     since: date | datetime | None = None,
@@ -187,8 +235,9 @@ def filter_by_date_range[Row: Mapping[str, Any]](
     entries without a parseable date are dropped, but untimed captures within
     the day range (one-shot scan/identity reads) are kept — the original
     behavior. When **either** bound carries a time-of-day, comparison is
-    time-aware against each capture's ``date``+``time``: captures with no usable
-    timestamp cannot be placed on the timeline and are dropped.
+    time-aware against each capture's ``date``+``time``. A capture with no usable
+    timestamp is placed where its session starts (:func:`session_anchors`), so a session of
+    scan or import rows is kept or dropped as a whole, like a timed one.
     """
     if since is None and until is None:
         return entries
@@ -210,10 +259,15 @@ def filter_by_date_range[Row: Mapping[str, Any]](
     lo = _as_lower_datetime(since) if since is not None else None
     hi = _as_upper_datetime(until) if until is not None else None
     out = []
+    anchors: dict[tuple[str, int], datetime] | None = None
     for e in entries:
         dt = entry_datetime(e)
         if dt is None:
-            continue
+            if anchors is None:
+                anchors = session_anchors(entries)
+            dt = anchors.get(_session_key(e))
+            if dt is None:
+                continue
         if lo is not None and dt < lo:
             continue
         if hi is not None and dt > hi:
@@ -300,29 +354,14 @@ def _session_starts(
 ) -> list[datetime]:
     """Start instant of each recorded session in scope, chronological.
 
-    A session's start is the earliest capture timestamp in it (falling back to
-    start-of-day for a session with only untimed captures). Sessions with no
-    placeable timestamp are skipped, so they can't anchor a --last-sessions
-    window (consistent with time-aware date filtering dropping untimed data).
+    A session's start is where :func:`session_anchors` places it: its earliest capture
+    timestamp, or, for a session of untimed captures only, just after the session recorded
+    before it in the same file. Sessions with no usable date are skipped.
     """
     entries = load_all_captures(captures_dir, profile=profile)
     entries = filter_by_date_range(entries, since, until)
     entries = filter_by_text(entries, state=state, label=label, profile=profile)
-
-    # Keyed by full path: a layered profile's base and overlay share date file
-    # names, and a bare name would fold their sessions together.
-    starts: dict[tuple[str, int], datetime] = {}
-    for e in entries:
-        key = (e.get("_path") or e.get("file", ""), e.get("_session_idx", 0))
-        dt = entry_datetime(e)
-        if dt is None:
-            d = entry_date(e)
-            if d is None:
-                continue
-            dt = _as_lower_datetime(d)
-        if key not in starts or dt < starts[key]:
-            starts[key] = dt
-    return sorted(starts.values())
+    return sorted(session_anchors(entries).values())
 
 
 def resolve_scope_bounds(

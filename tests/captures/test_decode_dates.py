@@ -5,7 +5,13 @@ from datetime import date, datetime
 
 import pytest
 
-from canair.captures.dates import entry_date, entry_datetime, filter_by_date_range, filter_by_text
+from canair.captures.dates import (
+    entry_date,
+    entry_datetime,
+    filter_by_date_range,
+    filter_by_text,
+    session_anchors,
+)
 from canair.cli.args.scope import (
     parse_iso_date,
     parse_iso_datetime,
@@ -152,7 +158,7 @@ class TestFilterByDateRangeTimeAware:
 
     def test_until_datetime_inclusive(self):
         out = filter_by_date_range(self._entries(), until=datetime(2026, 7, 22, 12, 30))
-        assert [x["id"] for x in out] == [1, 2]
+        assert [x["id"] for x in out] == [1, 2, 4]  # 4 is untimed, placed at 08:00
 
     def test_datetime_window(self):
         out = filter_by_date_range(
@@ -162,9 +168,33 @@ class TestFilterByDateRangeTimeAware:
         )
         assert [x["id"] for x in out] == [2]
 
-    def test_untimed_dropped_in_time_aware_mode(self):
-        out = filter_by_date_range(self._entries(), since=datetime(2026, 7, 22, 0, 0))
-        assert all(x["id"] != 4 for x in out)
+    def test_untimed_capture_sits_where_its_session_starts(self):
+        # The untimed row shares its session with 08:00..18:15, so it sits at 08:00.
+        entries = self._entries()
+        kept = filter_by_date_range(entries, since=datetime(2026, 7, 22, 0, 0))
+        assert [x["id"] for x in kept] == [1, 2, 3, 4]
+        later = filter_by_date_range(entries, since=datetime(2026, 7, 22, 9, 0))
+        assert [x["id"] for x in later] == [2, 3]
+
+    def test_untimed_capture_without_a_date_is_dropped(self):
+        out = filter_by_date_range([{"id": 1}], since=datetime(2026, 7, 22, 0, 0))
+        assert out == []
+
+    def test_sessions_of_only_untimed_captures_are_ordered_by_position(self):
+        entries = [
+            {
+                "_path": "d.json",
+                "_session_idx": 0,
+                "date": "2026-07-22",
+                "time": "08:00:00",
+                "id": 1,
+            },
+            {"_path": "d.json", "_session_idx": 1, "date": "2026-07-22", "id": 2},
+            {"_path": "d.json", "_session_idx": 2, "date": "2026-07-22", "id": 3},
+        ]
+        anchors = session_anchors(entries)
+        assert anchors[("d.json", 0)] < anchors[("d.json", 1)] < anchors[("d.json", 2)]
+        assert anchors[("d.json", 1)] > datetime(2026, 7, 22, 8, 0, 0)
 
     def test_microsecond_precision(self):
         entries = [
@@ -181,7 +211,7 @@ class TestFilterByDateRangeTimeAware:
             since=date(2026, 7, 22),
             until=datetime(2026, 7, 22, 12, 30),
         )
-        assert [x["id"] for x in out] == [1, 2]
+        assert [x["id"] for x in out] == [1, 2, 4]
 
 
 class TestResolveDateBoundsTimestamps:
@@ -266,6 +296,49 @@ class TestResolveScopeBounds:
         # Last 2 sessions -> cutoff at the earlier session's start.
         since2, _, _ = resolve_scope_bounds(self._args(last_sessions=2))
         assert since2 == datetime(2026, 7, 20, 8, 0, 0)
+
+    @staticmethod
+    def _store(monkeypatch, entries):
+        monkeypatch.setattr("canair.captures.dates.load_all_captures", lambda *a, **k: entries)
+
+    @staticmethod
+    def _last(args, entries):
+        since, until, err = resolve_scope_bounds(args)
+        assert err is None
+        return [e["id"] for e in filter_by_date_range(entries, since, until)]
+
+    def test_last_session_keeps_every_capture_of_a_session_with_an_untimed_one(self, monkeypatch):
+        entries = [
+            {"_path": "d", "_session_idx": 0, "date": "2026-07-22", "time": "08:00:00", "id": 1},
+            {"_path": "d", "_session_idx": 1, "date": "2026-07-22", "time": "10:00:00", "id": 2},
+            {"_path": "d", "_session_idx": 1, "date": "2026-07-22", "id": 3},
+            {"_path": "d", "_session_idx": 1, "date": "2026-07-22", "time": "10:05:00", "id": 4},
+        ]
+        self._store(monkeypatch, entries)
+        assert self._last(self._args(last_sessions=1), entries) == [2, 3, 4]
+
+    def test_last_session_of_only_untimed_captures_returns_them(self, monkeypatch):
+        entries = [
+            {"_path": "d", "_session_idx": 0, "date": "2026-07-22", "time": "08:00:00", "id": 1},
+            {"_path": "d", "_session_idx": 1, "date": "2026-07-22", "id": 2},
+            {"_path": "d", "_session_idx": 1, "date": "2026-07-22", "id": 3},
+        ]
+        self._store(monkeypatch, entries)
+        assert self._last(self._args(last_sessions=1), entries) == [2, 3]
+        assert self._last(self._args(last_sessions=2), entries) == [1, 2, 3]
+
+    def test_last_session_among_untimed_sessions_of_one_day_is_the_last_recorded(self, monkeypatch):
+        entries = [
+            {"_path": "d", "_session_idx": 0, "date": "2026-07-22", "id": 1},
+            {"_path": "d", "_session_idx": 1, "date": "2026-07-22", "id": 2},
+        ]
+        self._store(monkeypatch, entries)
+        assert self._last(self._args(last_sessions=1), entries) == [2]
+
+    def test_last_sessions_below_one_is_an_error(self):
+        for n in (0, -1):
+            _since, _until, err = resolve_scope_bounds(self._args(last_sessions=n))
+            assert err is not None
 
     def test_last_sessions_more_than_available(self, monkeypatch):
         entries = [
