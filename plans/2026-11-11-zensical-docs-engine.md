@@ -1,9 +1,9 @@
 # Move the docs site from MkDocs Material to Zensical
 
-Status: **IN PROGRESS**. Phases 1 to 3 are done. Phase 4, the check of the first live deploy,
-is open. The findings below come from trial builds in a throwaway copy of `docs/`,
-`mkdocs.yml` and `scripts/` (Zensical 0.1.1, Python 3.15.2, macOS). "Results of phase 2" near
-the end lists what the real build showed. Nothing ran on CI's Linux runner.
+Status: **DONE** (2026-11-12). All four phases are in `main`. The findings below come from
+trial builds in a throwaway copy of `docs/`, `mkdocs.yml` and `scripts/` (Zensical 0.1.1,
+Python 3.15.2, macOS). "Results of phase 2" and "Results of phase 4" near the end list what the
+real builds showed.
 
 Paths are relative to the repo root. Point at code by file and symbol: line numbers drift.
 
@@ -191,8 +191,10 @@ Each phase is a separate commit on `main`. Commit type is `build(docs)` or `docs
 3. **Clean up the words. Done.** The pages, docstrings and comments name the new setup, and the
    "Toolchain" section of `plans/2026-07-24-documentation-strategy.md` records that its
    "do not migrate" decision is superseded.
-4. **Post-merge check.** Watch the first `docs.yml` run on `main`. Open the live site and
-   run the checklist below. Set this plan's status to DONE with the date.
+   A later docs change made the landing page the overview of the Getting started section
+   (`navigation.indexes`) and removed the separate Home tab.
+4. **Post-merge check. Done.** The first `docs.yml` run on `main` deployed the site, and the
+   checklist below was run against the live site.
 
 ## Verification checklist
 
@@ -255,11 +257,29 @@ Measured on macOS with `make docs` (Zensical 0.1.1):
 - In headless Chrome (dark scheme): the Pele diagram on `concepts/architecture` mounts, the
   explorer loads its data and draws the bus view, and a tour page renders.
 
-Not checked: search, the palette toggle, instant navigation across pages, light mode, the
-explorer's session plots, and a build on CI's Linux runner.
+## Results of phase 4
 
-## Open questions
+Run against https://philipkocanda.github.io/canair/ with headless Chrome (puppeteer-core), and
+against `zensical serve` on macOS. CI's Docs workflow and the `docs build` step of the CI job
+both ran green on the Linux runner.
 
-- Does `zensical serve` rebuild when the data step rewrites files under `docs/` while it
-  runs? Not tested. Until then, `make docs-serve` generates the files once at start, and the
-  comment in `mkdocs.yml` says that a restart refreshes them.
+- The live site names `zensical-0.1.1` as its generator. The profiles index, the tour pages,
+  `assets/explorer/data/index.json`, `schema/profile.json` and `search.json` all return 200.
+- No console error, failed request or HTTP error status on the pages visited.
+- The tab bar reads Getting started, Bring your own car, Concepts, Bundled profiles, Reference,
+  Contributing.
+- Search finds the generated count rows: "Classic Ioniq" gives 5 results, led by the At a glance
+  section of the Ioniq Electric page.
+- The palette toggle switches `default` to `slate`.
+- Instant navigation keeps the page's JavaScript state, and the Pele diagram on
+  `concepts/architecture` mounts after an instant navigation.
+- The explorer loads the bus view (31 ECU elements) and a session plot URL draws uPlot charts.
+- `zensical serve` rebuilds when a file under `docs/` changes, including the generated data
+  files. The data step still has to run once before `serve` starts.
+
+One visual difference: the classic variant sets a larger root font size than Material 9, so
+`rem` is 22 px. At a 1800 px window, `.md-grid` (76 rem in `layout.css`) is 1672 px wide where
+it was 1520 px, and the prose column (43 rem) is 946 px. This was not changed.
+
+Not checked: the light palette on every page, the explorer's data view in depth, and tooltips on
+abbreviations.
