@@ -23,9 +23,8 @@ from canair.render.formatting import (
     changed_param_highlights,
     render_byte_rulers,
     render_hex_line,
-    render_param_ranges,
-    render_param_table,
 )
+from canair.render.signal_table import render_param_ranges, render_param_table
 from canair.uds.layout import subfunction_bytes_for_pid
 
 from .history import HistoryRun, PayloadHistory

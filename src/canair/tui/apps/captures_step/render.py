@@ -24,13 +24,9 @@ from canair.captures.store import NO_DEFS, PidDefs
 from canair.captures.types import CaptureEntry
 from canair.expression.decoding import decode_param_rows
 from canair.expression.notation import ByteDisplay, ByteNotation
-from canair.render.formatting import (
-    changed_param_highlights,
-    render_byte_rulers,
-    render_hex_line,
-    render_param_table,
-)
+from canair.render.formatting import changed_param_highlights, render_byte_rulers, render_hex_line
 from canair.render.glyphs import CURSOR, WARN
+from canair.render.signal_table import render_param_table
 from canair.states.tokens import join_states as _join_states
 from canair.tui import styles
 from canair.uds.layout import subfunction_bytes_for_pid

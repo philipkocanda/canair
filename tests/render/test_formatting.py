@@ -13,8 +13,8 @@ from canair.render.formatting import (
     param_byte_indices,
     print_hexdump,
     render_byte_rulers,
-    render_param_table,
 )
+from canair.render.signal_table import render_param_table
 
 
 def _display(payload_len: int, notation: ByteNotation = ByteNotation.WICAN, sub_bytes: int = 1):
@@ -340,7 +340,7 @@ class TestSignalMarks:
     ]
 
     def test_print_decoded_params_uses_the_table_marks(self, capsys):
-        from canair.render.formatting import print_decoded_params
+        from canair.render.signal_table import print_decoded_params
 
         print_decoded_params(self.ROWS)
         lines = capsys.readouterr().out.splitlines()
@@ -354,7 +354,7 @@ class TestSignalMarks:
         assert "✓" in text and "?" in text and "✗ division by zero" in text
 
     def test_a_pid_header_is_cyan_like_every_other_typeable_name(self, monkeypatch, capsys):
-        from canair.render.formatting import print_ecu_results
+        from canair.render.signal_table import print_ecu_results
 
         monkeypatch.setenv("FORCE_COLOR", "1")
         monkeypatch.delenv("NO_COLOR", raising=False)

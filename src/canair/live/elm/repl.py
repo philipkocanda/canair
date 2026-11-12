@@ -7,7 +7,8 @@ from canair.ecus.pids import build_ecu_index
 from canair.expression.decoding import decode_param_rows
 from canair.profile.model import Profile
 from canair.render import messages
-from canair.render.formatting import print_decoded_params, print_hexdump
+from canair.render.formatting import print_hexdump
+from canair.render.signal_table import print_decoded_params
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.elm327.wican import WiCANTerminal, reboot_wican
 from canair.uds.parse import parse_uds_response

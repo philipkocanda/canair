@@ -16,7 +16,8 @@ from canair.expression.decoding import decode_param_rows
 from canair.expression.notation import ByteDisplay, ByteNotation
 from canair.render.console import console as make_console
 from canair.render.console import escape
-from canair.render.formatting import render_byte_rulers, render_hex_line, render_param_table
+from canair.render.formatting import render_byte_rulers, render_hex_line
+from canair.render.signal_table import render_param_table
 from canair.uds.layout import subfunction_bytes_for_pid
 
 from .query import _dump_json, _gather_query

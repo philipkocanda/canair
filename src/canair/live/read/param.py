@@ -7,7 +7,7 @@ from canair.ecus.wake import wake_plan_for
 from canair.expression.decoding import decode_param_rows
 from canair.privacy.sensitive import mask_rows
 from canair.render import messages
-from canair.render.formatting import print_decoded_params
+from canair.render.signal_table import print_decoded_params
 from canair.transport.session_manager import SessionManager
 from canair.uds.echo import request_echo
 

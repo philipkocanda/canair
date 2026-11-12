@@ -29,7 +29,7 @@ from canair.expression.decode_value import (
 from canair.uds.byteindex import extract_bit_indices, extract_byte_indices
 from canair.uds.wican_layout import uds_hex_to_wican_bytes
 
-# A decoded signal row, as consumed by ``formatting.render_param_table`` and
+# A decoded signal row, as consumed by ``signal_table.render_param_table`` and
 # ``formatting._build_byte_colors`` / ``render_hex_line``:
 #   (name, value, unit, expression, error, verified, display)
 # ``value`` is None when the expression errored (``error`` holds the message).

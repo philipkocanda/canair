@@ -21,7 +21,8 @@ from canair.profile.model import Profile
 from canair.query import QueryError, inferred_request, pids_named_by
 from canair.query.steps import parse_raw_spec, resolve_tx_id
 from canair.render import messages
-from canair.render.formatting import print_ecu_results, print_hexdump
+from canair.render.formatting import print_hexdump
+from canair.render.signal_table import print_ecu_results
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.session_manager import (
     DEFAULT_SESSION_MODE,

@@ -54,7 +54,7 @@ from canair.query.steps import (
     resolve_tx_id,
     selector_text,
 )
-from canair.render.formatting import print_ecu_results
+from canair.render.signal_table import print_ecu_results
 from canair.safety.quirks import SKM_WAKEUP, has_quirk
 from canair.transport.session_manager import SessionManager
 from canair.transport.stats import client_transport

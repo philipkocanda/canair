@@ -2,11 +2,11 @@
 
 Covers :class:`canair.live.monitor.stats.ParamStats` (numeric min/max, distinct
 non-numeric labels, bool-as-flag handling, overflow) and the
-:func:`canair.render.formatting.render_param_ranges` renderer that presents it.
+:func:`canair.render.signal_table.render_param_ranges` renderer that presents it.
 """
 
 from canair.live.monitor.stats import ParamStats
-from canair.render.formatting import render_param_ranges
+from canair.render.signal_table import render_param_ranges
 
 
 def _row(name, value, unit="", verified=True):
