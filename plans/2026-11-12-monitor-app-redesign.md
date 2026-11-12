@@ -29,7 +29,24 @@ uv run python scripts/prototypes/monitor_redesign/run.py --shots   # regenerate 
   a "not wired" message.
 - `ctrl+b` puts the session into trouble (frames lost, an output left on, polling paused, an error
   message). `ctrl+t` switches between the terminal palette (`ansi-dark`) and Textual's own theme.
-- Resize the terminal below 72 columns to see the narrow layout. The shots use 120×34 and 46×26.
+- Resize the terminal below 72 columns to see the narrow layout. The shots use 120×34 and 45×22,
+  the phone target (see below).
+
+## The phone target
+
+The narrow layout is designed for an iPhone 16 Pro in portrait in an SSH client such as Termius,
+with the on-screen keyboard up: about **45 columns by 22 rows**. The shots use 45×22.
+
+- **Columns:** the screen is 402 points wide. A monospaced glyph is about 0.6 em wide, so a 12 to
+  14 point font gives 7.2 to 8.4 points per column: 46 to 53 columns after the side margins. A
+  published estimate for phones in portrait at a readable size is 45 to 55 columns
+  ([TermAI](https://termai.sh/blog/mobile-terminal-fonts-glyphs)). 45 is the low end.
+- **Rows:** the monitor's commands are single keys, so the keyboard is usually up. Of 874 points of
+  height, the keyboard, the client's key row and toolbar, and the system bars leave about 400, which
+  is 22 to 28 rows at 1.2 times the font size. With the keyboard down there are about 40 rows.
+- **Landscape** gives about 100 columns but under 12 rows with the keyboard up, so it is not a
+  target.
+- These are estimates. `stty size` in the SSH client on the phone gives the real numbers.
 
 ## What today's screen does, and the problems found
 
@@ -53,7 +70,7 @@ Problems found while building the mockups, independent of the direction chosen:
 5. **Duplicated text.** The header and status line 2 both show the picker hint. The body's first
    line (`Monitor — cycle N (last …, interval …)`) repeats the status bar.
 6. **The values table wraps on a narrow terminal.** `render_param_table` pads each column to its
-   widest cell, so at 46 columns every signal takes two lines. The mockups use a compact table below
+   widest cell, so at 45 columns every signal takes two lines. The mockups use a compact table below
    96 columns: the name gives way (`…`), the value and the verified mark stay on the line
    (`fake.py::render_compact`).
 7. **The profile and the device are not shown.** A user with two cars or two dongles cannot see
@@ -98,8 +115,8 @@ A menu bar, a toolbar, a status bar of fixed zones, and a message line.
 - **Status bar:** the four zones separated by `│`, the car zone pinned right. **Message line** below
   it: the last message, or the selected signal (`▶ BMS 2101 SOC_BMS · 85.5 % · ✓ verified · B09/2`)
   when there is none.
-- **Narrow:** the toolbar goes, the menu titles shorten (`Rec Poll View Sig Act Help`), the zones
-  take two lines.
+- **Narrow:** the toolbar goes, the menu titles shorten as needed (see D), the zones take two
+  lines.
 
 For: the most discoverable. A newcomer can find every command without `?`, by keyboard or mouse,
 and learns its key on the way. The toolbar makes the current modes visible.
@@ -141,7 +158,7 @@ costs little: Textual provides it, and the other canair TUIs could share the pro
 
 Against: a command is only found if the user knows to press `ctrl+p` and can guess a word for
 it. No mouse route. A toast covers values for a few seconds, and on a phone it covers half the
-screen. At 46 columns in trouble the pills alone fill the status line, so `● REC` and the vehicle
+screen. At 45 columns in trouble the pills alone fill the status line, so `● REC` and the vehicle
 state drop off.
 
 ## Direction C — Workbench
@@ -224,6 +241,23 @@ toolbar and B's toasts are dropped. Three rows of chrome, as today.
 - **Messages:** on the bottom line, with the severity glyph, never over a value. An error stays
   until the next key. Every message also goes to the event log (`E`, or a click on the link zone).
 
+**The menu bar on a small screen**
+
+The menu bar never drops a title. It steps down instead, to the widest form that fits:
+
+1. full titles with the `canair` name and the recording title;
+2. full titles only: `Record Poll View Signal Actuators Help` (45 columns, the phone target);
+3. full titles packed closer (39 columns);
+4. short titles: `Rec Poll View Sig Act Help` (27 columns);
+5. one letter each: `R P V S A H` (12 columns).
+
+A dropdown stays inside the screen. On a screen narrower than the menu, a label gives way (`…`)
+but its key does not, and the dropdown's border names the open menu.
+
+![D, a menu on the phone](../scripts/prototypes/monitor_redesign/shots/d-combined-narrow-menu.png)
+
+At 45 columns the recording title has no room on the menu bar. It is in recording info (`i`).
+
 **Priorities on a narrow line**
 
 - Status: an output that is on outranks every other fact, then a link fault and `PAUSED`, then
@@ -237,7 +271,7 @@ toolbar and B's toasts are dropped. Three rows of chrome, as today.
 |---|---|---|---|---|---|
 | Value rows at 120×34 | 31 | 29 | 31 | 28 (56 columns wide) | 31 |
 | Value rows at 80×24 | 21 | 19 | 21 | 18 | 21 |
-| Value rows at 46×26 | 23 | 21 | 23 | 19 | 22 |
+| Value rows at 45×22 (phone) | 19 | 17 | 19 | 15 | 18 |
 | Find a command without `?` | hint line | menus, toolbar | palette (needs a word) | key bar, `F9` menus | menus, palette |
 | Mouse | no | menus, toolbar | no | key bar, panes, tree | menus, status zones |
 | Shows the current modes | hint line items | toolbar | palette entries | key bar, inspector | menus, bottom line |

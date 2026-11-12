@@ -162,14 +162,21 @@ class ValuesView(VerticalScroll):
 
 # -- menus ------------------------------------------------------------------------------
 def menu_prompt(m: FakeMonitor, cmd: Command, width: int) -> Text:
-    """One dropdown row: ``[x]``/``(•)`` for state, the label, the key right-aligned."""
+    """One dropdown row: ``[x]``/``(•)`` for state, the label, the key right-aligned.
+
+    On a screen narrower than the menu the label gives way (``…``), never the key.
+    """
     on = state(m, cmd)
     mark = {"toggle": "[x] " if on else "[ ] ", "choice": "(•) " if on else "( ) "}.get(
         cmd.kind, "    "
     )
-    text = Text(mark, style="bold" if on else "dim")
-    text.append(cmd.label)
     key = cmd.key_label
+    label = cmd.label
+    room = width - len(mark) - len(key) - 2
+    if len(label) > room:
+        label = label[: max(1, room - 1)] + "…"
+    text = Text(mark, style="bold" if on else "dim")
+    text.append(label)
     text.append(" " * max(2, width - text.cell_len - len(key)))
     text.append(key, style="dim")
     return text
@@ -232,18 +239,24 @@ class MenuScreen(ModalScreen[tuple[str, str] | None]):
                     markup += f" [u]{name[0]}[/u]{name[1:]} "
                 col += len(title)
             yield Static(markup, id="menu-bar")
-        width = menu_width(self.items)
+        # The border and padding take 4 columns; the dropdown never runs off the screen.
+        self.width = min(menu_width(self.items), self.app.size.width - 4)
         options = [
             None
             if c is None
-            else Option(menu_prompt(self.m, c, width), id=c.id, disabled=not enabled(self.m, c))
+            else Option(
+                menu_prompt(self.m, c, self.width), id=c.id, disabled=not enabled(self.m, c)
+            )
             for c in self.items
         ]
         yield OptionList(*options)
 
     def on_mount(self) -> None:
         menu = self.query_one(OptionList)
-        menu.styles.offset = (self.x, self.y)
+        x = max(0, min(self.x, self.app.size.width - (self.width + 4)))
+        menu.styles.offset = (x, self.y)
+        # A one-letter menu bar (a very small screen) still says which menu is open.
+        menu.border_title = self.menu
         menu.focus()
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
@@ -264,7 +277,7 @@ class MenuScreen(ModalScreen[tuple[str, str] | None]):
 
 
 class MenuTitle(Static):
-    """A clickable menu title in a menu bar."""
+    """A clickable menu title in a menu bar. :func:`fit_menu_bar` picks the form it shows."""
 
     DEFAULT_CSS = (
         "MenuTitle { width: auto; padding: 0 1; } MenuTitle:hover { text-style: reverse; }"
@@ -278,9 +291,41 @@ class MenuTitle(Static):
     def on_click(self) -> None:
         self.app.open_menu(self.menu)  # type: ignore[attr-defined]
 
-    def set_short(self, short: bool) -> None:
-        label = self.short if short else self.menu
+    def label(self, form: str) -> str:
+        return {"full": self.menu, "short": self.short, "letter": self.menu[0]}[form]
+
+    def show_form(self, form: str, pad: int) -> None:
+        label = self.label(form)
+        self.styles.padding = (0, 1, 0, 1) if pad == 2 else (0, 0, 0, 1)
         self.update(f"[u]{label[0]}[/]{escape(label[1:])}")
+
+
+#: The forms a menu bar steps down through as the terminal narrows: (title form, padding per
+#: title, whether the "canair" brand shows). The last one, one letter per menu, needs 12 columns.
+MENU_BAR_FORMS = (
+    ("full", 2, True),
+    ("full", 2, False),
+    ("full", 1, False),
+    ("short", 1, False),
+    ("letter", 1, False),
+)
+BRAND_WIDTH = 8
+
+
+def fit_menu_bar(titles: list[MenuTitle], width: int, *, room: int = 0) -> bool:
+    """Show every title in the widest form that fits ``width``; return whether the brand shows.
+
+    The menu bar never drops a title: it shortens them (``Record`` → ``Rec`` → ``R``) instead, so
+    every menu stays one click or one ``alt+letter`` away on any screen. ``room`` is the width
+    the caller wants left over for its own text before it gives up the brand.
+    """
+    for form, pad, brand in MENU_BAR_FORMS:
+        needed = sum(len(t.label(form)) + pad for t in titles) + (BRAND_WIDTH + room) * brand
+        if needed <= width:
+            break
+    for title in titles:
+        title.show_form(form, pad)
+    return brand
 
 
 # -- the app shell ----------------------------------------------------------------------

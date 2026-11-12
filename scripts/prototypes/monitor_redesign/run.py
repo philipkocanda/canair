@@ -36,7 +36,8 @@ APPS = {
 }
 
 WIDE = (120, 34)
-NARROW = (46, 26)
+#: An iPhone 16 Pro in portrait with the keyboard up (see the plan, "The phone target").
+NARROW = (45, 22)
 
 #: (file stem, app, size, keys to press before the shot). ``@trouble`` puts the session in a
 #: bad way: frames lost, an output left on, polling paused. ``@clear`` drops the message.
@@ -63,6 +64,7 @@ SHOTS = [
     ("d-combined-trouble", "combined", WIDE, ["@trouble"]),
     ("d-combined-narrow", "combined", NARROW, ["down"]),
     ("d-combined-narrow-trouble", "combined", NARROW, ["@trouble"]),
+    ("d-combined-narrow-menu", "combined", NARROW, ["down", "f10", "right"]),
 ]
 
 

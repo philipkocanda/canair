@@ -30,6 +30,7 @@ from chrome import (
     ValuesView,
     car_parts,
     fit,
+    fit_menu_bar,
     flash_markup,
     link_parts,
     poll_parts,
@@ -122,8 +123,6 @@ class DesktopApp(MockupApp):
     #status { height: auto; padding: 0 1; border-top: solid $primary; }
     #message { height: 1; padding: 0 1; text-wrap: nowrap; text-overflow: ellipsis; }
     .-narrow #toolbar { display: none; }
-    .-narrow #brand { display: none; }
-    .-narrow #menubar MenuTitle { padding: 0 0 0 1; }
     """
 
     BINDINGS: ClassVar[list[BindingType]] = [
@@ -156,8 +155,9 @@ class DesktopApp(MockupApp):
             return
         m = self.m
         self.base.query_one(ValuesView).show(m)
-        for title in self.base.query(MenuTitle):
-            title.set_short(self.narrow)
+        titles = list(self.base.query(MenuTitle))
+        self.base.query_one("#brand").display = fit_menu_bar(titles, self.size.width, room=24)
+        for title in titles:
             title.set_class(title.menu == self.menu_open, "-open")
         states = f" [dim]·[/] {', '.join(m.states)}" if m.states else ""
         self.base.query_one("#doc", Static).update(f"[b]{escape(m.label)}[/]{states}")
