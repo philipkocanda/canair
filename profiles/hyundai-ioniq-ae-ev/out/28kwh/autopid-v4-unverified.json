@@ -563,7 +563,7 @@
         "VCU_IGNITION_INPUT": "B23:2",
         "VCU_POWER_STATE": "B25",
         "VCU_SUPPLY_VOLTAGE": "((B22<<8)|B21)/2072",
-        "VCU_SBW_SWITCH_PWM_CODE": "(B23>>3)&15",
+        "VCU_SBW_SWITCH_PWM_CODE": "B23:3+B23:4*2+B23:5*4+B23:6*8",
         "GEAR_SIGNAL_VALID": "B10:5",
         "VCU_APS2_VOLTAGE": "((B15<<8)|B14)/2048",
         "VCU_IGN_ON": "B11:0|B11:1",

@@ -2513,9 +2513,9 @@ acts as an N press from P. They answer NRC `0x78` and end after 400 cycles (prob
   and 0 with the ignition off, apart from one row of 2. The car has P, R, N and D push buttons, not
   a lever, and **which code means which button was not established**. Code 6 is probably "no
   button pressed", which is a guess. The profile defines it as `VCU_SBW_SWITCH_PWM_CODE` (`B23`
-  bits 3-6 as one enum, expression `(B23>>3)&15`, values 0 = no signal, 6 = idle, probable). It
-  replaces four single-bit signals; `coverage` cannot see a masked expression, so it no longer
-  tracks `B23` bits 3-6 individually.
+  bits 3-6 as one enum, expression `B23:3+B23:4*2+B23:5*4+B23:6*8`, values 0 = no signal, 6 =
+  idle, probable). It replaces four single-bit signals. The expression sums single-bit reads
+  instead of a mask, so `coverage` still tracks `B23` bits 3-6 individually.
 - **DIO 21, 22:** a complementary pair driven by the shifter module (`0x1A9xxx`), probably two of
   the SCU-side outputs on the wiring manual (back-up lamp relay control, IPS control). Which is
   which is open. **DIO 28** follows "ignition input on". "Channel `0x17`" has no direct caller

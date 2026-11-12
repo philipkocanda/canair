@@ -67,17 +67,17 @@ VCU:
       notes: >-
         Stops updating while VCU_IG3_ON (B11:4) is 0. Firmware (producer FUN_001F46C0,
         r13=0x400063E4): B4-B8 are a header written at read time by FUN_00204480, so B9 is a
-        constant 0x09 record-format byte, not a signal. B11:5 and B26:7 are never written by the
-        producer, so they are unused rather than undecoded. B10 bit 4 is set when the gear state
-        reads 7, the shifter fault from a latched shift-by-wire (SBW) fault; not yet observed on
-        this car. The APS1 (B12/B13), APS2 (B14/B15), accelerator (B17/B18), speed (B19/B20) and 12
-        V supply (B21/B22) signals are each a 16-bit little-endian pair in the firmware, confirming
-        the width and byte order of the expressions here. B23 packs the regen paddles (bits 0-1),
-        the ignition input (bit 2) and the shift-lever code (bits 3-6, from the lever's PWM line).
-        B25 is written as a whole byte (VCU_POWER_STATE) and is valid only while VCU_IG3_ON is 1: it
-        keeps its last value for minutes after the fall. B26 copies the SBW link: the park request
-        to the SBW unit (bits 0-2, from 0x109), the SBW actuator state (bits 3-5) and bit 7 of 0x10C
-        byte 0 (bit 6).
+        constant 0x09 record-format byte, not a signal. B10:6-7, B11:5, B23:7 and B26:7 are never
+        written by the producer or by FUN_00204480, so they are unused rather than undecoded. B10
+        bit 4 is set when the gear state reads 7, the shifter fault from a latched shift-by-wire
+        (SBW) fault; not yet observed on this car. The APS1 (B12/B13), APS2 (B14/B15), accelerator
+        (B17/B18), speed (B19/B20) and 12 V supply (B21/B22) signals are each a 16-bit little-endian
+        pair in the firmware, confirming the width and byte order of the expressions here. B23 packs
+        the regen paddles (bits 0-1), the ignition input (bit 2) and the shift-lever code (bits 3-6,
+        from the lever's PWM line). B25 is written as a whole byte (VCU_POWER_STATE) and is valid
+        only while VCU_IG3_ON is 1: it keeps its last value for minutes after the fall. B26 copies
+        the SBW link: the park request to the SBW unit (bits 0-2, from 0x109), the SBW actuator
+        state (bits 3-5) and bit 7 of 0x10C byte 0 (bit 6).
       parameters:
         VCU_VEHICLE_SPEED:
           expression: ((S20*256)+B19)*1.609344/100
@@ -254,7 +254,7 @@ VCU:
             and ESC supply words; /2048 reads about 1.2 % high.
           unit: V
         VCU_SBW_SWITCH_PWM_CODE:
-          expression: (B23>>3)&15
+          expression: B23:3+B23:4*2+B23:5*4+B23:6*8
           source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.5, FUN_001A7AB4); canair bitfield analysis 2026-08-06
           verified: false
           notes: >-
@@ -262,10 +262,11 @@ VCU:
             pin 23, eMIOS 3), in 10 % duty steps: 7-13 % is 1, 17-23 % 2, 27-33 % 3, 37-43 % 4,
             47-53 % 6, 67-73 % 5, 87-93 % 7, other duty above 3 % 8, at or below 3 % 0. It is the
             gear logic's fallback when 0x354 is lost. The car has P, R, N and D push buttons, and
-            which code means which button is not established. Stored replies: 0 in 9202 rows, 6 in
-            4306 and 2 in one. Code 6 is probably no button pressed. It follows the ignition input
-            within a poll or two (bits 4 and 5 are set together), so it also behaves like an
-            ignition mirror. Bits 3 and 6 are never set.
+            which code means which button is not established. Stored replies: 0 in 9205 rows, 6 in
+            4498, 2 in two rows with GEAR neutral (2026-11-02, 2026-11-12), 4 in one row with GEAR
+            neutral and 1 in one row with GEAR drive (both 2026-11-12). Code 6 is probably no button
+            pressed. It follows the ignition input within a poll or two (bits 4 and 5 are set
+            together), so it also behaves like an ignition mirror. Bit 6 is never set.
           type: enum
           values:
             0: no_signal

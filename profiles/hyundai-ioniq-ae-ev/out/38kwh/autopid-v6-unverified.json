@@ -1792,7 +1792,7 @@
         },
         {
           "name": "VCU_SBW_SWITCH_PWM_CODE",
-          "expression": "(B23>>3)&15",
+          "expression": "B23:3+B23:4*2+B23:5*4+B23:6*8",
           "unit": "",
           "class": ""
         },
