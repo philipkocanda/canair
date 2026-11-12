@@ -134,11 +134,18 @@ def load_capture_file(path: Path) -> CaptureFile:
 
 
 def _load_capture_file(path: Path) -> CaptureFile:
-    text = path.read_text()
+    """Read and parse one capture file; every failure to do so names the file.
+
+    Raises :class:`~canair.captures.folding.CaptureFormatError` for text that is not UTF-8
+    JSON (an empty or truncated file, a byte-order mark) as well as for a malformed repeat
+    encoding, so a caller can tell the user which file to repair.
+    """
     try:
-        return parse_capture_text(text)
+        return parse_capture_text(path.read_text(encoding="utf-8"))
     except CaptureFormatError as e:
         raise CaptureFormatError(f"{path.name}: {e}") from e
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        raise CaptureFormatError(f"{path.name}: not a readable capture file ({e})") from e
 
 
 _READ_ONCE: ContextVar[dict[Path, CaptureFile] | None] = ContextVar("_READ_ONCE", default=None)
@@ -157,6 +164,34 @@ def reading_once() -> Generator[None]:
         yield
     finally:
         _READ_ONCE.reset(token)
+
+
+def load_sessions(path: Path) -> list[tuple[int, Mapping[str, Any]]]:
+    """``(index, session)`` for each session in a capture file, which must be well formed.
+
+    A file that parses as JSON can still hold the wrong shapes (``null``, a ``null`` session).
+    That raises an error naming the file, never a bare ``TypeError`` from deep in a reader.
+    """
+    data = load_capture_file(path)
+    if not isinstance(data, Mapping):
+        raise CaptureFormatError(f"{path.name}: the top level must be an object")
+    sessions = data.get("sessions", [])
+    if not isinstance(sessions, list):
+        raise CaptureFormatError(f"{path.name}: sessions must be a list")
+    for index, session in enumerate(sessions):
+        if not isinstance(session, Mapping):
+            raise CaptureFormatError(f"{path.name}: sessions[{index}] must be an object")
+    return list(enumerate(sessions))
+
+
+def session_captures(session: Mapping[str, Any], path: Path, index: int) -> list[Mapping[str, Any]]:
+    """A session's captures, which must be a list of objects (``null`` is an empty list)."""
+    captures = session.get("captures") or []
+    if not isinstance(captures, list) or not all(isinstance(c, Mapping) for c in captures):
+        raise CaptureFormatError(
+            f"{path.name}: sessions[{index}].captures must be a list of objects"
+        )
+    return captures
 
 
 def capture_rx(cap: Mapping[str, Any]) -> str:

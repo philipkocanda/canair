@@ -7,6 +7,7 @@ import json
 import pytest
 
 from canair.captures import io as capture_io
+from canair.captures.folding import CaptureFormatError
 from canair.cli.profile_context import active
 
 
@@ -124,7 +125,7 @@ class TestOneLineItems:
 def test_load_capture_file_rejects_nonjson(tmp_path):
     p = tmp_path / "bad.json"
     p.write_text("not: json: at all")
-    with pytest.raises(json.JSONDecodeError):
+    with pytest.raises(CaptureFormatError, match=r"bad\.json"):
         capture_io.load_capture_file(p)
 
 

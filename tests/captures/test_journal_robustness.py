@@ -195,3 +195,45 @@ class TestStateOptions:
         from canair.states.tokens import parse_states
 
         assert parse_states(["acc,ready", "charging"]) == ["ACC", "READY", "CHARGING"]
+
+
+class TestMalformedCaptureFiles:
+    """A damaged capture file is reported by name, never as a bare traceback."""
+
+    @pytest.mark.parametrize(
+        "text",
+        ["", '{"sessions": [', "\ufeff{}", "null", '{"sessions": null}', '{"sessions": [null]}'],
+    )
+    def test_load_all_captures_names_the_file(self, tmp_path, text):
+        from canair.captures.folding import CaptureFormatError
+        from canair.captures.store import load_all_captures
+
+        (tmp_path / "2026-11-01.json").write_text(text, encoding="utf-8")
+        with pytest.raises(CaptureFormatError, match=r"2026-11-01\.json"):
+            load_all_captures(tmp_path, profile=active())
+
+    @pytest.mark.parametrize("captures", ['"x"', "[null]", '["x"]', "5"])
+    def test_a_session_whose_captures_are_not_objects_names_the_file(self, tmp_path, captures):
+        from canair.captures.folding import CaptureFormatError
+        from canair.captures.store import load_all_captures
+
+        text = '{"sessions": [{"date": "2026-11-01", "label": "x", "captures": ' + captures + "}]}"
+        (tmp_path / "2026-11-01.json").write_text(text)
+        with pytest.raises(CaptureFormatError, match=r"2026-11-01\.json.*captures"):
+            load_all_captures(tmp_path, profile=active())
+
+    def test_a_null_captures_list_is_an_empty_session(self, tmp_path):
+        from canair.captures.store import load_all_captures
+
+        text = '{"sessions": [{"date": "2026-11-01", "label": "x", "captures": null}]}'
+        (tmp_path / "2026-11-01.json").write_text(text)
+        assert load_all_captures(tmp_path, profile=active()) == []
+
+    def test_validate_reports_an_unreadable_file_instead_of_crashing(self, tmp_path):
+        from canair.validation.capture_schema import CaptureSchemaChecker
+        from canair.validation.captures import validate_captures_file
+
+        path = tmp_path / "2026-11-01.json"
+        path.write_text('{"sessions": [')
+        [error] = validate_captures_file(path, CaptureSchemaChecker({}), set())
+        assert error.startswith("unreadable: 2026-11-01.json")

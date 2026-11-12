@@ -24,7 +24,7 @@ import signal
 import sys
 from typing import NoReturn
 
-from canair.captures.io import LegacyCaptureError
+from canair.captures.io import CaptureFormatError, LegacyCaptureError
 from canair.cli.args.categories import CategorizedHelpFormatter
 from canair.cli.args.domain import apply_domain_tags
 from canair.cli.commands import iter_command_modules
@@ -424,7 +424,13 @@ def _run(argv: list[str] | None) -> int:
 
     try:
         result = func(args)
-    except (ProfileError, LegacyCaptureError, SafetyBlocked, PromptUnavailable) as e:
+    except (
+        ProfileError,
+        LegacyCaptureError,
+        CaptureFormatError,
+        SafetyBlocked,
+        PromptUnavailable,
+    ) as e:
         messages.error(str(e))
         return 2
     except EditError as e:

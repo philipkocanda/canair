@@ -197,8 +197,9 @@ def flatten_session(
     quality = session.get("quality") or None
     link_events, actuations = session_link_events(session), session_actuations(session)
 
+    captures = capture_io.session_captures(session, path, session_idx)
     entries: list[CaptureEntry] = []
-    for c_idx, cap in enumerate(session.get("captures", [])):
+    for c_idx, cap in enumerate(captures):
         raw_ecu = capture_io.capture_rx(cap)
         cap_time = cap.get("time", "")
         states, resolved = resolve_capture_states(vehicle_states, spans, keys, cap_time)
@@ -310,10 +311,7 @@ def load_all_captures(captures_dir: Path | None = None, *, profile: Profile) -> 
             continue
         capture_io.ensure_migrated(layer)
         for fpath in capture_io.iter_capture_files(layer):
-            data = capture_io.load_capture_file(fpath)
-            if "sessions" not in data:
-                continue
-            for s_idx, session in enumerate(data["sessions"]):
+            for s_idx, session in capture_io.load_sessions(fpath):
                 if several and variant_tags.session_variant(session) is None:
                     untagged += 1
                 if variant_tags.in_scope(

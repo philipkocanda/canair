@@ -54,7 +54,10 @@ def validate_captures_file(
     if not isinstance(validator, CaptureSchemaChecker):
         validator = CaptureSchemaChecker(validator.schema)
     errors: list[str] = []
-    data = capture_io.load_capture_file(path)
+    try:
+        data = capture_io.load_capture_file(path)
+    except ValueError as e:
+        return [f"unreadable: {e}"]
 
     # Schema validation (structure, types, required/allowed fields, patterns).
     for at, err in sorted(validator.errors(data), key=lambda found: found[0]):
