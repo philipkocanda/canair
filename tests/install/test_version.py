@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import subprocess
+import sys
 
 import pytest
 
@@ -82,15 +84,28 @@ def test_version_flag_names_an_installed_build(capsys, monkeypatch):
     assert out == "canair 1.2.3+343b244 (CI build 343b244, 2026-11-05 10:12 UTC)"
 
 
-def test_version_is_not_resolved_while_building_the_parser(monkeypatch):
+# Runs in a fresh interpreter: the check replaces the version functions with ones that raise,
+# and a replacement that outlived its test (or was bound by a module imported while it was in
+# place) would break every later test that reads the version.
+PARSER_PROBE = """
+from canair.cli import build_parser
+from canair.install import build_info
+from canair.install import context as install_context
+
+
+def boom():
+    raise AssertionError("version resolved eagerly at parser-build time")
+
+
+build_info.full_version = boom
+install_context.full_version = boom
+build_parser()
+"""
+
+
+def test_version_is_not_resolved_while_building_the_parser():
     """Building the parser must not shell out to git — it happens every run."""
-    from canair.cli import build_parser
-    from canair.install import build_info
-    from canair.install import context as install_context
-
-    def boom():
-        raise AssertionError("version resolved eagerly at parser-build time")
-
-    monkeypatch.setattr(build_info, "full_version", boom)
-    monkeypatch.setattr(install_context, "full_version", boom)
-    build_parser()
+    result = subprocess.run(
+        [sys.executable, "-c", PARSER_PROBE], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0, result.stderr

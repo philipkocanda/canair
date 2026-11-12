@@ -277,10 +277,18 @@ def logp(monkeypatch, tmp_path):
 
 
 def _ccm_pids(monkeypatch):
-    """Decode logged snapshots with PIDS_DATA's CCM definitions."""
+    """Decode logged snapshots with PIDS_DATA's CCM definitions.
+
+    The log names an ECU by its response address, which the profile's registry resolves. These
+    tests are about the decoding, so the registry is replaced by one entry, and a test cannot
+    fail because the bundled profile's ECUs did not load.
+    """
+    from canair.dtc.refs import EcuRefs
     from canair.ecus.pids import build_ecu_index
 
     pids = build_ecu_index(PIDS_DATA)["CCM"]["pids"]
+    refs = EcuRefs(tx_by_rx={0x73B: 0x733}, names={0x73B: "CCM"})
+    monkeypatch.setattr(EcuRefs, "current", classmethod(lambda cls, profile: refs))
     monkeypatch.setattr(
         "canair.dtc.snapshot_decode.ecu_pids_index", lambda ecu, **__: pids if ecu == "CCM" else {}
     )
