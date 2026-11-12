@@ -7,7 +7,8 @@ reads the row under the cursor, asks for a value or a confirmation where one is 
 the request on the monitor's foreground lane, which sends it between two poll requests.
 
 The pane is hidden until ``A`` shows it. It docks on the right when the terminal is at least
-:data:`WIDE_COLUMNS` wide, else at the bottom. Hiding it releases nothing: the status line keeps
+:data:`WIDE_COLUMNS` wide, else at the bottom. Docked, it is as wide as its table needs, between
+:data:`MIN_SHARE` and :data:`MAX_SHARE` of the screen, so the last columns are not cut off. Hiding it releases nothing: the status line keeps
 showing how many outputs are ON, and the monitor releases them when it exits.
 """
 
@@ -33,6 +34,10 @@ from canair.uds.subfunctions import RoutineControlType
 
 #: From this many columns on, the pane sits beside the values instead of below them.
 WIDE_COLUMNS = 160
+
+#: The docked pane's width as a share of the screen: at least this, and at most that.
+MIN_SHARE = 0.4
+MAX_SHARE = 0.6
 
 #: What a key outside the pane says when the run may not actuate.
 NO_ACTUATE = "Start the monitor with --actuate ECU to switch outputs from here"
@@ -92,6 +97,24 @@ class ActuatorPane(Vertical):
         rows = {act.key: act for act in a.actuators()}
         self.query_one("#actuators-title", Static).update(pane_title(c))
         self.table().sync(list(rows), lambda key: actuator_cells(c, rows[key]))
+        self.fit()
+
+    def fit(self, total: int | None = None) -> None:
+        """Docked beside the values, be as wide as the table needs (within the share limits).
+
+        The columns only grow, so the width settles. Below the stacked layout's width the
+        stylesheet decides, so the inline width is dropped. ``total`` is the screen width when
+        the caller knows a newer one than the layout has.
+        """
+        parent = self.parent
+        if parent is None or not parent.has_class("wide"):
+            self.styles.width = None
+            return
+        total = total or self.app.size.width
+        if total <= 0:
+            return  # not laid out yet: the stylesheet's share holds until the next sync
+        needed = self.table().virtual_size.width + 2  # the border and the scrollbar
+        self.styles.width = max(int(total * MIN_SHARE), min(needed, int(total * MAX_SHARE)))
 
 
 class ActuatorMixin:
@@ -148,6 +171,9 @@ class ActuatorMixin:
         except NoMatches:
             return
         panes.set_class(width >= WIDE_COLUMNS, "wide")
+        pane = self._pane()
+        if pane is not None:
+            pane.fit(width)
 
     def action_toggle_actuators(self) -> None:
         pane = self._pane()

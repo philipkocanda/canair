@@ -204,3 +204,76 @@ async def test_help_lists_the_actuator_keys():
         assert rows["send OFF"] == "O" and rows["start routine"] == "!"
         assert rows["actuators"] == "A"
         await pilot.press("escape", "q")
+
+
+def _wide_controller(reply_bytes: int = 8):
+    """An output with a long label and a long reply: a table wider than 40% of the screen."""
+    long_reply = "6FBC0C03" + "AB" * reply_bytes
+    pids = {
+        "ecus": {
+            "IGPM": {
+                "tx_id": 0x770,
+                "identity": {"id_protocol": "UDS"},
+                "iocontrol": {
+                    "BC0C": {
+                        "label": "Rear defogger relay, long label",
+                        "on": ON,
+                        "off": OFF,
+                        "session": False,
+                    }
+                },
+            }
+        }
+    }
+    terminal = FakeTerminal({ON: ok(long_reply), OFF: ok(long_reply)})
+    terminal.cmd_count = 0  # type: ignore[attr-defined]
+    terminal.cmd_time = 0.0  # type: ignore[attr-defined]
+    return make_controller(terminal, [], pids, actuate=("IGPM",), schedule="fixed")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("width", [180, 220])
+async def test_a_docked_pane_grows_to_show_every_column(width):
+    c = _wide_controller()
+    await _start(c)
+    app = MonitorApp(c)
+    async with app.run_test(size=(width, 40)) as pilot:
+        await _settle(pilot)
+        await pilot.press("A")
+        await pilot.press("enter")
+        await _settle(pilot, 0.6)
+        pane, table = app.query_one(ActuatorPane), app.query_one(ActuatorTable)
+        assert pane.size.width > int(width * 0.4)
+        assert pane.size.width <= int(width * 0.6)
+        assert table.virtual_size.width <= table.size.width
+        await pilot.press("q")
+
+
+@pytest.mark.asyncio
+async def test_a_pane_wider_than_its_share_stops_at_the_limit():
+    c = _wide_controller(reply_bytes=48)
+    await _start(c)
+    app = MonitorApp(c)
+    async with app.run_test(size=(165, 40)) as pilot:
+        await _settle(pilot)
+        await pilot.press("A")
+        await pilot.press("enter")
+        await _settle(pilot, 0.6)
+        assert int(165 * 0.55) < app.query_one(ActuatorPane).size.width <= int(165 * 0.6)
+        await pilot.press("q")
+
+
+@pytest.mark.asyncio
+async def test_a_stacked_pane_keeps_the_stylesheet_width():
+    c = _wide_controller()
+    await _start(c)
+    app = MonitorApp(c)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await _settle(pilot)
+        await pilot.press("A")
+        await pilot.press("enter")
+        await _settle(pilot, 0.4)
+        pane = app.query_one(ActuatorPane)
+        assert pane.styles.inline.width is None
+        assert pane.size.width == 120
+        await pilot.press("q")
