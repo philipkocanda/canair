@@ -22,8 +22,29 @@ screenshotted command device-free. A renamed command or a dropped flag therefore
 and the check tells you to regenerate.
 
 **When you change the output of a screenshotted command, re-render and commit the updated asset.**
-To add a shot, append an entry to `shots.yaml` (a `rich` command or an `anim` tape) and
-regenerate.
+To add a shot, append an entry to `shots.yaml` (a `rich` command, a `tui` still or an `anim` tape)
+and regenerate.
+
+## The monitor without a car
+
+The monitor needs a bus, and the docs must not. `scripts/gen/monitor_demo.py` runs the production
+monitor (controller, poll loop, decoders, renderer, Textual app) with a *replay terminal* in place
+of the dongle. The terminal answers each request with the next payload that one capture session of
+the bundled Ioniq profile recorded on the road, so the values move as they did. It runs on a
+throwaway copy of the profile, so a recording or an edit made in it never reaches the repo, and its
+link zone says `replay`.
+
+- A **`tui`** entry is a still: the script drives the app headless (`--size`, `--keys`, `--wait`)
+  and the app exports the SVG itself, so no `freeze` is needed.
+- The **`monitor-tour`** tape runs the script in `vhs`. `vhs` cannot press `f10` and types
+  `alt+letter` as two keys, so the tour reaches commands through the palette. The menus are in the
+  stills.
+- `--check` runs `monitor_demo.py --check`: three headless poll cycles over the replay.
+
+```bash
+uv run python scripts/gen/monitor_demo.py            # the demo, in your terminal
+python3 scripts/gen/gen_screenshots.py --only monitor monitor-menu monitor-tour
+```
 
 Do **not** screenshot views that show free-text capture notes or labels (for example
 `captures --sessions`). Those views can leak personally identifiable information (PII) into public
@@ -31,7 +52,9 @@ docs.
 
 A few `anim` assets are marked **`live: true`**. They are recordings of the `monitor` TUI that
 polls a *real* car. They are not reproducible, so the default `make screenshots` skips them and
-`--check` only verifies that the file is present. Re-record one by hand when a vehicle is
+`--check` only verifies that the file is present. The two that exist (`monitor-bms`,
+`monitor-drivetrain`) predate the monitor's menu bar and zoned status line, so the docs show the
+replayed recordings instead until they are re-recorded. Re-record one by hand when a vehicle is
 reachable:
 
 ```bash

@@ -37,9 +37,11 @@ def test_manifest_entries_well_formed(mod, manifest):
     ids = [e["id"] for e in entries]
     assert len(ids) == len(set(ids)), "duplicate shot id in manifest"
     for entry in entries:
-        assert entry["kind"] in {"rich", "anim"}
+        assert entry["kind"] in {"rich", "anim", "tui"}
         if entry["kind"] == "rich":
             assert isinstance(entry["command"], list) and entry["command"]
+        elif entry["kind"] == "tui":
+            assert (mod.REPO_ROOT / entry["script"]).exists(), f"missing script for {entry['id']}"
         else:
             assert (mod.SHOTS_DIR / entry["tape"]).exists(), f"missing tape for {entry['id']}"
 
@@ -47,6 +49,7 @@ def test_manifest_entries_well_formed(mod, manifest):
 def test_asset_path_extension(mod):
     assert mod._asset_path({"id": "x", "kind": "rich"}).suffix == ".svg"
     assert mod._asset_path({"id": "y", "kind": "anim"}).suffix == ".gif"
+    assert mod._asset_path({"id": "z", "kind": "tui"}).suffix == ".svg"
 
 
 def test_checks_for(mod):
@@ -55,6 +58,23 @@ def test_checks_for(mod):
     anim = {"id": "y", "kind": "anim", "checks": [["a", "b"], ["c"]]}
     assert mod._checks_for(anim) == [["a", "b"], ["c"]]
     assert mod._checks_for({"id": "z", "kind": "anim"}) == []
+
+
+def test_a_shot_script_is_checked_once_with_its_own_check(mod, manifest, monkeypatch):
+    """A `tui` still or a tape that runs a script is validated by `script --check`, once."""
+    ran: list[str] = []
+    monkeypatch.setattr(mod, "_run_command", lambda *a, **__: 0)
+    monkeypatch.setattr(mod, "_run_script_check", lambda script: ran.append(script) or 0)
+    assert mod._scripts_for({"id": "x", "kind": "tui", "script": "s.py"}) == ["s.py"]
+    assert mod._scripts_for({"id": "x", "kind": "rich", "command": ["bus"]}) == []
+    assert mod.check(manifest) == 0
+    assert ran == ["scripts/gen/monitor_demo.py"]
+
+
+def test_a_failing_shot_script_fails_the_check(mod, manifest, monkeypatch):
+    monkeypatch.setattr(mod, "_run_command", lambda *a, **__: 0)
+    monkeypatch.setattr(mod, "_run_script_check", lambda script: 1)
+    assert mod.check(manifest) == 1
 
 
 def test_live_assets_skipped_by_default_but_rendered_when_named(mod):
@@ -97,7 +117,7 @@ def test_committed_assets_present(mod, manifest):
 def test_no_username_baked_into_svgs(mod, manifest):
     """No SVG may embed an absolute /Users/... path (a PII leak)."""
     for entry in mod._all_entries(manifest):
-        if entry["kind"] != "rich":
+        if entry["kind"] not in {"rich", "tui"}:
             continue
         text = mod._asset_path(entry).read_text(errors="ignore")
         assert "/Users/" not in text, f"{entry['id']}.svg leaks an absolute home path"
@@ -105,12 +125,14 @@ def test_no_username_baked_into_svgs(mod, manifest):
 
 def test_check_passes_when_assets_present_and_commands_ok(mod, manifest, monkeypatch):
     monkeypatch.setattr(mod, "_run_command", lambda *a, **__: 0)
+    monkeypatch.setattr(mod, "_run_script_check", lambda script: 0)
     assert mod.check(manifest) == 0
 
 
 def test_check_fails_on_command_drift(mod, manifest, monkeypatch):
     """A renamed command / dropped flag surfaces as a non-zero exit code."""
     monkeypatch.setattr(mod, "_run_command", lambda *a, **__: 2)
+    monkeypatch.setattr(mod, "_run_script_check", lambda script: 0)
     assert mod.check(manifest) == 1
 
 

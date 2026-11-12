@@ -91,6 +91,35 @@ shots:
     command: [profile, list]
     caption: "canair profile list — the bundled vehicle profiles"
 
+# ── Stills of the monitor TUI → SVG (the Textual app exports them itself) ────
+# `script` drives the real app headless and writes the SVG (`--svg`); `args` set the size,
+# the keys pressed first and how long it polls before the shot. monitor_demo.py replays a
+# recorded drive of the bundled profile through the production monitor, so the values are
+# real and nothing needs a device. `--check` runs `script --check` (a few headless polls).
+  - id: monitor
+    kind: tui
+    script: scripts/gen/monitor_demo.py
+    args: [--size, 120x34, --keys, "down,down,down"]
+    caption: "canair monitor — the main screen: menus, live values, the status line"
+
+  - id: monitor-menu
+    kind: tui
+    script: scripts/gen/monitor_demo.py
+    args: [--size, 120x34, --keys, "f10,right"]
+    caption: "canair monitor — the Poll menu: every command, with its key and its state"
+
+  - id: monitor-palette
+    kind: tui
+    script: scripts/gen/monitor_demo.py
+    args: [--size, 120x34, --keys, "ctrl+p,r,e,c"]
+    caption: "canair monitor — the command palette (ctrl+p) finds a command by name"
+
+  - id: monitor-phone
+    kind: tui
+    script: scripts/gen/monitor_demo.py
+    args: [--size, 45x22, --keys, "down"]
+    caption: "canair monitor on a phone in portrait (45×22): every menu stays"
+
 # ── Interactive / montage clips → GIF (vhs) ─────────────────────────────────
 # `tape` renders the GIF; `checks` are the device-free commands the tape
 # exercises, run by `--check` to catch command/flag drift (the tape's own
@@ -102,6 +131,12 @@ shots:
 # to validate), and they are re-recorded manually with `--only <id>` when a car
 # is reachable.
 animations:
+  - id: monitor-tour
+    kind: anim
+    tape: tapes/monitor-tour.tape
+    script: scripts/gen/monitor_demo.py
+    caption: "canair monitor — a tour on a recorded motorway drive: select, menus, palette, pause"
+
   - id: decode-plot
     kind: anim
     tape: tapes/decode-plot.tape

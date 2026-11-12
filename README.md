@@ -28,6 +28,17 @@ has several profiles in [`profiles/`](profiles/). The 2017 Hyundai Ioniq Electri
 complete one. The tool works with any vehicle, so you can
 [build a profile for your car](https://philipkocanda.github.io/canair/bring-your-own-car/overview/).
 
+## The monitor
+
+`canair monitor` is the main screen: the ECUs you choose, decoded live while the car drives or
+charges. Record the session with `--save`, label it, and check or edit signal definitions on the
+spot. Every command is in the menu bar (`f10`) and the command palette (`ctrl+p`), and it works on
+a phone over SSH.
+
+![canair monitor — live values on a recorded motorway drive, the menus and the command palette](docs/screenshots/monitor-tour.gif)
+
+[The monitor](https://philipkocanda.github.io/canair/getting-started/monitor/) is the full tour.
+
 ## Why canair?
 
 - **Evidence stays with the definition.** Most tools store only the PID, DID and signal
@@ -57,6 +68,8 @@ transport works today. See
 
 > **Documentation:** **[philipkocanda.github.io/canair](https://philipkocanda.github.io/canair/)** —
 > [Getting started](https://philipkocanda.github.io/canair/getting-started/install/) ·
+> [**The monitor**](https://philipkocanda.github.io/canair/getting-started/monitor/) (the main
+> screen) ·
 > [**Bring your own car**](https://philipkocanda.github.io/canair/bring-your-own-car/overview/)
 > (the full walkthrough for a new vehicle) ·
 > [**Profile explorer**](https://philipkocanda.github.io/canair/profiles/explorer/) (browse and
@@ -131,7 +144,7 @@ ones you use most.
 | `canair status` | Show the transport, device and versions, and whether the device works (alias: `st`). |
 | `canair logs` | Show the diagnostics log of transport drops and errors. |
 | `canair read` | Send UDS and KWP2000 requests and decode the responses (alias: `query`). |
-| `canair monitor` | Show a live, refreshing view of ECU signals, and record it with `--save` (alias: `mon`). |
+| **`canair monitor`** | **The main screen:** live, decoded ECU signals with menus and a command palette; record with `--save` (alias: `mon`). |
 | `canair scan` | Probe DID, routine, IOControl, session and memory ranges for responses. |
 | `canair memory` | Read ECU memory (service `0x23`) into local dumps. |
 | `canair dtc` | Read and clear diagnostic trouble codes, and review the log of changes. |
@@ -206,7 +219,7 @@ canair status                           # is the device reachable?
 canair discover                         # list every ECU on the bus (any car)
 canair profile use hyundai-ioniq-ae-ev --variant 28kwh   # which car you have (once)
 canair read BMS:2101                    # read a PID (Ioniq profile)
-canair monitor @charging                # monitor a saved selector group (see `canair groups`)
+canair monitor @charging                # the main screen, on a saved group (see `canair groups`)
 ```
 
 [Getting started](https://philipkocanda.github.io/canair/getting-started/install/) describes the

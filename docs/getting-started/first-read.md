@@ -46,96 +46,22 @@ PID. It turns raw payloads into named signals with units:
 
 ## Watch it live
 
-`canair monitor` refreshes in place. It highlights the bytes that change and the signals that they
-decode to. The next screenshot shows `monitor` on the **battery** with the car in READY mode. It
-shows SOC, pack voltage and current, cell voltages, and module temperatures. Changed values are
-highlighted. The live byte-diff of the payload is below them:
+`canair monitor` is canair's main screen. It polls the PIDs you choose and shows their decoded
+signals live, in place. Changed values and the bytes they come from light up:
 
-![canair monitor BMS:2101 — live battery telemetry in READY mode](../screenshots/monitor-bms.gif)
+```bash
+canair monitor BMS:2101                       # the battery
+canair monitor "BMS:2101 VCU:2101 MCU:2102"   # battery, vehicle control and motor together
+canair monitor                                # pick ECUs and PIDs from a list
+```
 
-`monitor` can also watch several ECUs at once. The next screenshot shows a cross-ECU view of the
-**drivetrain**: the VCU (gear, drive mode, vehicle state) and the MCU (motor speed and torque,
-inverter temperatures). While it records (`● REC`), canair detects the vehicle state (`READY`)
-from the decoded values:
+![canair monitor — the main screen: menus, live values, the status line](../screenshots/monitor.svg)
 
-![canair monitor — live cross-ECU drivetrain view in READY mode](../screenshots/monitor-drivetrain.gif)
+Every command is in the menu bar (**`f10`**, or click a title) and in the command palette
+(**`ctrl+p`**). Press **`?`** for every key. Add **`--save`** to record what you watch.
 
-The monitor colors the payload bytes by what reads them:
-
-- Green: a verified signal.
-- Yellow: an unverified signal.
-- Grey: nothing reads the byte.
-- Muted grey-blue: the declared
-  [support map](../concepts/analysis-techniques.md#support-maps-which-bits-are-signals-at-all) of
-  the PID (layout bytes, not data).
-
-Press **`?`** for the keys and a color legend.
-
-### Find your way around the monitor
-
-- **The menu bar** at the top has every command. Press **`f10`**, press `alt` and the underlined
-  letter, or click a title. Each item shows its key, so the menus also teach the keys. On a small
-  screen, such as a phone, the titles get shorter but none disappears.
-- **The command palette** finds a command by name. Press **`ctrl+p`** and type part of it, for
-  example `ruler` or `pause`.
-- **The status line** has four zones: the link (device, transport, faults), polling (`LIVE` or
-  `PAUSED`, the cycle, the rate), the recording (`● REC`, its duration, the frames), and the car
-  (the vehicle state, the open diagnostic sessions). Only a problem is highlighted, for example
-  `✗ 3 drops` or `PAUSED`. Click a zone to open its detail: the event log, the Poll menu, the
-  recording info or the diagnostic session picker.
-- **The bottom line** shows the last message. An error stays until you press a key. Every message
-  is also kept in the event log (**`E`**). With no message, the bottom line shows the selected
-  signal and the keys of the pane that has focus.
-
-### How often each PID refreshes
-
-By default, each PID refreshes at its own rate. The rate is twice as often as the `period:` that
-the profile gives the PID (the WiCAN AutoPID profile uses the same period). A fast signal updates
-quickly. A slow per-cycle record is read only as often as it changes. The bus is not flooded with
-reads of values that never move. A PID with no declared period uses `--interval` (default 5 s).
-
-- Press `=` or `-` to poll the whole set 1.5× faster or slower. The status line shows the change,
-  for example `per-PID 1.5× faster`.
-- Press `m` to switch to `--schedule fixed`. This reads *every* PID in every cycle, `--interval`
-  apart. Use it when you want an even time series of one signal for analysis.
-
-### PIDs that stop answering
-
-The monitor reads the ECUs one after another. A PID can stop answering. For example, a body module
-went to sleep, or the ECU answers the PID only in another vehicle state. A PID can also answer very
-slowly. In both cases, the PID delays the next read of every other PID.
-
-The monitor detects this and polls the slow PID 2×, then 4×, up to 32× less often. It does this
-until the PID answers promptly again. The healthy PIDs of the same ECU keep their normal rate.
-
-- The row of the PID says `slow (not answering) · polled 4× less often`.
-- The status line lists the PID, for example `slow SKM:22B002÷4`.
-- A reconnect restores the normal rate of every PID. The timings of the old link say nothing about
-  the new link.
-- Pass `--no-backoff` to keep polling the PID at the normal rate.
-
-If a read of a PID fails, the monitor keeps the last value. It greys the value and shows its age,
-for example `(stale 12s)`.
-
-### Pick what to monitor
-
-If you do not know what to type, run `canair monitor` with no arguments on a terminal. A picker
-opens. The picker only reads the profile, so it works before the device is reachable.
-
-1. Tick saved groups (the `@` rows, see `canair groups`), individual ECUs, or both. `space`
-   toggles a row, `/` filters, and `ctrl+a` selects all or none of the visible ECUs. If you tick
-   nothing, `enter` takes the highlighted row. To pick one ECU, press `enter`.
-2. Press `enter` to continue.
-3. Untick the PIDs that you do not want. Press `enter` to start.
-
-A group ticks its member ECUs and pre-selects the PIDs that it names. An ECU that you tick on its
-own starts from its default sweep. `escape` clears the filter. A second press steps back. canair
-prints the equivalent command before the monitor starts, so you can reuse it.
-
-To change the selection while the monitor runs, press **`p`**, or choose **Poll › Select ECUs and
-PIDs…**. The bottom line shows this key while no signal is selected. The same picker opens on the
-PIDs that canair polls now. Add or remove ECUs and PIDs, then press `enter` twice to apply the
-change without a restart. `escape` or `q` keeps the selection as it was.
+**→ [The monitor](monitor.md)** is the full tour: the screen, the status line, recording, editing
+signals, and the monitor on a phone.
 
 ## On a different car
 

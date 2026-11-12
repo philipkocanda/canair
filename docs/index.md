@@ -13,6 +13,39 @@ of a vehicle in **two domains**:
 canair helps you capture, decode, correlate and document this data. The result is a
 [vehicle profile](concepts/profiles.md) that you can share.
 
+## The monitor: canair's main screen
+
+<div class="cx-hero">
+  <p><code>canair monitor</code> polls the ECUs you choose and shows their decoded signals live,
+  while the car drives, charges or sleeps. From the same screen you record the session, label it,
+  check and edit signal definitions, and open diagnostic sessions. Every command is in its menus
+  and its command palette, and it works on a phone over SSH.</p>
+  <p><img src="screenshots/monitor-tour.gif" alt="canair monitor on a recorded motorway drive: live battery values, a selected signal, the command palette, a pause"></p>
+  <p><a class="md-button md-button--primary" href="getting-started/monitor/">Tour the monitor →</a>
+  <span class="cx-muted">The recording replays a real drive of the bundled Ioniq profile through
+  the real monitor.</span></p>
+  <div class="cx-hero-cards">
+    <a href="getting-started/monitor/#find-a-command">
+      <img src="screenshots/monitor-menu.svg" alt="The Poll menu of the monitor, with each command's key" loading="lazy">
+      <strong>Every command in a menu</strong>
+      <span>Press f10 or click a title. Each item shows its key and whether it is on, so the menus
+        teach the keys.</span>
+    </a>
+    <a href="getting-started/monitor/#the-status-line">
+      <img src="screenshots/monitor.svg" alt="The monitor's status line: link, poll, recording and car zones" loading="lazy" style="object-position: bottom left">
+      <strong>A status line that flags problems</strong>
+      <span>The link, the polling, the recording and the car, each in its own place. Only a problem
+        is highlighted. Click a zone for its detail.</span>
+    </a>
+    <a href="getting-started/monitor/#on-a-phone">
+      <img src="screenshots/monitor-phone.svg" alt="The monitor at 45 columns, as on a phone in portrait" loading="lazy">
+      <strong>Made for a phone, too</strong>
+      <span>At 45 columns every menu stays, the status line takes two lines, and long names get
+        shorter so values stay on the line.</span>
+    </a>
+  </div>
+</div>
+
 ## Why canair?
 
 - **Evidence stays with the definition.** Most tools store only the PID, DID and signal
@@ -73,7 +106,8 @@ Answer these questions in order. Take the first path that fits.
 
 1. **Do you have a WiCAN dongle and a car with an OBD-II port, and canair is not installed yet?**
    Read [Install](getting-started/install.md). You install canair, connect the dongle and read
-   live data from the bundled example car in a few minutes.
+   live data from the bundled example car in a few minutes. Then watch it in
+   [the monitor](getting-started/monitor.md).
 2. **Does something not work?** Read [Troubleshooting](getting-started/troubleshooting.md).
 3. **Is your car one of the bundled cars?** Read [Bundled profiles](profiles/index.md). The
    [Ioniq Electric profile](profiles/hyundai-ioniq-ae-ev.md) is the most complete. Each page lists

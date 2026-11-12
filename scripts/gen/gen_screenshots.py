@@ -2,9 +2,10 @@
 """Generate the docs' CLI screenshots (SVG) and animations (GIF).
 
 Static command output is rendered with `freeze` (SVG); interactive TUI and
-montage clips with `vhs` (GIF). Everything runs against the bundled, read-only
-`hyundai-ioniq-ae-ev` profile with NO device attached, so the assets are reproducible on
-any machine and contain no owner-specific data. The manifest is
+montage clips with `vhs` (GIF); a still of a Textual app (`kind: tui`) by the app itself,
+through a script that drives it headless and exports an SVG. Everything runs against the
+bundled, read-only `hyundai-ioniq-ae-ev` profile with NO device attached, so the assets are
+reproducible on any machine and contain no owner-specific data. The manifest is
 `docs/screenshots/shots.yaml`.
 
 Usage:
@@ -16,8 +17,9 @@ Usage:
 output is not byte-reproducible, so it never diffs pixels. Instead it verifies
 (a) every manifest asset exists on disk, (b) there are no orphan asset files,
 and (c) every declared command still runs device-free against the bundled
-profile — so a renamed command or dropped flag fails the check and prompts a
-regenerate. Rendering (freeze/vhs) is a local, on-demand step.
+profile, and every declared `script` passes its own `--check` — so a renamed command or
+dropped flag fails the check and prompts a regenerate. Rendering (freeze/vhs) is a local,
+on-demand step.
 """
 
 from __future__ import annotations
@@ -70,6 +72,11 @@ def _all_entries(manifest: dict) -> list[dict]:
 def _asset_path(entry: dict) -> Path:
     ext = "gif" if entry["kind"] == "anim" else "svg"
     return SHOTS_DIR / f"{entry['id']}.{ext}"
+
+
+def _scripts_for(entry: dict) -> list[str]:
+    """The repo-relative scripts this entry runs, each checked with its own ``--check``."""
+    return [entry["script"]] if "script" in entry else []
 
 
 def _rel(path: Path) -> str:
@@ -132,6 +139,18 @@ def _render_anim(entry: dict) -> None:
     print(f"  rendered {_asset_path(entry).relative_to(REPO_ROOT)}")
 
 
+def _render_tui(entry: dict) -> None:
+    """A still of a Textual app: the entry's script drives it headless and exports the SVG."""
+    out = _asset_path(entry)
+    subprocess.run(
+        [sys.executable, entry["script"], "--svg", str(out), *entry.get("args", [])],
+        cwd=REPO_ROOT,
+        env=_isolated_env(),
+        check=True,
+    )
+    print(f"  rendered {out.relative_to(REPO_ROOT)}")
+
+
 def _should_render(entry: dict, only: set[str] | None) -> bool:
     """Whether this entry is rendered in the current invocation.
 
@@ -175,6 +194,8 @@ def generate(manifest: dict, only: set[str] | None) -> int:
         print(f"• {entry['id']} ({tag})")
         if entry["kind"] == "rich":
             _render_rich(entry, manifest, freeze_config)
+        elif entry["kind"] == "tui":
+            _render_tui(entry)
         else:
             _render_anim(entry)
         rendered += 1
@@ -190,6 +211,20 @@ def _run_command(base_argv: list[str], argv: list[str]) -> int:
     """Run one canair command device-free, non-interactively; return exit code."""
     proc = subprocess.run(
         [sys.executable, "-m", "canair.cli", *base_argv, *argv],
+        cwd=REPO_ROOT,
+        env=_isolated_env(),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    return proc.returncode
+
+
+def _run_script_check(script: str) -> int:
+    """Run a shot script's own ``--check`` (device-free, headless); return its exit code."""
+    proc = subprocess.run(
+        [sys.executable, script, "--check"],
         cwd=REPO_ROOT,
         env=_isolated_env(),
         stdin=subprocess.DEVNULL,
@@ -226,6 +261,12 @@ def check(manifest: dict) -> int:
                 problems.append(
                     f"command failed (exit {rc}) for shot '{entry['id']}': canair {' '.join(argv)}"
                 )
+
+    # (d) every shot script still drives its app (once per script).
+    for script in dict.fromkeys(s for e in entries for s in _scripts_for(e)):
+        rc = _run_script_check(script)
+        if rc != 0:
+            problems.append(f"script check failed (exit {rc}): {script} --check")
 
     if problems:
         print("Screenshots are out of date / stale:", file=sys.stderr)

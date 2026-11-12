@@ -103,5 +103,10 @@ Only the monitor moves now.
   on the app is gone. The event log overlay shows the run's messages above its diagnostics events.
 - **Key roles.** `menu` and `palette` are new. `info`, `new` and `value_type` now say
   "recording info", "new recording" and "diagnostic session" where they said "session".
-- **Not done here.** The live monitor screenshots (`docs/screenshots/monitor-*.gif`) still show
-  the old bars. They are recorded on the car, so a re-record needs the user's approval.
+- **Docs.** `scripts/gen/monitor_demo.py` runs the production monitor on a recorded drive of the
+  bundled profile (a replay terminal stands in for the dongle), so the docs' monitor stills and
+  the tour GIF are reproducible with no car. The monitor has its own page,
+  `docs/getting-started/monitor.md`, and leads the docs home page and the README.
+- **Not done here.** The two live recordings (`docs/screenshots/monitor-bms.gif`,
+  `monitor-drivetrain.gif`) still show the old bars, and no page shows them. They are recorded on
+  the car, so a re-record needs the user's approval.
