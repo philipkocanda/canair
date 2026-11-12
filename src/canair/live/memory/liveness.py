@@ -159,9 +159,13 @@ async def answers_at(terminal: Terminal, target: MemoryTarget, address: int) -> 
 class Link:
     """The terminal a run reads through, swapped by a mid-session reconnect.
 
-    Shaped like the monitor's controller (``close_client``, ``rebind``, ``setup``), so the
-    monitor's reconnector re-homes it: a run has one reconnect path, not two.
+    Shaped like the monitor's controller (``close_client``, ``rebind``, ``setup``,
+    ``actuation``), so the monitor's reconnector re-homes it: a run has one reconnect path, not
+    two.
     """
+
+    #: A memory run holds no actuator, so the reconnector has none to restore.
+    actuation = None
 
     def __init__(self, terminal: Terminal, reconnect: Callable[..., Awaitable[bool]] | None):
         self.terminal = terminal

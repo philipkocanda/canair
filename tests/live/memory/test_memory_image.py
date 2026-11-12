@@ -11,8 +11,10 @@ from canair.cli.profile_context import active
 from canair.ecus.memory import EcuMemory, MemoryRegion
 from canair.live.memory.image import ImageOptions, mode_memory_image
 from canair.live.memory.reads import MemoryTarget
+from canair.live.monitor.reconnect import MonitorReconnector, ReconnectPolicy
 from canair.memory.job import FULL, SAMPLE
 from canair.memory.store import iter_dumps, load_dump
+from canair.transport.config import TransportConfig
 from canair.uds.memory import parse_format, parse_memory_request
 from canair.uds.protocol import UDS
 from tests.support.memory_ecu import MemoryEcu
@@ -383,6 +385,35 @@ class TestLinkDrops:
         assert fresh.memory_reads > 0
         (pause,) = load_dump(run.dump.path).pauses
         assert pause["how"] == "resumed in the run"
+
+    def test_the_monitor_reconnector_itself_re_homes_the_run(self, tmp_path, monkeypatch):
+        """The real reconnector, not a stand-in: it once asked the run for an actuator."""
+        monkeypatch.setattr("canair.transport.fallback.tcp_open", lambda *_a, **_k: True)
+        whole = _image(_ecu(), tmp_path / "whole")
+
+        class Drops(MemoryEcu):
+            def _memory(self, read):
+                if self.memory_reads == 150:
+                    raise ConnectionResetError("peer closed")
+                return super()._memory(read)
+
+        dropping = Drops(
+            regions=[(0, 0xFFFF, None)], software=SOFTWARE, data=flash, other_replies=REPLIES
+        )
+        fresh = _ecu()
+
+        async def connect(_cand):
+            return fresh
+
+        reconnect = MonitorReconnector(
+            [TransportConfig(type="wican-ws", host="127.0.0.1", port=None, bitrate=500000)],
+            connect,
+            ReconnectPolicy(forever=False, max_wait=5, connect_timeout=0.01, poll_interval=0.01),
+            admit=lambda _cand: None,
+        )
+        run = _image(dropping, tmp_path / "job", reconnect=reconnect)
+        assert run.complete and _byte_maps_equal(whole, run)
+        assert fresh.memory_reads > 0
 
 
 def test_a_reflash_during_a_pause_stops_the_job(tmp_path):
