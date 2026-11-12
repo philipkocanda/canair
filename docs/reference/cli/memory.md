@@ -165,11 +165,13 @@ usage: canair memory dump [-h] [--block N] [--label TEXT] [--format ALFID|kwp]
 Read address ranges of one ECU into a new dump. The block size alternates
 between N and N-1 bytes so a reply to the previous request is always caught by
 its length; a block that does not come back whole is halved, after one more
-try when the ECU's max_block says that size works. A refused range is recorded
-as a gap with its NRC, and a locked one (securityAccessDenied) is left alone,
-and so is one that refuses by silence. The dump is written to disk as it is
-read, so a keypress (s or escape), Ctrl-C or a killed process keeps what was
-read. Asks before the first read (--yes to skip).
+try when the ECU's max_block says that size works. The block grows back,
+doubling after 500 clean reads, never above --block (or max_block); errors add
+throttle, which falls back to --throttle-ms and no lower. A refused range is
+recorded as a gap with its NRC, and a locked one (securityAccessDenied) is
+left alone, and so is one that refuses by silence. The dump is written to disk
+as it is read, so a keypress (s or escape), Ctrl-C or a killed process keeps
+what was read. Asks before the first read (--yes to skip).
 
 positional arguments:
   ECU                   ECU name or TX id

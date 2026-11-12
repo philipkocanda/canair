@@ -6,6 +6,9 @@ or one that refuses by silence, is left alone for the rest of its range. A skip 
 or an ECU that stops answering ends the dump early; what was read is kept, and the rest is
 recorded as not read.
 
+The block follows the image's rate controller (:func:`pace`): halved by a bad reply, doubled
+again after clean reads, never above the ceiling.
+
 The dump is written as it is read: each extent of :data:`EXTENT_SIZE` bytes is appended to
 the dump on disk when it finishes, so a killed process keeps everything but the extent in
 flight.
@@ -15,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 
@@ -26,7 +29,7 @@ from canair.render.progress import ProgressLine
 from canair.transport.protocol import Terminal
 from canair.uds.memory import MemoryFormat
 
-from .reads import OK, BlockReader, EcuSilent, MemoryTarget, SpanRead, maybe_session
+from .reads import DROP, HALVING, OK, BlockReader, EcuSilent, MemoryTarget, SpanRead, maybe_session
 
 #: The block size when neither --block nor the ECU's max_block names one.
 DEFAULT_BLOCK = 64
@@ -86,6 +89,32 @@ def rest_gaps(dump: Dump, ranges: list[tuple[int, int]], result: str) -> list[Ga
         if first <= end:
             out.append(Gap(first, end, result, None))
     return out
+
+
+def pace(reader: BlockReader, top: int, throttle_ms: int) -> None:
+    """Let the image's rate controller steer ``reader``: its block back up, its throttle too.
+
+    The reader's own halving (a lost, cut-short or too-large reply) lowers the rate as well,
+    so the block stays down for :data:`~canair.memory.rate.RECOVER_AFTER` clean reads and then
+    doubles step by step, never above ``top``. ``throttle_ms`` is the floor of the throttle.
+    """
+    # deferred: the rate controller pulls in the ELM327 frame counts, ~1 ms of parser start-up
+    from canair.memory.rate import advance, start_rate
+
+    rate = start_rate(top, throttle_ms=throttle_ms)
+
+    def hear(event: str) -> None:
+        nonlocal rate
+        rate = advance(rate, event)
+        if event in (HALVING, DROP):
+            rate = replace(rate, block=min(rate.block, reader.block))
+        if rate.throttle_ms < throttle_ms:
+            rate = replace(rate, throttle_ms=throttle_ms)
+        reader.block = rate.block if event == OK else min(reader.block, rate.block)
+        reader.throttle_s = rate.throttle_ms / 1000
+
+    reader.block = rate.block
+    reader.on_event = hear
 
 
 async def _dump_range(
@@ -155,6 +184,7 @@ async def mode_memory_dump(
     run = DumpRun(dump)
     writer = DumpWriter.create(dump, store, address_width=2 * fmt.address_bytes)
     reader = BlockReader(terminal, target, fmt, size, throttle_s=throttle_ms / 1000)
+    pace(reader, reader.block, throttle_ms)
     line = ProgressLine()
     pending = list(ranges)
     rest = NOT_READ

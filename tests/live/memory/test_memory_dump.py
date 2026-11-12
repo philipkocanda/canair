@@ -7,8 +7,9 @@ import asyncio
 import pytest
 
 from canair.ecus.memory import EcuMemory
-from canair.live.memory.dump import mode_memory_dump
-from canair.live.memory.reads import MemoryTarget
+from canair.live.memory.dump import mode_memory_dump, pace
+from canair.live.memory.reads import BlockReader, MemoryTarget
+from canair.memory.rate import RECOVER_AFTER
 from canair.memory.store import load_dump
 from canair.uds.memory import parse_format, parse_memory_request
 from canair.uds.protocol import UDS
@@ -96,6 +97,70 @@ def test_a_cut_short_reply_of_a_known_size_is_read_again(tmp_path):
     assert run.retries == 1
     assert _multi_byte_sizes(ecu) == {16, 15}
     assert load_dump(run.dump.path).stretches[0].data == _expected(0x100, 0x13F)
+
+
+def _block_sizes(ecu):
+    reads = (parse_memory_request(r, UDS) for r in ecu.sent if r.startswith("23"))
+    return [r.size for r in reads if r is not None]
+
+
+@pytest.mark.parametrize(
+    ("ecu_args", "target"),
+    [
+        ({"lose": {0x110: 2}}, _target(max_block=16)),
+        ({"drop_once": {0x110}}, _target()),
+    ],
+    ids=["lost-twice", "cut-short-unknown-size"],
+)
+def test_the_block_grows_back_after_a_halving(tmp_path, ecu_args, target):
+    ecu = MemoryEcu([(0x0, 0xFFFF, None)], **ecu_args)
+    run = _dump(ecu, [(0x100, 0x2FFF)], tmp_path, block=16, target=target)
+    sizes = _block_sizes(ecu)
+    halved = next(i for i, s in enumerate(sizes) if 1 < s <= 8)
+    grown = next(i for i, s in enumerate(sizes) if i > halved and s > 8)
+    assert grown - halved >= RECOVER_AFTER  # it stayed down until enough clean reads passed
+    assert max(sizes) == 16 and 16 in sizes[grown:]
+    assert load_dump(run.dump.path).stretches[0].data == _expected(0x100, 0x2FFF)
+
+
+def test_the_block_never_goes_above_the_ceiling(tmp_path):
+    ecu = MemoryEcu([(0x0, 0xFFFF, None)], lose={0x110: 2, 0x800: 2})
+    run = _dump(ecu, [(0x100, 0x2FFF)], tmp_path, block=12, target=_target(max_block=16))
+    assert max(_block_sizes(ecu)) == 12
+    assert load_dump(run.dump.path).stretches[0].data == _expected(0x100, 0x2FFF)
+
+
+def test_the_block_ceiling_is_the_ecus_max_block_without_block(tmp_path):
+    ecu = MemoryEcu([(0x0, 0xFFFF, None)], lose={0x110: 2})
+    _dump(ecu, [(0x100, 0x2FFF)], tmp_path, target=_target(max_block=20))
+    assert max(_block_sizes(ecu)) == 20
+
+
+def _paced(throttle_ms):
+    ecu = MemoryEcu([])
+    reader = BlockReader(ecu, _target(), UDS24, 16, throttle_s=throttle_ms / 1000)
+    pace(reader, 16, throttle_ms)
+    return reader
+
+
+def test_errors_add_throttle_and_recovery_stops_at_the_one_asked_for():
+    reader = _paced(50)
+    for _ in range(2):
+        reader.on_event("reread")
+    assert reader.throttle_s == pytest.approx(0.07)
+    for _ in range(3 * RECOVER_AFTER):
+        reader.on_event("ok")
+    assert reader.throttle_s == pytest.approx(0.05)
+
+
+def test_no_throttle_asked_for_means_none_after_recovery():
+    reader = _paced(0)
+    for _ in range(2):
+        reader.on_event("reread")
+    assert reader.throttle_s > 0
+    for _ in range(3 * RECOVER_AFTER):
+        reader.on_event("ok")
+    assert reader.throttle_s == 0
 
 
 def test_locked_is_left_alone_for_the_rest_of_the_range(tmp_path):

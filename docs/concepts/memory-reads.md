@@ -161,6 +161,12 @@ waiting out its `ATST` budget ([frame counts](../development/frame-counts.md)). 
 again at the same size (see [Silence](#silence)) is not an error. After 500 clean reads, the
 block doubles (up to the preferred size) and the throttle drops by 20 ms.
 
+`memory dump` uses the same controller. Its ceiling is `--block`, else the `max_block` of the ECU,
+else 64, and it never reads above it. When a reply comes back too large, cut short or lost, the
+dump halves the block and keeps it there. After 500 clean reads, the block doubles again until it
+reaches the ceiling. Each error adds 20 ms of throttle. The `--throttle-ms` you pass is the lowest
+throttle: recovery never goes below it. The block still alternates between `N` and `N-1` bytes.
+
 ### Pause and resume
 
 A silent ECU, a failed health or state check, or a dropped link pauses the job. The run then reads

@@ -87,7 +87,7 @@ def advance(rate: Rate, event: str) -> Rate:
         if len(recent) >= 2:
             return replace(
                 rate,
-                block=max(rate.floor, rate.block // 2),
+                block=min(rate.block, max(rate.floor, rate.block // 2)),
                 throttle_ms=rate.throttle_ms + THROTTLE_STEP_MS,
                 errors=(),
                 clean=0,
