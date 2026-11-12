@@ -10,26 +10,16 @@ definitions of the active [profile](profiles.md).
 
 ```mermaid
 flowchart LR
-    subgraph host["Your computer — canair"]
-        cli["canair CLI<br/>transport: wican-ws | slcan-tcp | elm327-tcp"]
-        defs["Profile PID/DID defs<br/>+ captures"]
-        isotp["client-side ISO-TP + UDS<br/>(pipelined; slcan-tcp only)"]
+    canair["<b>canair</b><br/>decodes signals<br/>from the profile"]
+    subgraph adapter["Adapter: one protocol at a time"]
+        elm["<b>ELM327 terminal</b><br/>adapter runs<br/>ISO-TP"]
+        slcan["<b>SLCAN socket</b><br/>canair runs<br/>ISO-TP"]
     end
-    subgraph wican["WiCAN dongle (or ELM327 clone) — one protocol at a time"]
-        ws["ELM327 terminal<br/>(WebSocket, or TCP on a clone)"]
-        slcan["SLCAN socket"]
-    end
-    subgraph car["Vehicle (OBD-II port)"]
-        bus["CAN bus"]
-        ecus["ECUs"]
-    end
-    cli -->|"wican-ws, elm327-tcp: ELM327 + UDS/KWP2000"| ws
-    cli --> isotp
-    isotp <-->|"slcan-tcp: raw CAN frames"| slcan
-    ws <-->|"dongle does ISO-TP"| bus
-    slcan <--> bus
-    bus <--> ecus
-    defs -.->|"decode responses"| cli
+    car["<b>Car</b><br/>CAN bus and ECUs"]
+    canair <-->|"wican-ws: WebSocket<br/>elm327-tcp: TCP"| elm
+    canair <-->|"slcan-tcp: raw CAN frames"| slcan
+    elm <--> car
+    slcan <--> car
 ```
 
 In words: canair sends a request. With `slcan-tcp`, canair splits and joins the CAN frames itself.
