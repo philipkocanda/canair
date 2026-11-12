@@ -295,7 +295,8 @@ read does **not** suppress the bitfield-gap report, because
   *every* value of the reference can. Always tabulate the reference's full value
   set (`P/R/N/D`, not `D`/not-`D`) and read the **asymmetry** of the errors —
   all-false-positives-no-false-negatives means superset, and the honest name is
-  the superset (`GEAR_PARK_INV`), not the special case.
+  the superset (`GEAR_PARK_INV`, later decoded from the firmware as part of
+  `VCU_SBW_ACTUATOR_STATE`), not the special case.
 - **A near-perfect correlation computed on a thin corpus expires.** Re-run the
   old evidence before trusting a note: the `r=+0.984` above was true over 773
   captures and false over 6365. When a note cites an `n`, check today's `n`.

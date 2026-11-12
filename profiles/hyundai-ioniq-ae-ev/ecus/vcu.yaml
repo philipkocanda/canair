@@ -67,16 +67,17 @@ VCU:
       notes: >-
         Stops updating while VCU_IG3_ON (B11:4) is 0. Firmware (producer FUN_001F46C0,
         r13=0x400063E4): B4-B8 are a header written at read time by FUN_00204480, so B9 is a
-        constant 0x09 record-format byte, not a signal. B11:5 is never written by the producer, so
-        it is unused rather than undecoded. B10 bit 4 is set when the gear state reads 7, the
-        shifter fault from a latched shift-by-wire (SBW) fault; not yet observed on this car. The
-        APS1 (B12/B13), APS2 (B14/B15), accelerator (B17/B18), speed (B19/B20) and 12 V supply
-        (B21/B22) signals are each a 16-bit little-endian pair in the firmware, confirming the width
-        and byte order of the expressions here. B23 packs the regen paddles (bits 0-1), the ignition
-        input (bit 2) and the shift-lever code (bits 3-6, from the lever's PWM line). B25 is written
-        as a whole byte (VCU_POWER_STATE) and is valid only while VCU_IG3_ON is 1: it keeps its last
-        value for minutes after the fall. B26 packs the park request to the SBW unit (bits 0-2, a
-        pulse shorter than the poll interval) and the SBW unit's state (bits 3-6, from CAN 0x10C).
+        constant 0x09 record-format byte, not a signal. B11:5 and B26:7 are never written by the
+        producer, so they are unused rather than undecoded. B10 bit 4 is set when the gear state
+        reads 7, the shifter fault from a latched shift-by-wire (SBW) fault; not yet observed on
+        this car. The APS1 (B12/B13), APS2 (B14/B15), accelerator (B17/B18), speed (B19/B20) and 12
+        V supply (B21/B22) signals are each a 16-bit little-endian pair in the firmware, confirming
+        the width and byte order of the expressions here. B23 packs the regen paddles (bits 0-1),
+        the ignition input (bit 2) and the shift-lever code (bits 3-6, from the lever's PWM line).
+        B25 is written as a whole byte (VCU_POWER_STATE) and is valid only while VCU_IG3_ON is 1: it
+        keeps its last value for minutes after the fall. B26 copies the SBW link: the park request
+        to the SBW unit (bits 0-2, from 0x109), the SBW actuator state (bits 3-5) and bit 7 of 0x10C
+        byte 0 (bit 6).
       parameters:
         VCU_VEHICLE_SPEED:
           expression: ((S20*256)+B19)*1.609344/100
@@ -131,7 +132,9 @@ VCU:
           source: canair bitfield analysis 2026-08-06; same-payload enumeration n=6365
         GEAR_P:
           expression: B10:0
-          notes: Bit 0 of GEAR. Equals GEAR_P_MIRROR_B26_5 in every capture.
+          notes: >-
+            Bit 0 of GEAR. Reads 1 exactly when VCU_SBW_ACTUATOR_STATE reads 4 (parked), except one
+            power-up row where the actuator state reads 0.
         GEAR_R:
           expression: B10:1
           notes: Bit 1 of GEAR. Matches ESC GEAR_SELECTOR=2 over the 2026-07-26 reversing.
@@ -141,11 +144,6 @@ VCU:
         GEAR_D:
           expression: B10:3
           notes: Bit 3 of GEAR.
-        DEBUG_VEHICLE_STATE_FLAGS:
-          expression: "B11"
-          verified: false
-          notes: Whole B11 byte; its bits are the VEHICLE_STATE_* signals.
-
         VEHICLE_STATE_BRAKE_LAMP:
           expression: "B11:0"
 
@@ -204,42 +202,6 @@ VCU:
           source: canair decode/align 2026-10-21; uhi22 EPCU bench 2026-10-29
           min: "0"
           max: "5"
-        DEBUG_GEAR_STATE_FLAGS:
-          expression: B26
-          source: canair bitfield analysis 2026-08-06; same-payload cross-tab vs GEAR (B10) n=6365; VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 19.4 and 27.9)
-          notes: >-
-            Not a VCU gear state: bits 0-2 are the park request the VCU sends to the shift-by-wire
-            (SBW) unit in 0x109 byte 0, bits 3-5 are 0x10C byte 0 bits 0-2 (the SBW actuator state:
-            4 parked, 1 released, 2 moving) and bit 6 is 0x10C bit 7. Reads 0x20 in Park (11701 of
-            11702) and 0x08 in Reverse, Neutral or Drive (1807 of 1807); bits 0-2 never set (the
-            request is a pulse shorter than the poll interval); one 0x40 row at the start press.
-          type: enum
-          values:
-            8: not_park
-            32: park
-        GEAR_PARK_INV:
-          expression: B26:3
-          source: canair bitfield analysis 2026-08-06; same-payload cross-tab vs GEAR (B10) n=6365
-          source_links:
-            - https://github.com/meatpiHQ/wican-fw/pull/716
-          notes: >-
-            SBW actuator state 'released' (0x10C byte 0 bit 0). Set in Reverse, Neutral and Drive;
-            the exact complement of GEAR_P in every car capture. Reads 0 in the uhi22 EPCU bench log
-            (no shifter connected, so no 0x10C frame) while GEAR_P reads 1. Disabled so it does not
-            ship a duplicate.
-          ship: false
-        GEAR_P_MIRROR_B26_5:
-          expression: B26:5
-          source: canair bitfield analysis 2026-08-06; decode --find-mirrors --bits, n=6365 unanimous
-          source_links:
-            - https://github.com/meatpiHQ/wican-fw/pull/716
-          notes: >-
-            SBW actuator state 'parked' (0x10C byte 0 bit 2). Equals GEAR_P (B10:0) in every car
-            capture, but reads 0 in all 250 replies of the uhi22 EPCU bench log (no shifter
-            connected, so no 0x10C frame) while GEAR_P reads 1. Disabled so it does not ship a
-            duplicate.
-          ship: false
-
         VCU_IGNITION_INPUT:
           expression: B23:2
           source: canair historical analysis 2026-07-23; VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 20.1, DIO 4); canair align vs IGPM IGN1_SWITCH 2026-11-08
@@ -376,8 +338,45 @@ VCU:
           source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 20.1, FUN_001AE2C4); canair captures 2026-11-08
           verified: false
           notes: >-
-            The hard-wired input (DIO 5) that behaves as the smart key's start signal: a rising edge
-            in P starts READY. Weak evidence: set in 1 stored row, 53 s before READY.
+            Hard-wired input DIO 5, probably the smart key (SMK) start signal: in the firmware, a
+            rising edge in P starts READY. Set in 1 stored row, 53 s before READY.
+        VCU_SBW_PARK_REQUEST:
+          expression: B26:0+B26:1*2+B26:2*4
+          min: "0"
+          max: "7"
+          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 7.1 and 19.4, FUN_001F46C0); canair captures 2026-11-12
+          verified: false
+          notes: >-
+            Copy of the park request that the VCU sends to the shift-by-wire (SBW) unit in 0x109
+            byte 0 bits 0-2 (VCU_PARK_REQUEST in signals/powertrain.yaml). Reads 0 in all 13512
+            stored replies.
+        VCU_SBW_ACTUATOR_STATE:
+          expression: B26:3+B26:4*2+B26:5*4
+          type: enum
+          values:
+            1: released
+            2: moving
+            4: parked
+          min: "0"
+          max: "7"
+          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 7.1 and 19.4, FUN_001F46C0); canair captures 2026-11-12
+          notes: >-
+            Copy of the SBW actuator state, 0x10C byte 0 bits 0-2 (SBW_ACTUATOR_STATE in
+            signals/powertrain.yaml). Stored replies: 4 in P (11704 rows), 1 in R, N and D (1807),
+            and 0 in one row at a power-up with GEAR 0x01 (2026-10-25). Reads 0 in all 250 replies
+            of the uhi22 EPCU bench log, which has no shifter and so no 0x10C frame. Value 2 comes
+            from uhi22's 0x10C trace and never occurs in 2101.
+          source_links:
+            - https://github.com/meatpiHQ/wican-fw/pull/716
+        VCU_SBW_10C_BIT7:
+          expression: B26:6
+          min: "0"
+          max: "1"
+          source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 7.1 and 19.4, FUN_001F46C0); canair captures 2026-11-12
+          verified: false
+          notes: >-
+            Copy of 0x10C byte 0 bit 7. Set in 1 of 13512 stored replies (2026-10-25 12:22:31,
+            VCU_POWER_STATE 1, 53 s before READY), the same row where VCU_START_INPUT reads 1.
     2102:
       response_frames: 4
       status: active
@@ -1358,30 +1357,6 @@ VCU:
         Live SOC is not on VCU 2101/2102, OBC, AAF, BCM or IGPM; only BMS carries it. VCU 21F2 holds
         the previous cycle end SOC (VCU_21F2_SOC).
     - type: verify
-      target: 2101 gear PRND enum + ESC cross-check
-      status: pending
-      priority: P1
-      vehicle_states: [READY]
-      created: "2026-08-06"
-      updated: "2026-11-02"
-      notes: >-
-        VCU Neutral (GEAR 0x24) is seen in 8 captures, none with ESC:22C101 read during it, so ESC
-        GEAR_SELECTOR = 3 for Neutral is still unobserved. On 2026-11-02 (one poll per 7.5 s) the
-        10:18 shift read VCU P at 10:18:31.7, ESC 4 at 10:18:33.6, VCU N at 10:18:39.5, ESC 2 at
-        10:18:41.1 and VCU R at 10:18:47.3: Neutral lasted under one poll. A dwell of about 10 s per
-        position is needed.
-      sources:
-        - canair bitfield analysis 2026-08-06 (plans/2026-08-06-bitfield-audit-and-gear-state.md)
-      what_to_test:
-        - ESC 22C101 GEAR_SELECTOR = 3 in Neutral (last unobserved value)
-        - Whether B26 ever takes a third value (would break the park/not_park enum)
-      capture_protocol: >-
-        canair monitor 'VCU:2101 ESC:22C101' --save --keep-changes --label 'gear PRND sweep' --state
-        READY. Park, foot on brake, shift P->R->N->D->N->R->P pausing ~10s in each position; press
-        's' in the monitor to note each shift. Expect: GEAR enum steps park/reverse/neutral/drive;
-        ESC GEAR_SELECTOR steps 1/2/3/4 with 3 finally observed; GEAR_PARK_INV (B26:3) reads 1 in
-        all of R/N/D and 0 only in P.
-    - type: verify
       target: 2101 B10:5 GEAR_SIGNAL_VALID + B25 value 1
       status: pending
       priority: P1
@@ -1868,6 +1843,30 @@ VCU:
       capture_protocol: >-
         canair monitor VCU:2101 --save --keep-all --interval 1 --label 'VCU after-run' --state
         READY. From READY press the button to OFF and keep recording for 5 min.
+    - type: verify
+      target: 2101 gear PRND enum + ESC cross-check
+      status: pending
+      priority: P1
+      vehicle_states: [READY]
+      created: "2026-08-06"
+      updated: "2026-11-12"
+      notes: >-
+        VCU Neutral (GEAR 0x24) is seen in 8 captures, none with ESC:22C101 read during it, so ESC
+        GEAR_SELECTOR = 3 for Neutral is still unobserved. On 2026-11-02 (one poll per 7.5 s) the
+        10:18 shift read VCU P at 10:18:31.7, ESC 4 at 10:18:33.6, VCU N at 10:18:39.5, ESC 2 at
+        10:18:41.1 and VCU R at 10:18:47.3: Neutral lasted under one poll. A dwell of about 10 s per
+        position is needed.
+      sources:
+        - canair bitfield analysis 2026-08-06 (plans/2026-08-06-bitfield-audit-and-gear-state.md)
+      what_to_test:
+        - ESC 22C101 GEAR_SELECTOR = 3 in Neutral (last unobserved value)
+        - Whether VCU_SBW_ACTUATOR_STATE (B26 bits 3-5) reads 2 (moving) during a shift
+      capture_protocol: >-
+        canair monitor 'VCU:2101 ESC:22C101' --save --keep-changes --label 'gear PRND sweep' --state
+        READY. Park, foot on brake, shift P->R->N->D->N->R->P pausing ~10s in each position; press
+        's' in the monitor to note each shift. Expect: GEAR enum steps park/reverse/neutral/drive;
+        ESC GEAR_SELECTOR steps 1/2/3/4 with 3 finally observed; VCU_SBW_ACTUATOR_STATE reads 1
+        (released) in all of R/N/D and 4 (parked) only in P.
   sessions:
     "81":
       name: "standardDiagnosticSession"

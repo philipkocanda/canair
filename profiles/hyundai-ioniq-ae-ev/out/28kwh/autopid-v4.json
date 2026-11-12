@@ -399,9 +399,9 @@
         "VEHICLE_STATE_NOT_BRAKING": "B11:1",
         "VEHICLE_STATE_EV_READY": "B11:3",
         "VCU_IG3_ON": "B11:4",
-        "DEBUG_GEAR_STATE_FLAGS": "B26",
         "VCU_IGNITION_INPUT": "B23:2",
-        "VCU_POWER_STATE": "B25"
+        "VCU_POWER_STATE": "B25",
+        "VCU_SBW_ACTUATOR_STATE": "B26:3+B26:4*2+B26:5*4"
       }
     },
     {

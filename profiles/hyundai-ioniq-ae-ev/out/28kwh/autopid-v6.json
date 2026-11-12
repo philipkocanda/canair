@@ -1929,12 +1929,6 @@
           "class": ""
         },
         {
-          "name": "DEBUG_GEAR_STATE_FLAGS",
-          "expression": "B26",
-          "unit": "",
-          "class": ""
-        },
-        {
           "name": "VCU_IGNITION_INPUT",
           "expression": "B23:2",
           "unit": "",
@@ -1949,6 +1943,14 @@
           "class": "",
           "min": 0,
           "max": 11
+        },
+        {
+          "name": "VCU_SBW_ACTUATOR_STATE",
+          "expression": "B26:3+B26:4*2+B26:5*4",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 7
         }
       ]
     },

@@ -364,14 +364,12 @@
         "GEAR_R": "B10:1",
         "GEAR_N": "B10:2",
         "GEAR_D": "B10:3",
-        "DEBUG_VEHICLE_STATE_FLAGS": "B11",
         "VEHICLE_STATE_BRAKE_LAMP": "B11:0",
         "VEHICLE_STATE_NOT_BRAKING": "B11:1",
         "VEHICLE_STATE_EV_READY": "B11:3",
         "VCU_IG3_ON": "B11:4",
         "VEHICLE_STATE_LDC_ENABLED": "1-B11:7",
         "VCU_APS1_VOLTAGE": "((B13<<8)|B12)/2048",
-        "DEBUG_GEAR_STATE_FLAGS": "B26",
         "VCU_IGNITION_INPUT": "B23:2",
         "VCU_POWER_STATE": "B25",
         "VCU_SUPPLY_VOLTAGE": "((B22<<8)|B21)/2072",
@@ -382,7 +380,10 @@
         "VCU_REGEN_PADDLE_MINUS": "B23:0",
         "VCU_REGEN_PADDLE_PLUS": "B23:1",
         "VCU_GEAR_SHIFTER_FAULT": "B10:4",
-        "VCU_START_INPUT": "B11:2"
+        "VCU_START_INPUT": "B11:2",
+        "VCU_SBW_PARK_REQUEST": "B26:0+B26:1*2+B26:2*4",
+        "VCU_SBW_ACTUATOR_STATE": "B26:3+B26:4*2+B26:5*4",
+        "VCU_SBW_10C_BIT7": "B26:6"
       }
     },
     {

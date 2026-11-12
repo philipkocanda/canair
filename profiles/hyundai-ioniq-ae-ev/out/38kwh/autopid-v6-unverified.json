@@ -1729,12 +1729,6 @@
           "class": ""
         },
         {
-          "name": "DEBUG_VEHICLE_STATE_FLAGS",
-          "expression": "B11",
-          "unit": "",
-          "class": ""
-        },
-        {
           "name": "VEHICLE_STATE_BRAKE_LAMP",
           "expression": "B11:0",
           "unit": "",
@@ -1771,12 +1765,6 @@
           "class": "voltage",
           "min": 0,
           "max": 5
-        },
-        {
-          "name": "DEBUG_GEAR_STATE_FLAGS",
-          "expression": "B26",
-          "unit": "",
-          "class": ""
         },
         {
           "name": "VCU_IGNITION_INPUT",
@@ -1853,6 +1841,30 @@
         {
           "name": "VCU_START_INPUT",
           "expression": "B11:2",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 1
+        },
+        {
+          "name": "VCU_SBW_PARK_REQUEST",
+          "expression": "B26:0+B26:1*2+B26:2*4",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 7
+        },
+        {
+          "name": "VCU_SBW_ACTUATOR_STATE",
+          "expression": "B26:3+B26:4*2+B26:5*4",
+          "unit": "",
+          "class": "",
+          "min": 0,
+          "max": 7
+        },
+        {
+          "name": "VCU_SBW_10C_BIT7",
+          "expression": "B26:6",
           "unit": "",
           "class": "",
           "min": 0,
