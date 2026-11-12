@@ -243,10 +243,21 @@ uv run canair --profile hyundai-ioniq-ae-ev memory image MCU --block-limit 64 \
 - The image holds the MCU's identity: the part number `36600-0E250`, `sw_id` `EAEEHEL-MS2-D000`
   (at `0x1001C`), calibration (at `0x10014`), ecu_id `AEEMCU83` at `0xFFF6`, and the app-valid
   word `C3 5A` at `0xFFFE`. That is the VCU's header layout.
-- **The VCU's checksum does not match.** The word at `0x10078` is not the VCU's byte sum over
-  `0x4000`-`0x3FFFFF` less the header, nor that sum over any common range. A sparse image fills
-  the unread erased bytes with `FF`, so a stray non-`FF` byte there is one possible cause; another
-  algorithm is another. As with the OBC, a mismatch does not prove a bad image.
+- **The checksum does not match, so the image is not byte-exact.** The MCU runs the VCU's
+  checksum code (`0x119CFC`-`0x119F10`, the same instructions as the VCU's `FUN_001AB5AC` to
+  `FUN_001AB694`): a byte sum of `0x4000`-`0x3FFFFF` in 128-byte chunks (`0x7F80` of them), less
+  the 128-byte header at `0x10000`, compared with the word at `0x10078`. The image's sum is
+  `0x2A01F4` (2,753,012) above the stored word.
+- **The interruption is probably not the cause.** The resume re-read the first extent and the
+  last two before it read on, and they matched. The E1 (`slcan-tcp`) and E2 (`wican-ws`) dumps
+  of `0x100000`-`0x109FFF` and the morning's boot block equal the image byte for byte. Every
+  extent with a lost or re-read reply is among the 145 that were read twice and matched.
+- **The likely cause is data between the samples.** A sparse image reads 61 bytes of every KiB
+  in an area its survey called erased, and assumes `FF` for the rest. A sum that is too high
+  means bytes below `FF` there: about 10.8 KiB of `00`, or more of other values. The VCU's sparse
+  image matched its checksum, so the method works on that layout. The MCU's does not.
+- **Next:** read the erased areas in full. Those below `0x168000` (about 825 KiB) come first;
+  `0x167CC0`-`0x3FFFFF` (2.6 MiB) only if the sum still differs.
 
 ### Phase 4: check and analyse (offline)
 
