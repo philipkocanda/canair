@@ -215,7 +215,7 @@ dump them this way. What each one gives:
   An address with a high byte of `01`-`FF` draws NRC `0x52`.
 - **MCU:** its flash (`0x000000`-`0x3FFFFF`), read with that `--range`. It answers every address
   of its 16 MiB space, and a survey that went above `0x3FFFFF` ended an AC charge on 2026-11-08.
-  In READY it ignores about 1 in 40 reads whose reply needs more than one CAN frame.
+  Read it over `wican-ws`: on `slcan-tcp` it, and the VCU, lose about one multi-frame reply in 40.
 
 The details are in `plans/2026-11-05-read-memory-by-address.md` and in the `research:` entries of
 each ECU.

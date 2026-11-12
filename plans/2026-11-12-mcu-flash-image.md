@@ -1,6 +1,6 @@
 # Read the motor controller's flash (MCU) on the car
 
-Status: **IN PROGRESS** (2026-11-12). Phases 0 to 2 are done; phase 3 (the full read) is running.
+Status: **IN PROGRESS** (2026-11-12). Phases 0 to 3 are done; phase 4 (offline analysis) is next.
 
 Paths are relative to `src/canair/`. Point at code by file and symbol: line numbers drift.
 Related: `plans/2026-11-05-read-memory-by-address.md` (the live tests),
@@ -237,6 +237,16 @@ uv run canair --profile hyundai-ioniq-ae-ev memory image MCU --block-limit 64 \
   frames halved the block and added throttle, and the block moved between 30 and 60 bytes. The
   rest of the gap is not explained yet.
 - A resume with the same flags started after the fix.
+- **Done.** The resume read the remaining 698.2 KiB in 1 h 3 min (188 B/s, 24,593 reads, ending
+  at a 30-byte block). The image is complete: 836.7 KiB in the dump. 145 extents read twice were
+  the same. The fault codes did not change on any ECU that answered, before or after.
+- The image holds the MCU's identity: the part number `36600-0E250`, `sw_id` `EAEEHEL-MS2-D000`
+  (at `0x1001C`), calibration (at `0x10014`), ecu_id `AEEMCU83` at `0xFFF6`, and the app-valid
+  word `C3 5A` at `0xFFFE`. That is the VCU's header layout.
+- **The VCU's checksum does not match.** The word at `0x10078` is not the VCU's byte sum over
+  `0x4000`-`0x3FFFFF` less the header, nor that sum over any common range. A sparse image fills
+  the unread erased bytes with `FF`, so a stray non-`FF` byte there is one possible cause; another
+  algorithm is another. As with the OBC, a mismatch does not prove a bad image.
 
 ### Phase 4: check and analyse (offline)
 

@@ -833,18 +833,19 @@ MCU:
         - canair logs (run ec52bbec), canair memory image MCU --plan-only, 2026-11-08
     - type: verify
       target: ReadMemoryByAddress (0x23) flash image 0x000000-0x3FFFFF
-      status: captured
+      status: done
       priority: P1
       vehicle_states: [READY]
       created: "2026-11-12"
       updated: "2026-11-12"
       date: "2026-11-12"
       result: >-
-        In READY over slcan-tcp the MCU answered 0x23 across 0x000000-0x3FFFFF and stayed up. It
-        ignored 32 of about 2,200 reads; every ignored read had a multi-frame reply, and none of
-        1,024 1-byte (single-frame) reads was lost. The 1-byte check after each ignored read
-        answered. The VCU and OBC on the same link lost none of about 133 reads, and their boot
-        blocks equal the dumps made while charging.
+        Imaged on 2026-11-12 in READY over wican-ws: 836.7 KiB read (sparse: data areas in full,
+        erased areas sampled), 145 extents read twice and the same, no new fault code. The image
+        holds the MCU's part number, sw_id, calibration and ecu_id AEEMCU83 at the VCU's header
+        offsets. The VCU's checksum algorithm does not match the word at 0x10078. Over slcan-tcp,
+        multi-frame replies from the MCU and the VCU were lost at the same rate, so the slcan-tcp
+        path, not the MCU, caused the morning's losses.
       notes: >-
         Boot block: the first 4 KiB equal the VCU's except 3 bytes. The start-up code clears SRAM up
         to 0x4003FFFF (256 KiB, as on the VCU), and the reset code calls the application at 0x100000
