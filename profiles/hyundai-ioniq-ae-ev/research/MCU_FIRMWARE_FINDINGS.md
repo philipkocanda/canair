@@ -160,8 +160,10 @@ tables it decodes as code). The VCU has about 1,920 in `0x180000`-`0x2208DB`. Th
 generated (a Simulink-style model with generated state machines), so most functions are small
 getters, setters and one-state-machine steps.
 
-The Ghidra project and the analysis scripts are kept locally under `references/firmware/mcu/` (a
-gitignored path). They are not part of this repository.
+The analysis scripts are kept locally under `references/firmware/mcu/` (a gitignored path):
+`merge.py` rebuilds the merged image from the two dumps and checks the checksum, and the Ghidra
+scripts and `NOTES.md` say how to rebuild the project. The merged binary, the decompiled listings
+and the Ghidra project were deleted after the analysis. None of it is part of this repository.
 
 ## 2. The image: layout, MMU and exception set-up
 
