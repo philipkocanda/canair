@@ -232,3 +232,35 @@ class TestCaptureText:
         path.write_text(json.dumps(bad))
         with pytest.raises(CaptureFormatError, match=r"2026-10-25\.json"):
             capture_io.load_capture_file(path)
+
+
+class TestFoldKeepsTheSpelling:
+    """A row folds into an earlier one only when the file would spell both the same way."""
+
+    @staticmethod
+    def _rows(first, second):
+        base = {"rx": "0x7EC", "pid": "2101", "payload": "6101AA"}
+        return [
+            {**base, "time": "12:00:00.000", "elapsed_ms": first},
+            {**base, "time": "12:00:01.000", "elapsed_ms": second},
+        ]
+
+    def test_an_int_and_a_float_stay_two_rows(self):
+        from canair.captures.folding import fold_captures
+
+        rows = self._rows(5, 5.0)
+        assert fold_captures(rows) == rows
+
+    def test_a_bool_and_an_int_stay_two_rows(self):
+        from canair.captures.folding import fold_captures
+
+        rows = self._rows(True, 1)
+        assert fold_captures(rows) == rows
+
+    def test_identical_values_still_fold_and_round_trip(self):
+        from canair.captures.folding import expand_captures, fold_captures
+
+        rows = self._rows(5.0, 5.0)
+        folded = fold_captures(rows)
+        assert len(folded) == 1
+        assert [type(r["elapsed_ms"]) for r in expand_captures(folded)] == [float, float]

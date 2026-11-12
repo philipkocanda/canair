@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import bisect
 import heapq
+import json
 import math
 import re
 from collections.abc import Callable, Mapping, Sequence
@@ -82,9 +83,20 @@ def _sort_time(row: Mapping[str, Any]) -> float:
     return math.inf if parsed is None else parsed[0]
 
 
+def _exact(value: Any) -> Any:
+    """``value`` as something that compares equal only to a value written the same in JSON.
+
+    Python says ``5 == 5.0`` and ``True == 1``, but the file spells them differently, and a
+    fold that merged them would hand back the first row's spelling for the second.
+    """
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return (type(value), value)
+    return json.dumps(value, ensure_ascii=False)
+
+
 def _shape(row: Mapping[str, Any]) -> tuple:
     """Everything a repeat must share with its run's first row: all fields but ``time``."""
-    return tuple((k, v) for k, v in row.items() if k != "time")
+    return tuple((k, _exact(v)) for k, v in row.items() if k != "time")
 
 
 def _run_key(row: Mapping[str, Any]) -> tuple:
@@ -250,7 +262,7 @@ def fold_captures(rows: Sequence[Any]) -> list:
     for row in rows:
         folder.add(row)
     folded = folder.result()
-    if len(folded) == len(rows) or expand_captures(folded) != list(rows):
+    if len(folded) == len(rows) or _exact(expand_captures(folded)) != _exact(list(rows)):
         return list(rows)
     return folded
 
