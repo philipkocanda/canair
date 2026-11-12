@@ -133,8 +133,9 @@ The [At a glance](#at-a-glance) table gives the number of registered ECUs. The m
 | HVAC | 0x7B3 | Climate control |
 | CLU | 0x7C6 | Cluster / instrument panel (odometer) |
 
-The profile also registers AAF, ADM, AMP, AVN, BSD-L/R, CCM, DDM, EPB, EWP, GSA, MFC, PSM, RCAM,
-SCC, SKM, SRS, VESS, WPC, and one module that has no name yet, `Unknown-7C0`. List all ECUs with:
+The profile also registers AAF, ADM, AMP, AVN, BSD-L/R, CCM, DDM, EDR, EPB, EWP, GSA, MFC, PSM,
+RCAM, SCC, SKM, SRS, VESS and WPC. EDR (0x7F1) is probably the airbag unit's second diagnostic
+address. List all ECUs with:
 
 ```bash
 canair ecu               # every ECU + PID, verified-signal and capture counts

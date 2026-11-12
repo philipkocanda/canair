@@ -1,0 +1,75 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/ecus.json
+EDR:
+  tx_id: 0x7F1
+  can_bus: [P-CAN]
+  identity:
+    notes: >-
+      Probable airbag-system channel (EDR/airbag deployment data); not proven. Found 2026-11-12 in a
+      0x700-0x7FF sweep with 3E 00, READY; the April sweep stopped at 0x7EF. Answers 10 01, 10 03,
+      3E 00 and 22 only. NRC 0x11 to all other services, including 19, 1A, 21, 27, 2F, 31. 22 F1xx
+      identity DIDs: NRC 0x12. Self-describing: DID FA02 returns request 0x7F1 and response 0x7F9.
+      Same address pair and service set as the airbag module on the Kona bench (Pelland, EV_Hacking
+      Airbag Module); there it sat beside SRS 0x7D2/0x7DA. Spec ES95486 reserves FA00-FA0F for
+      airbag deployment data and FA10-FA18 for EDR data. Sweep of 22 FA00-FAFF in the default
+      session: FA00, FA01, FA02, FA06, FA07 answer, the other 251 give NRC 0x31.
+    description: Airbag event data recorder (EDR) diagnostic address, second SRS address
+    id_protocol: none
+
+  sessions:
+    "01":
+      name: "defaultSession"
+      supported: true
+    "03":
+      name: "extendedDiagnosticSession"
+      supported: true
+  pids:
+    22FA00:
+      status: draft
+      vehicle_states: [READY]
+      notes: Reply 62FA0001 (1 data byte). Meaning unknown. Seen 2026-11-12, default session, READY.
+    22FA01:
+      status: draft
+      vehicle_states: [READY]
+      notes: Reply 62FA01 01 00 00 00 00 00 00 00 00 00 (10 data bytes, mostly 0). Meaning unknown.
+    22FA02:
+      status: draft
+      vehicle_states: [READY]
+      notes: >-
+        Reply 62FA02 01 00 00 07F1 00 00 07F9: the unit's own request id 0x7F1 and response id
+        0x7F9.
+    22FA06:
+      status: draft
+      vehicle_states: [READY]
+      notes: >-
+        Reply 62FA06 01 01 0B 01 00 0A 00 12 00 18 00 53 00 1C 00 1E 00 4B 00 4C 00 3B 00 3C. After
+        01 01 0B 01 a list of 16-bit values 0x0A 0x12 0x18 0x53 0x1C 0x1E 0x4B 0x4C 0x3B 0x3C.
+        Meaning unknown.
+    22FA07:
+      status: draft
+      vehicle_states: [READY]
+      notes: Reply 62FA07 followed by 16 zero bytes. Meaning unknown; may be an empty record.
+
+  research:
+    - type: scan
+      target: 22 0000-FFFF (remaining)
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-11-12"
+      updated: "2026-11-12"
+      notes: >-
+        Default-session sweep 2026-11-12: 0000-4FFF all NRC 0x12 (7 no-reply DIDs, 31A3 31A4 32D7
+        32D8 3355-3357, probably link drops; recheck). FA00-FAFF done: 5 answer, 251 NRC 0x31.
+        5000-F9FF and FB00-FFFF not swept. Extended session (10 03) not swept; canair scan range
+        with --session may lapse to default, so use an explicit re-entry.
+    - type: decode
+      target: 22FA06 value list
+      status: pending
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-11-12"
+      updated: "2026-11-12"
+      notes: >-
+        Ten 16-bit values 0x0A 0x12 0x18 0x53 0x1C 0x1E 0x4B 0x4C 0x3B 0x3C after header 01 01 0B
+        01. Re-read with ignition cycles and a belt buckle change to see if any value moves; compare
+        with the ACU11 frame 0x5A0.

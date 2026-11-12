@@ -1187,6 +1187,79 @@
         {"rx":"0x7AD","pid":"22B006","payload":"62B006AFE00000B70000000000B8B7B700B70000000000","time":"11:20:37.760"},
         {"rx":"0x7AD","pid":"22B006","payload":"62B006AFE00000B80000000000B8B7B800B70000000000","time":"11:20:39.555"}
       ]
+    },
+    {
+      "date": "2026-11-12",
+      "label": "CLU liveness before memory scan",
+      "version": "5.4.0+main.37e2ed7.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "transport": "slcan-tcp",
+      "quality": {
+        "exchanges": 1
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7CE","pid":"22B002","payload":"62B002E000000000AE01289F000000","time":"12:45:30.456","elapsed_ms":132}
+      ]
+    },
+    {
+      "date": "2026-11-12",
+      "label": "CLU reachable DIDs READY",
+      "version": "5.4.0+main.37e2ed7.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "notes": "CLU 22B001/B003 baseline, READY, 2026-11-12",
+      "transport": "slcan-tcp",
+      "quality": {
+        "exchanges": 3
+      },
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7CE","pid":"22B001","payload":"62B0010000000000","time":"12:51:56.267","elapsed_ms":131},
+        {"rx":"0x7CE","pid":"22B002","payload":"62B002E000000000AE01289F000000","time":"12:51:56.351","elapsed_ms":80},
+        {"rx":"0x7CE","pid":"22B003","payload":"62B0038800000001","time":"12:51:56.415","elapsed_ms":60}
+      ]
+    },
+    {
+      "date": "2026-11-12",
+      "label": "CLU 22B0xx sweep READY",
+      "version": "5.4.0+main.37e2ed7.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "transport": "slcan-tcp",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7CE","pid":"scan 22 B011-B040","scan_results":{"rejected":"48 DIDs returned 48 errors"}}
+      ]
+    },
+    {
+      "date": "2026-11-12",
+      "label": "CLU 22B0xx sweep READY",
+      "version": "5.4.0+main.e8e5ba9.dirty",
+      "vehicle_states": [
+        "READY"
+      ],
+      "transport": "slcan-tcp",
+      "variant": "28kwh",
+      "attribution": {
+        "variant": "selected"
+      },
+      "captures": [
+        {"rx":"0x7CE","pid":"scan 22 B000-B000,B041-B0FF","scan_results":{"rejected":"192 DIDs returned 192 errors"}}
+      ]
     }
   ]
 }

@@ -596,14 +596,7 @@
       "label": "IGPM bare-SID service presence probe",
       "version": "5.2.0+main.68ce0b1.dirty",
       "vehicle_states": [
-        "C",
-        "H",
-        "A",
-        "R",
-        "G",
-        "I",
-        "N",
-        "G"
+        "CHARGING"
       ],
       "notes": "[recovered]",
       "transport": "wican-ws",

@@ -192,10 +192,14 @@ module with no row below either does not answer at a 0x7xx address or was not aw
 | Cluster, BCM | CLU, BCM | certain | name, buses |
 | EWP (EPCU/motor coolant pump) | EWP (0x746) | probable | Kona bench log: the pump alone answers on 0x74E and sends P-CAN 0x570; was Unknown-746 |
 | ODS, DBL, charge lamp, compressor, PTC heater, the other of SBW switch / SCU | none | no responder found | not in the sweep |
+| Airbag unit, second address (0x7F1) | EDR | probable | Kona bench airbag module answers on the same pair; FA00-FA0F is the spec's airbag data block |
 
-`Unknown-7C0` matches no factory module yet. The HVAC unit also has a
-private link to the compressor and PTC heater (`CLIMATE-CAN` in `can_buses.yaml`, marked
-`private: true`): neither the IGPM nor the OBD-II port is on it.
+EDR (0x7F1/0x7F9, found 2026-11-12) is probably the airbag unit's second address: it answers only
+`10`, `22` and `3E`, FA02 returns its own ids, and a Kona airbag module on a bench answers on the
+same pair. The April 2026 sweep reported 0x7C0 alive, but it stays silent on every CAN id in READY
+and charging, so the entry was dropped as a false positive. No dash charge-lamp unit has been
+found. The HVAC unit also has a private link to the compressor and PTC heater (`CLIMATE-CAN` in
+`can_buses.yaml`, marked `private: true`): neither the IGPM nor the OBD-II port is on it.
 
 ## Part numbers
 

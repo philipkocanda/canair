@@ -15,7 +15,13 @@ CLU:
       Odometer is 22B002 [B12:B14]. The imperial odometer, range and cruise fields the e-Niro
       exposes are absent here (22B002 is a 15-byte response). Ignores the functional (0x7DF)
       TesterPresent but answers a physical 3E00 at once, so `discover --functional` lists it as
-      silent (READY, 2026-11-03, three rounds, 1 s window).
+      silent (READY, 2026-11-03, three rounds, 1 s window). Never sends a negative response: a
+      request it does not support gets silence, not NRC 0x11, 0x12 or 0x31 (22B004, 22F190, 22FFFF,
+      1902FF, 1A87, A0 and every 23 read; READY, 2026-11-12). Silence therefore does not tell an
+      unsupported service from a wrong address or format, which makes enumeration blind. Not an
+      ISO-TP flow-control quirk like the EWP: the 15-byte 22B002 reply arrives with the default
+      BlockSize 0, and 23 reads whose request fits one frame (formats 14 and 13, kwp) are silent
+      too.
   vehicle_states: [ACC, "ON", READY]
   pids:
     22B002:
@@ -73,7 +79,8 @@ CLU:
       vehicle_states: [ACC]
       notes: >-
         Head unit: no data in deep sleep (2026-04-16); at READY 0x7C0 also returns NO DATA to 22
-        B001-B005 and 0100-010F (see Unknown-7C0).
+        B001-B005 and 0100-010F. 0x7C0 stays silent on every CAN id in READY (2026-11-12); the April
+        sweep hit was a false positive. The head unit is AVN at 0x780.
       sources:
         - "Hyundai/Kia convention: 0x7C0 = AVN"
     - type: iocontrol_scan
@@ -125,3 +132,33 @@ CLU:
         Battery Charge Status and Washer Low is B10:4 is open.
       what_to_test:
         - Read CLU:22B003 with the washer reservoir low, and with the 12 V charge warning lit
+    - type: scan
+      target: 23 ReadMemoryByAddress
+      status: nrc
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-11-12"
+      updated: "2026-11-12"
+      date: "2026-11-12"
+      result: No 23 read answered; the CLU stays silent
+      notes: >-
+        Sent to 0x7C6 in READY, 2026-11-12, with and without 10 03. 2324 with no address, scan
+        memory at 0x0 in formats 44, 24, 14, 13, 23, 22, 12 and kwp, and 1-byte reads in formats 24
+        and 14 at 20 addresses (0x0 to 0xFFFF8000, including 0x40000000 and 0xFEDE0000) were all
+        silent. The CLU answers no unsupported request with a negative response, so the silence does
+        not show whether the service exists. Not tried: a security-access unlock (canair never
+        unlocks) and any address not in the list.
+      what_to_test:
+        - Find the cluster microcontroller from part number 94003G7300 and read its memory map before sweeping more addresses
+    - type: scan
+      target: 22 B000, B011-B0FF
+      status: done
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-11-12"
+      updated: "2026-11-12"
+      date: "2026-11-12"
+      result: No DID answers in B000 or B011-B0FF
+      notes: >-
+        240 DIDs, 0.4 s timeout, READY, 2026-11-12. All silent. With B001-B010 (B001-B003 answer),
+        the B0xx family holds three readable DIDs. The CLU answered 22B002 straight after the sweep.

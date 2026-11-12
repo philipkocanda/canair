@@ -255,3 +255,18 @@ AAF:
         - "AAF_2181_B27: what raw 1 means (seen only with the heat pump running)"
         - "AAF_2181_B15: correlate against AAF_VEHICLE_SPEED_KMH and time parked"
         - "AAF_COOLANT_TEMP_2: sensor location relative to MOTOR_COOLANT_TEMP (B22)"
+    - type: scan
+      target: 23 ReadMemoryByAddress
+      status: nrc
+      priority: P3
+      vehicle_states: [IG3]
+      created: "2026-11-12"
+      updated: "2026-11-12"
+      date: "2026-11-12"
+      result: No 23 read answered; the AAF stays silent
+      notes: >-
+        Sent to 0x7E6 in READY, 2026-11-12. These were all silent: 23 alone, 23 with a KWP2000
+        address and 1-byte size at 0x000000, 0x004000, 0x800000 and 0xFF0000, scan memory
+        000000-0FFFFF in 64 KiB steps, and 2324 with a 4-byte address. The AAF answers 1A, 21 and 10
+        (NRC 0x12 for 21FF, NRC 0x22 for 1003, positive for 1081) but is silent on 22, 3E and 23, so
+        silence there does not show whether 23 exists. Not tried: any other address.
