@@ -666,22 +666,28 @@ only after a period in state 1 ends, which is what the profile found.
 byte and the data both stay 0 (verified from the whole image, and in the profile's 697 captures).
 There is nothing to decode.
 
-### 5.6 What the profile should take (unverified)
+### 5.6 What went into the profile (2026-11-12)
 
-The corrections below are recorded in `mcu.yaml` as unverified signals (none from code alone is
-marked verified):
+The corrections below are in `mcu.yaml` as unverified signals; no signal was marked verified from
+code alone. The names in the tables above are the ones the profile had when the image was read.
 
-- `MCU_DC_LINK_VOLTAGE` = `((B13<<8)|B12)/100` V, the full-resolution form of `MCU_HV_VOLTAGE`.
-- `MCU_2101_B22` becomes the 16-bit millivolt value `(B23<<8)|B22`; `MCU_2101_B25` becomes
-  `(B26<<8)|B25`.
-- `MCU_2101_PUMP_CURVE` = `(B21<<8)|B20` (new, probable pump duty percent).
-- The four 2102 temperatures read `S18*2`, `S19*2`, `S20*2`, `S21*2` (signed, 2 °C per count).
-- `MCU_2102_SENSOR_V` = `((B53<<8)|B52)/10000` V (new).
-- The learned-position values are listed as constants with their markers.
-- The 21F2 temperature and supply statistics get their 16-bit and signed forms.
+- New `MCU_DC_LINK_VOLTAGE` = `((B13<<8)|B12)/100` V, the full-resolution form of
+  `MCU_HV_VOLTAGE`.
+- `MCU_2101_B22` is now `MCU_2101_ADC_1_MV` = `(B23<<8)|B22`, and `MCU_2101_B25` is now
+  `MCU_2101_ADC_2_MV` = `(B26<<8)|B25` (both stay off the device profile).
+- New `MCU_2101_W20` = `(B21<<8)|B20` (the probable pump-duty curve), `MCU_POSITION_NOT_LEARNED`
+  (`B10:7`) and `MCU_2101_B09_BIT4` (`B09:4`).
+- The four 2102 temperatures read `S18*2`, `S19*2`, `S20*2` and `S21*2` (signed, 2 °C per count).
+- New `MCU_2102_SENSOR_V` = `((B53<<8)|B52)/10000` V, `MCU_2102_LEARNED_ANGLE`
+  (`((B28<<8)|B27)/10000`, probable radians), `MCU_2102_LEARN_MARKER` and
+  `MCU_2102_OFFSET_CAL_MARKER`. The 2102 note no longer calls B52 a counter.
+- The 21F2 temperature statistics use their 16-bit and signed forms, and `MCU_21F2_W27` and
+  `MCU_21F2_W31` are now `MCU_21F2_SENSOR_V_MAX_MV` and `MCU_21F2_SENSOR_V_AVG_MV`, with the new
+  `MCU_21F2_SENSOR_V_MIN_MV` (always 0).
+- The phase-current notes carry the ×50 scale. The unit stays open (research entry).
 
-The unit of the phase currents and the physical meaning of the 2101 flag bytes B09-B11 stay open
-(research entries).
+The remaining unmapped bytes of 2102 are the constants of §5.3 (B31/B33, B34-B46), the counters
+(B50:B51, B54-B65) and the header; the research entries name what is left.
 
 ## 6. The DTC manager and the 44 codes
 
