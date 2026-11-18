@@ -117,6 +117,14 @@ sections:
       regen limits, no counter or checksum check. signals/ has the 0x291 limits renamed to
       MCU_MOTORING_TORQUE_LIMIT_291 and MCU_REGEN_TORQUE_LIMIT_291, and the torque notes fixed.
     target: profiles/hyundai-ioniq-ae-ev/signals/powertrain.yaml
+  - section: "15"
+    status: open
+    date: 2026-11-18
+    note: >-
+      Fifth pass: the inverter's main states 0-10 (standby, idle, switching, power-down with an
+      active DC-link discharge, derate, fault stop, current-sensor calibration, a BMS-requested
+      mode of unknown purpose) and IOControl 01/02, which always answer NRC 0x22. The main state
+      is in no record; only 2101 B09 bit 2 and B10 bit 2 show it.
 relations:
   expands_on:
     - path: profiles/hyundai-ioniq-ae-ev/ecus/mcu.yaml
@@ -548,7 +556,7 @@ in `0x40015E6E`, the trigger of the current-sensor offset calibration state mach
 `06` and `07` have no release in this handler. Local ids `0x20`, `0x40`, `0x60`, `0x80`, `0xA0`,
 `0xC0` and `0xE0` answer a fixed reply to control `01`. Treat every `30 .. 07` as a latched
 actuation (§8). Whether a session timeout or reset clears the latches was not traced. What LIDs
-`04`, `05` and `08` do is in §13.2.
+`04`, `05` and `08` do is in §13.2; LIDs `01` and `02` always answer NRC `0x22` (§15.2).
 
 ## 5. The 0x21 records: the source of every byte
 
@@ -1048,7 +1056,7 @@ item below follows `10 90` unless stated, and each also works on the functional 
 | `30 04 07` | **erases the learned position-sensor offset** (`FUN_00132630`): clears the `0xABCD` marker and loads the default angle, so P0C17 sets and the offset has to be relearned, which needs coasting at 1,000-4,000 rpm with zero torque (§13.2). Whether the car still drives until then was not established | as above |
 | `30 05 07` | runs the coolant pump at 3,720 rpm for up to 10 minutes (probable); release `30 05 00` | as above |
 | `30 08 07` | raises the cooling-fan request to 1,800 for up to 3 minutes (probable); release `30 08 00` | as above |
-| `30 01 07`, `30 02 07` | latch an output or state of unknown meaning | as above |
+| `30 01 ..`, `30 02 ..` | nothing: always NRC `0x22`, their enables are never set (§15.2) | harmless |
 | `11 01` | software system reset (`FUN_0010CFD8` → `FUN_00103714`), gated like `31 00`: needs the stationary test. In session `85` it needs the key | refused |
 | `28 01`, `28 02` | stop every periodic MCU frame (`FUN_0010CFEC` gates `0x2C1`, `0x291`, `0x523`, `0x524`, `0x2A1`, `0x540`, `0x5DC`, `0x5DE`): **the VCU loses its torque feedback** with no READY gate. Cleared by `29`, `20`, `10 81` or the session timeout | refused |
 | `99` | the handler `FUN_0010D28C` has **no permission-matrix call**: it overwrites the 32-byte VIN image at `0x40001FC0` with `FF` and writes it to the SPI EEPROM page `0x1FC0` (messages 14 and 15 are the EEPROM's DSPI channel, §11.1), in any session | refused |
@@ -1176,7 +1184,7 @@ channel index (`base + n`), which the address scans did not resolve.
 |---|---|---|---|---|
 | B09 | 0 | a raised fault has reaction word 1 set (any class) | `FUN_00151588` ORs the fault manager's mask-word summaries (§6.1) | 0 |
 | B09 | 1 | a raised fault has reaction word 2 set | same | 0 |
-| B09 | 2 | **the inverter is in its run state** (main state 2 of `FUN_00159964`); set on the change from standby (state 1) to run, cleared on every way out | `FUN_00159964` | 1 in READY, 0 when ON but not READY and while charging |
+| B09 | 2 | **the inverter is enabled** (main states 2, 3, 5, 8 and 10 of `FUN_00159964`, §15.1); set on the change from standby (state 1) to state 2, cleared on every way back | `FUN_00159964` | 1 in READY, 0 when ON but not READY and while charging |
 | B09 | 3 | **the power-up checks have finished** (sub-state 4 of start-up state 0); never cleared afterwards | `FUN_00159964` | 1 in all but one of 10,811 captures |
 | B09 | 4 | a sensor plausibility check is non-zero (`0x40016260`/`61`/`63`) | `FUN_001373A4`, `FUN_0015177C` | 0 |
 | B09 | 5 | set when the coolant-pump fault 5.18 (P0C73) is raised | `FUN_0012E44C` | 0 |
@@ -1377,7 +1385,7 @@ that storage state (`00`: all). The freeze-frame layout of `12` was not decoded.
 
 ### 12.7 Still open after this pass
 
-- The meaning of the inverter's main states 3 to 10 (§13.1).
+- The purpose of main state 9 (switching at the BMS's request, §15.1).
 - Which interlock loop is which. (The sender of `0x5F5`/`0x5F7`: the climate unit, by the VCU's
   reading, §14.3.)
 - The freeze-frame layout of `12`; the conditions of 32 of the 44 DTCs.
@@ -1395,10 +1403,10 @@ The bits of §11.3 come from four places (verified):
   `0x40016A1C` in start-up and `0x40016A20` in standby). State 0 is start-up: its sub-state 4
   sets B09 bit 3 once the power-up checks pass. State 1 is standby; when the VCU enables the
   inverter (a request flag `0x40011E34` with the VCU's `0x202` byte 0 bit 1, or a torque mode
-  above 4) it sets B09 bit 2 and moves to state 2, the run state. Every exit from state 2 clears
-  bit 2: at once on the way back to standby or to state 7, and at the end of the shut-down
-  sequence of the fault state 4. The meaning of states 3 and 5
-  to 10 was not traced; the position-offset learning below runs only in states 3 and 5.
+  above 4) it sets B09 bit 2 and moves to state 2 (enabled). B09 bit 2 is cleared at once on
+  the way back to standby or into state 7, and at the end of the shut-down sequence of the
+  power-down state 4. States 3 to 10 are in §15.1; the position-offset learning below runs only
+  in states 3 (switching) and 5 (derated).
 - **The position-sensor offset learning** (`FUN_00130888`, state `0x40015A74`). At power-up its
   state 0 asks `FUN_0012FED4` why to learn: 2 when the `0xABCD` marker is missing, 1 when the
   calibration word `0x122E0` is 1, else 0. For 1 or 2 it sets B10 bit 3 and writes 3 or 5 into
@@ -1442,13 +1450,13 @@ motor turns with torque, and B10 is `0x38` at rest and `0x3C` whenever torque is
   (calibration `0x122A0`) for up to 1,800 calls of the 100 ms task (`0x122A4`; probable: 3
   minutes), so the PWM duty of 2101 B20:B21 rises. `30 08 00` stops it.
 
-LIDs 06 and 07 start the current-sensor offset calibration (§4.5). LIDs 01 and 02 were not
-traced.
+LIDs 06 and 07 start the current-sensor offset calibration (§4.5), which runs in main state 10
+(§15.1). LIDs 01 and 02 always answer NRC `0x22` (§15.2).
 
 ### 13.3 What went into the profile
 
-New unverified bit signals on 2101: `MCU_RUN_STATE` (B09:2), `MCU_POWERUP_CHECKS_DONE` (B09:3),
-`MCU_ACTIVE_DAMPING` (B09:7), `MCU_HV_INTERLOCK_FAULT` (B10:1), `MCU_SWITCHING_ENABLE` (B10:2),
+New unverified bit signals on 2101: `MCU_INVERTER_ENABLED` (B09:2),
+`MCU_POWERUP_CHECKS_DONE` (B09:3), `MCU_ACTIVE_DAMPING` (B09:7), `MCU_HV_INTERLOCK_FAULT` (B10:1), `MCU_SWITCHING_ENABLE` (B10:2),
 `MCU_POSITION_LEARN_PENDING` (B10:3), `MCU_POSITION_LEARN_CODE` (B10 bits 4-6, an enum) and
 `MCU_PUMP_TEST_ACTIVE` (B11:3); on 2102 `MCU_INTERLOCK_OPEN_COUNT` (B63:B65). The status-bits
 research entry is closed. The IOControl findings are in §8; `mcu.yaml` has no IOControl
@@ -1522,3 +1530,70 @@ says nothing about their senders.
 - Which EPCU pin eMIOS channel 11 drives (the wiring manual's fan PWM on pin 56 fits).
 - Whether a CCP download changes `0x4000D17A` (the CCP-CAN copies of `0x291`/`0x523`/`0x524`,
   probably never sent) or the 10 Nm factor `0x40011CC0` at run time.
+
+## 15. Fifth pass (2026-11-18): the inverter's main states, and IOControl 01 and 02
+
+### 15.1 The main state machine
+
+`FUN_00159964` (1 ms task, through `FUN_00159724`) runs the inverter's main state
+`0x40016A18`. The transitions below are read from the code (verified); the names are
+interpretations (probable unless marked). Three predicates drive most of them:
+
+- **The enable.** `0x40011E34` is 1 when the BMS reports HV ready (`0x594` byte 4 bit 2,
+  `BMS_HV_READY_594`) or `0x594` byte 7 bit 3; with the VCU's `0x202` byte 0 bit 1 it enables the
+  inverter. §14.1 has how the torque command reaches it. A special-mode request (`FUN_00158768`
+  above 4, below) also enables it.
+- **The fault reaction levels.** `0x400215CE`-`0x400215DA` hold one level per fault class (10 =
+  no fault). Raising a fault lowers its class's level to the level in the fault entry
+  (`FUN_0014EC74`). Any level below 4 means "stop" (`FUN_0015098C`), a level of exactly 4 means
+  "derate" (`FUN_00150A00`).
+- **The supply.** `FUN_00158AD8` counts while `0x40015490` (2101 `MCU_SUPPLY_VOLTAGE_2`, probably
+  the switched IG3 feed) is below 3.5 V; after 10 calls it clears the model state `0x40016A28`
+  and forces state 4. `FUN_00158BBC` restores state 1 once the supply is back above 6 V.
+
+| state | name | what happens | entered from | left to |
+|---|---|---|---|---|
+| 0 | start-up | eight sub-states (`0x40016A1C`): set outputs `0x65` and `0x64`, set the operation flag `0x40021864`, an optional calibration (`0x12864`), the power-up checks (sub-state 4 sets 2101 B09 bit 3); sub-state 7 holds on a sensor fault | reset | 1 |
+| 1 | standby | switching off; three sub-steps (`0x40016A20`) check the phases (`FUN_00135834`) | 0, and every "back off" path | 2 when enabled; 9 on the BMS request below; 4 |
+| 2 | enabled, idle | 2101 B09 bit 2 set; switching off, no torque. Each call picks the control mode `0x40016A14` (`FUN_001588B8`: 2 normal torque control, 5 and others for special requests) | 1 | 3 when torque is needed (mode 2 and `FUN_00158E64` outside its dead band) or a special mode; 10 for the calibration; 1, 7, 4 |
+| 3 | switching | torque control: the switching-enable request is set (2101 B10 bit 2), so the gate drive runs | 2, 5 | 2 when the torque stays inside the dead band for a calibrated count (`FUN_00158CA8`); 5, 7, 8, 1, 4 |
+| 4 | power-down | sub-states `0x40016A24` 0-5: stop switching once the torque is near zero; wait; if the DC link stays at 23 V or more and no class is below level 3, **discharge it actively**: `FUN_00154460` sets control mode 5 and the switching enable, within a time budget, until it falls below 23 V; then release outputs `0x65`/`0x68` and wait | any state, on the supply loss | 1 when the supply returns |
+| 5 | derated | a level-4 fault reaction is active; switching continues | 3 | 3 when no level 4 is left; 2, 8, 7, 1, 4 |
+| 6 | not used | no transition enters it; its handler only resets the standby sub-step | none | none |
+| 7 | fault stop | a level below 4: switching off, B09 bit 2 cleared. It waits until the operation flag `0x40021864` (set in start-up, cleared at the end of power-down and by some fault reactions) is clear and `FUN_0014DA9C(0)` reports 0, then resets the whole fault manager (`FUN_0014E8C8`, levels back to 10) | 2, 3, 5, 8 | 1 |
+| 8 | special switching | switching with the flag `0x40011E56`, while a special request (`0x40021852`, the calibration word `0x12ED4`, or `0x40011E40`) holds | 3, 5 | 2, 1, 7, 4 |
+| 9 | BMS-requested switching | entered from standby when the BMS sets `0x598` byte 2 bits 1 and 2 with its frames present and the VCU's enable bit absent; switching is enabled while the request and HV ready last. Its purpose was not established; an active discharge or a self-test at the BMS's request are candidates (inferred) | 1 | 1, 7, 4 |
+| 10 | current-sensor calibration | entered from state 2 when the calibration word `0x12DC0` is 1 (it is) and the offset-calibration flag `0x40015E78` is set (by IOControl `06`/`07`, §4.5) or the word `0x1288C` (0 here); runs `FUN_00157974` until it reports done (`0x40011DF8`) | 2 | 2, 5, 7, 1 |
+
+The special requests come from `FUN_00158768`, which reports the first active one: 1 = the phase
+check of standby (`0x40011918`, written by `FUN_00135834`), 3 = the current-sensor calibration
+(`0x40011DF6`), 4 = the active discharge (`0x40011CA4`, written by `FUN_00154460`,
+`FUN_00154508`, `FUN_00154578`), 5 = a rotor-position identification (`0x40016730` bit 0, set by
+`FUN_0012F1E8` in the procedure at `0x12F834`, which also writes the `0xCDC3` marker), 6 = the
+calibration word `0x10268` (0 here). Sources 2, 7 and 8 (`0x4001693C`, `0x40011E42`,
+`0x40011D48`) have no writer. The only writer of `0x40021850`, which leads to state 8 through
+`0x40021852`, is the unreachable `FUN_00137048` (15.3), and nothing sets `0x40011E40`, so state 8
+is probably unreachable in this software.
+
+**The main state is not reported.** `FUN_001559A0` packs it with the control mode into
+`0x400166B9`, but no record or frame carries that byte. 2101 B09 bit 2 (states 2, 3, 5, 8 and 10)
+and B10 bit 2 (switching: states 3, 5, 8, 9, 10 and the discharge in state 4) are the only views
+of it. uhi22's trace fits: B10 bit 2 is 1 exactly while torque is produced.
+
+### 15.2 IOControl local ids 01 and 02
+
+**`30 01 ..` and `30 02 ..` always answer NRC `0x22`** (verified). `FUN_00161B3C` serves them
+only while their enable byte (`0x400173B5`, `0x400173B6`) is 1. The start-up code
+(`FUN_0010CEF0`) sets the enables of LIDs 01-08 to 2, and only LIDs 04, 05, 06, 07 and 08 are ever
+set to 1 again (`FUN_001371AC` with the constants 4, 5 and 8; `FUN_001363CC` and `FUN_001369AC`
+for 06 and 07). The one generic writer, `FUN_0010CF88`, is called only by `FUN_00137048`, with 4.
+LID 01 has a reply format for a long action (control `07`, NRC `0x78` while it runs, `FUN_00161F24`
+for the result), but nothing can start it. Both are harmless on this software.
+
+### 15.3 A dead test procedure
+
+`FUN_00137048` is the only code that sets `0x40011978` to `0x5A` (the key that the also-unused
+`FUN_0013278C` checks before setting 2101 B09 bit 6) and `0x40021850`/`0x40021851` (a special
+control request, 14.1). It is reached by no branch and no pointer: the scheduler slot at
+`0x123B40` calls the empty `FUN_00137040` beside it instead. It looks like a position-sensor test
+driven by IOControl 04 that the production build switched off.
