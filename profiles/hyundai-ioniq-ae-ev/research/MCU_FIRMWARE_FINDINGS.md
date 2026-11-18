@@ -1455,12 +1455,12 @@ LIDs 06 and 07 start the current-sensor offset calibration (§4.5), which runs i
 
 ### 13.3 What went into the profile
 
-New unverified bit signals on 2101: `MCU_INVERTER_ENABLED` (B09:2),
-`MCU_POWERUP_CHECKS_DONE` (B09:3), `MCU_ACTIVE_DAMPING` (B09:7), `MCU_HV_INTERLOCK_FAULT` (B10:1), `MCU_SWITCHING_ENABLE` (B10:2),
-`MCU_POSITION_LEARN_PENDING` (B10:3), `MCU_POSITION_LEARN_CODE` (B10 bits 4-6, an enum) and
+New unverified bit signals on 2101: `MCU_INVERTER_ENABLED` (B09:2), `MCU_POWERUP_CHECKS_DONE`
+(B09:3), `MCU_ACTIVE_DAMPING` (B09:7), `MCU_HV_INTERLOCK_FAULT` (B10:1), `MCU_SWITCHING_ENABLE`
+(B10:2), `MCU_POSITION_LEARN_PENDING` (B10:3), `MCU_POSITION_LEARN_CODE` (B10 bits 4-6, an enum) and
 `MCU_PUMP_TEST_ACTIVE` (B11:3); on 2102 `MCU_INTERLOCK_OPEN_COUNT` (B63:B65). The status-bits
-research entry is closed. The IOControl findings are in §8; `mcu.yaml` has no IOControl
-entries for this ECU.
+research entry is closed. The IOControl findings are in §8; `mcu.yaml` has no IOControl entries for
+this ECU.
 
 ## 14. Cross-check against the VCU image (2026-11-18)
 
