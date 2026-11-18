@@ -56,13 +56,14 @@ messages:
     signals:
       EPCU_DC_VOLTAGE:
         start_bit: 0
-        length: 9
+        length: 16
         byte_order: little
         min: 0.0
-        max: 511.0
+        max: 65535.0
         unit: V
-        source: uhi22 Ioniq28 DBC uwe524_EPCU_voltage; uhi22 EPCU readme (0x524 sent by the MCU's transceiver U9002); uhi22 P-CAN drive log
-        notes: EPCU DC voltage, 1 V/bit. Reads 370-373 V in the drive log against 373.5-373.9 V pack voltage on 0x595. The Kona bench reads the same bytes as inverter voltage.
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: DC-link voltage in whole volts, 16-bit (the MCU writes the float behind 2101 MCU_DC_LINK_VOLTAGE as a u16; the uhi22 DBC gave 9 bits). Reads 370-373 V in the drive log against 373.5-373.9 V pack voltage on 0x595. The Kona bench reads the same bytes as inverter voltage.
       VEHICLE_SPEED:
         start_bit: 23
         length: 16
@@ -72,7 +73,31 @@ messages:
         max: 255.0
         unit: km/h
         source: uhi22 Ioniq28 P-CAN tap, drive log (scripts/fetch_can_corpus.py); uhi22 script_VESS_play.js
-        notes: Vehicle speed, bytes 2-3 big-endian, 1/256 km/h, unsigned (positive in reverse too). r=0.997 against 0x386 WHL_SPD_FL (n=3327). The VESS takes its speed from this frame.
+        notes: 'Vehicle speed, bytes 2-3 big-endian, 1/256 km/h, unsigned (positive in reverse too). r=0.997 against 0x386 WHL_SPD_FL (n=3327). The VESS takes its speed from this frame. MCU firmware: byte 2 is an integer and byte 3 a fraction (RAM 0x40015A0C, 0x40015A10 x 128), which fits.'
+      MCU_TORQUE_PCT_524:
+        start_bit: 32
+        length: 12
+        byte_order: little
+        signed: true
+        scale: 0.048828125
+        min: -100.0
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Measured motor torque as a percent of the current maximum, 2048 = 100 % (0x400166A8, the same value as CCP-CAN 0x2C1 bytes 0-1). -1 count at rest in the trace.
+      MCU_RPM_524:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        signed: true
+        scale: 100.0
+        min: -12700.0
+        max: 12700.0
+        unit: rpm
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Motor speed divided by 100, signed, clipped to +-127; 127 when the speed is invalid.
   '0x595':
     name: BMS_595
     tx_ecu: BMS
@@ -1629,6 +1654,39 @@ messages:
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 19.3)
         notes: Motor speed. 0x7FFF means invalid.
+      MCU_DERATE_PCT_291:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        scale: 0.392157
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: A percent (0x40016660, x 2.55); the VCU reads it as a derate input. 0xFE (99.6 %) in the trace.
+      MCU_TORQUE_LIMIT_A_291:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        scale: 0.392157
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Available torque limit in percent (0x40016668, x 2.55). 0xFA in the trace. The VCU scales it by 800/255.
+      MCU_TORQUE_LIMIT_B_291:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        scale: 0.392157
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Second available torque limit in percent (0x40016670, x 2.55). 0xFA in the trace.
   '0x594':
     name: BMS_594
     tx_ecu: BMS
@@ -1820,3 +1878,286 @@ messages:
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 18.1 and 18.3)
         notes: The application's LDC-off request (2101 B11:7). The LDC runs only while it is 0.
+  '0x523':
+    name: MCU_523
+    tx_ecu: MCU
+    length: 8
+    signals:
+      MCU_523_STATUS_A:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: The MCU status byte A, the same byte as MCU 2101 B09 (bits in MCU_FIRMWARE_FINDINGS.md section 11.3). 0x0C or 0x8C in the trace.
+      MCU_523_STATUS_B:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Status byte B, the same byte as MCU 2101 B10. 0x38 in the trace.
+      MCU_POSITION_NOT_LEARNED_523:
+        start_bit: 15
+        length: 1
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: 'Bit 7 of status byte B: the position sensor is not learned (DTC P0C17).'
+      MCU_COOLANT_TEMP_523:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        offset: -40.0
+        min: -40.0
+        max: 215.0
+        unit: degC
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: EV electronics coolant temperature sensor (MCU 2102 B20). The uhi22 DBC calls it TEPCU_in.
+      MCU_POWER_MODULE_TEMP_EST_523:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        offset: -40.0
+        min: -40.0
+        max: 215.0
+        unit: degC
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Modelled power-module temperature, coolant plus a loss-model rise (MCU 2102 B21); not a sensor.
+      MCU_INVERTER_TEMP_523:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        offset: -40.0
+        min: -40.0
+        max: 215.0
+        unit: degC
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Inverter temperature sensor A (MCU 2102 B19).
+      MCU_MOTOR_TEMP_523:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        offset: -40.0
+        min: -40.0
+        max: 215.0
+        unit: degC
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Drive-motor temperature sensor (MCU 2102 B18).
+      MCU_523_B6:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        scale: 0.05
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: RAM 0x40011CBC (from 0x400159F0) x 0.05; the uhi22 DBC calls it the EPCU cooling-pump percent. Source not traced. 0 in the trace.
+      MCU_523_STATUS_C:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Status byte C, the same byte as MCU 2101 B11.
+  '0x2A1':
+    name: MCU_2A1
+    tx_ecu: MCU
+    length: 8
+    signals:
+      MCU_LAST_FAULT_CLASS0:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Number of the last fault raised in fault class 0 (the MCU fault manager, MCU_FIRMWARE_FINDINGS.md section 6.1); 0 = none. 100 ms.
+      MCU_LAST_FAULT_CLASS1:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Number of the last fault raised in fault class 1 (the MCU fault manager, MCU_FIRMWARE_FINDINGS.md section 6.1); 0 = none. 100 ms.
+      MCU_LAST_FAULT_CLASS2:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Number of the last fault raised in fault class 2 (the MCU fault manager, MCU_FIRMWARE_FINDINGS.md section 6.1); 0 = none. 100 ms.
+      MCU_LAST_FAULT_CLASS3:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Number of the last fault raised in fault class 3 (the MCU fault manager, MCU_FIRMWARE_FINDINGS.md section 6.1); 0 = none. 100 ms.
+      MCU_LAST_FAULT_CLASS4:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Number of the last fault raised in fault class 4 (the MCU fault manager, MCU_FIRMWARE_FINDINGS.md section 6.1); 0 = none. 100 ms.
+      MCU_LAST_FAULT_CLASS5:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Number of the last fault raised in fault class 5 (the MCU fault manager, MCU_FIRMWARE_FINDINGS.md section 6.1); 0 = none. 100 ms.
+      MCU_LAST_FAULT_CLASS6:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Number of the last fault raised in fault class 6 (the MCU fault manager, MCU_FIRMWARE_FINDINGS.md section 6.1); 0 = none. 100 ms.
+  '0x540':
+    name: MCU_540
+    tx_ecu: MCU
+    length: 8
+    signals:
+      MCU_SENSOR_V_540:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        scale: 0.0001
+        min: 0.0
+        max: 6.5535
+        unit: V
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: The analog sensor voltage of MCU 2102 B52:B53 (0x40011C18). 1.2538 V in the trace. 200 ms.
+      MCU_540_W2:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        scale: 0.01
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: RAM 0x40011C20 x 100; source not traced. 0.15 in the trace.
+      MCU_CURRENT_MAG_540:
+        start_bit: 32
+        length: 16
+        byte_order: little
+        scale: 0.01
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Current-vector magnitude, sqrt(id^2+iq^2) of 0x40016C1C/0x40016C24 (0x40016C34) x 100; probably amperes. 15.63 in the trace.
+  '0x5DC':
+    name: MCU_5DC
+    tx_ecu: MCU
+    length: 8
+    signals:
+      MCU_RPM_5DC:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        signed: true
+        unit: rpm
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Motor speed (the 2102 MCU_MOTOR_RPM value). 1 s.
+      MCU_5DC_B2:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        scale: 0.05
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: The same source as 0x523 byte 6 (0x40011CBC x 0.05).
+      MCU_TORQUE_PCT_5DC:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        signed: true
+        scale: 0.78125
+        min: -100.0
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Motor torque as a percent of the maximum, x 1.28 (128 = 100 %); the source of 0x291 bytes 0-1 (0x40016658).
+      MCU_DERATE_PCT_5DC:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        scale: 0.392157
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: The 0x291 byte 4 percent (0x40016660). 0xFE in the trace.
+  '0x5DE':
+    name: MCU_5DE
+    tx_ecu: MCU
+    length: 8
+    signals:
+      MCU_LAST_FAULT_VALUE_5DE:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Internal value of the last class-0 fault (0x40015F3C), 0 = none. 1 s.
+      MCU_MOTOR_TEMP_5DE:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        offset: -40.0
+        min: -40.0
+        max: 215.0
+        unit: degC
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Drive-motor temperature sensor (MCU 2102 B18).
+      MCU_DC_VOLTAGE_5DE:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        scale: 3.0303
+        min: 0.0
+        max: 772.7
+        unit: V
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: DC-link voltage x 0.33 (0x7B = 123 for 373 V in the trace).
+      MCU_COOLANT_TEMP_5DE:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        offset: -40.0
+        min: -40.0
+        max: 215.0
+        unit: degC
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: EV electronics coolant temperature sensor (MCU 2102 B20).
+      MCU_INVERTER_TEMP_5DE:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        offset: -40.0
+        min: -40.0
+        max: 215.0
+        unit: degC
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Inverter temperature sensor A (MCU 2102 B19).
+      MCU_POWER_MODULE_TEMP_EST_5DE:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        offset: -40.0
+        min: -40.0
+        max: 215.0
+        unit: degC
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Modelled power-module temperature (MCU 2102 B21).
