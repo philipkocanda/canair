@@ -64,12 +64,14 @@ sections:
       service manual.
     target: profiles/hyundai-ioniq-ae-ev/ecus/mcu.yaml
   - section: "7"
-    status: open
-    date: 2026-11-12
+    status: integrated
+    date: 2026-11-18
     note: >-
       Two FlexCAN controllers (CCP-CAN and P-CAN), 128 mailbox slots, the seven transmitted P-CAN
-      frames with every byte's source, the received frames, and a CCP slave on 0x632/0x633. Only
-      0x524 and 0x291 are in signals/powertrain.yaml.
+      frames with every byte's source, the received frames, and a CCP slave on 0x632/0x633. The
+      P-CAN frames 0x291, 0x2A1, 0x523, 0x524, 0x540, 0x5DC and 0x5DE are in
+      signals/powertrain.yaml as unverified signals since 2026-11-18; 0x2C1 is on CCP-CAN, which
+      is not in can_buses.yaml.
     target: profiles/hyundai-ioniq-ae-ev/signals/powertrain.yaml
   - section: "8"
     status: open
@@ -87,6 +89,15 @@ sections:
       power-module temperature); the known bits of 2101 B09-B11; why OBD-II 01 01 and 01 21 reply
       with one zero byte. Signals renamed and research entries closed in mcu.yaml.
     target: profiles/hyundai-ioniq-ae-ev/ecus/mcu.yaml
+  - section: "12"
+    status: integrated
+    date: 2026-11-18
+    note: >-
+      Third pass: the pump speed, the fan PWM duty and the two interlock voltages in 2101, the
+      resolver amplitude in 2102 and 0x540, the loose frame bytes, the receive table, the CAN
+      timeouts behind each U-code, and the DTC status byte. Applied to mcu.yaml and
+      signals/powertrain.yaml as unverified signals.
+    target: profiles/hyundai-ioniq-ae-ev/signals/powertrain.yaml
 relations:
   expands_on:
     - path: profiles/hyundai-ioniq-ae-ev/ecus/mcu.yaml
@@ -326,7 +337,8 @@ sequence `A602`/`B480`), and the bootloader and RAM-loader entries switch it off
 0-8 for the application.
 
 The operating system is a small cyclic scheduler (`FUN_00114184`, `FUN_00114654`, `FUN_00114EA8`)
-with seven tasks on a 1 ms tick (probable, from the VCU's kernel and the offsets and periods):
+with seven tasks on a 1 ms tick (verified indirectly: uhi22's P-CAN trace shows the MCU's frames
+every 10, 100, 200 and 1,000 ms, the periods this table predicts):
 
 | task | period | what it runs |
 |---|---|---|
@@ -388,6 +400,11 @@ MCU reset ends an AC charge. The VCU masks the timeout flags of `0x291`, `0x523`
 `0x2C1` while the car is plugged in (VCU doc §22.1), so a silent MCU should not by itself end a
 charge. **The MCU, BMS and OBC all went silent on 2026-11-08, which an MCU reset alone does not
 explain**; the cause of that event stays open. Keep reads inside `0x000000`-`0x3FFFFF`.
+
+**The handler cannot read SRAM or a peripheral.** A 24-bit address never reaches `0x40000000`, so
+no memory-read PID on this MCU can return a live value. The only RAM it can ever show is the
+calibration RAM page that a CCP master can map over `0x10000`-`0x17FFF` or `0x80000`-`0xBFFFF`
+(§2.4), which does not happen in normal use. Live values come only from the `0x21` records.
 
 The handler also answers on the functional id `0x7DF` (§4.1): a functional `23` reaches it too.
 
@@ -534,8 +551,8 @@ request.
 The source buffer is filled by `FUN_00136FE0`, which runs the **record converter**
 `FUN_00136DD0` over three tables in `.data` (RAM `0x4000D6E8`, `0x4000D7D8`, `0x4000D998`; flash
 `0x1632EC`, `0x1633DC`, `0x16359C`). **The task is the 100 ms one** (`FUN_00121994` →
-`FUN_00123A8C` → `FUN_00136FE0`), so all three records refresh every 100 ms (probable: the period
-comes from the scheduler set-up, §2.6). Each table entry is 16 bytes: a type, a source RAM
+`FUN_00123A8C` → `FUN_00136FE0`), so all three records refresh every 100 ms (the scheduler set-up of
+§2.6, whose periods the trace confirms). Each table entry is 16 bytes: a type, a source RAM
 pointer, a destination pointer into the source buffer and a float scale. The converter writes
 `source × scale` as follows (verified):
 
@@ -573,11 +590,11 @@ code), **contradicts** (the code shows it differently) or **new** (no profile si
 | 6 | B11 | u8 | `0x400166B8` | flags | status byte C, also `0x523` byte 7; §11.3. Obs. 0, 1 | new |
 | 7-8 | B12:B13 | u16 | `0x40011D00` (float) | ×100 → V | **DC-link voltage in 0.01 V**. 65535 (655.35 V) means the voltage sensor is flagged faulty. The integer-volt copy goes out as `0x524` bytes 0-1 | **confirmed**, and finer: `MCU_HV_VOLTAGE = B13*2.56` is its high byte (verified live: same mean within 1.2 V over 10,811 captures, max 399.80 V) |
 | 9-10 | B14:B15 | u16 | `0x40015E74` (float) | ×1000 → mV | 12 V supply, first reading: `FUN_001259C4`, the ADC supply channel (raw `0x400152EC`) times a gain plus an offset (calibration `0x10238`/`0x1023C`) | **confirmed** `MCU_SUPPLY_VOLTAGE_1` |
-| 11 | B17 | u8 | `0x4001658A` | flag | bit 0 of `0x40016588` (written by `FUN_001559A0`). Obs. 0 | new |
-| 12-13 | B18:B19 | s16 | `0x40016584` (float) | ×1 | an unnamed float; also in the fault freeze frame (`FUN_0014EFFC`). Obs. 0 | new |
-| 14-15 | B20:B21 | u16 | `0x400117E2` | ×1 | output of a 9-point curve (10-90) driven by an unnamed float (`FUN_0012E26C`); probably a coolant-pump duty request in percent (inferred). Obs. 10, 45, 59, 75 | new |
-| 16-17 | B22:B23 | u16 | `0x400153A8` (float) | ×1000 → mV | ADC channel voltage (raw `0x40015318` × 0.001221 V). Obs. 518-681 mV | **contradicts** `MCU_2101_B22` (a single byte): it is the low byte of a 16-bit millivolt value |
-| 18-19 | B25:B26 | u16 | `0x400153AC` (float) | ×1000 → mV | ADC channel voltage (raw `0x4001531C`). Obs. 1062-1145 mV, slow, falls as the coolant warms (the profile's r = −0.72) | **contradicts** `MCU_2101_B25` (single byte): the low byte of a millivolt value. Probably a temperature-sensor divider (inferred) |
+| 11 | B17 | u8 | `0x4001658A` | flag | bit 0 of the coolant pump's `0x570` byte 0 (§12.1). Obs. 0 | new |
+| 12-13 | B18:B19 | s16 | `0x40016584` (float) | ×1 → rpm | the coolant pump's reported speed, `0x570` byte 1 × 20 (§12.1). Obs. 0-3320 | new |
+| 14-15 | B20:B21 | u16 | `0x400117E2` | ×1 → % | the PWM duty (10-90 %) the MCU drives on eMIOS channel 11, probably the radiator fan (§12.1). Obs. 10, 45, 59, 75 | new |
+| 16-17 | B22:B23 | u16 | `0x400153A8` (float) | ×1000 → mV | the first HV interlock loop voltage; P0A0D at 4.75 V (§12.1). Obs. 518-681 mV | **contradicts** `MCU_2101_B22` (a single byte): it is the low byte |
+| 18-19 | B25:B26 | u16 | `0x400153AC` (float) | ×1000 → mV | the second HV interlock loop voltage (§12.1). Obs. 1062-1145 mV | **contradicts** `MCU_2101_B25` (single byte): it is the low byte |
 | 20-21 | B27:B28 | u16 | `0x40015490` (float) | ×1000 → mV | 12 V supply, second reading: `FUN_001252C0(0,4,raw 0x400152F4)`, a second gain and offset | **confirmed** `MCU_SUPPLY_VOLTAGE_2` |
 | 22-23 | B29:B30 | s16 | `0x40015408` (float) | ×50 | phase current 1 (probably amperes: 0.02 A per count) | **confirmed** layout; scale is new |
 | 24-25 | B31, B33 | s16 | `0x40015410` (float) | ×50 | phase current 2 (B32 is a PCI byte) | confirmed |
@@ -615,7 +632,7 @@ about ±1000 A (probable).
 | 36-37 | B45:B46 | s16 | `0x40001E7C` (float) | ×10000 | second result of the same calibration: 0.1782 (1782) | new (constant) |
 | 38-39 | B47:B49 | u16 | `0x40001E74` | ×1 | marker `0xCDC1` = 52,673: **the offset calibration has completed** (`FUN_001363CC` writes it after the last state) | new (constant) |
 | 40-41 | B50:B51 | u16 | `0x40000DF4` | ×1 | a counter in standby RAM, written by `FUN_00123B64`, `FUN_00124688` and `FUN_0013A118`. Obs. 9 | new |
-| 42-43 | B52:B53 | u16 | `0x40011C18` (float) | ×10000 → V | **an analog sensor voltage of about 1.1-1.45 V** (mean 1.28 V, 8,871 captures). Probably the motor temperature sensor (a rising KTY-type signal: it rises after driving). It is also `0x540` bytes 0-1 and the source of the 21F2 `W27`/`W31` statistics | **contradicts** the "B52 varies over 0-253 and correlates with no signal" note: B52 is the low byte of this 16-bit value |
+| 42-43 | B52:B53 | u16 | `0x40011C18` (float) | ×10000 → V | **probably the resolver signal amplitude**, about 1.1-1.45 V (mean 1.28 V, 8,871 captures); it rises after driving (§12.2). Also `0x540` bytes 0-1 and the source of the 21F2 statistics at B27-B33 | **contradicts** the "B52 varies over 0-253 and correlates with no signal" note: B52 is the low byte of this 16-bit value |
 | 44-45 | B54:B55 | u16 | `0x40000DCC` | ×1 | counter written by the interrupt `FUN_001241E0`. Obs. 0 | new |
 | 46-47 | B57:B58 | u16 | `0x40000DC8` | ×1 | counter written by `FUN_00123B64`, `FUN_00124688`, `FUN_0013A118`. Obs. 0 | new |
 | 48-49 | B59:B60 | u16 | `0x40000DD0` | ×1 | counter written by the interrupt `FUN_001242B4`. Obs. 0 | new |
@@ -645,7 +662,7 @@ block holds the figures of the last period in state 1 and survives a reset.
 | 8-9 | B13:B14 | u16 | `0x40001E14` ×10000 | the learned angle (2102 B27:B28) | new (constant) |
 | 10-11 | B15:B17 | u16 | `0x40000DF4` | the counter (2102 B50:B51) | new |
 | 12-19 | B18:B19, B20:B21, B22:B23, B25:B26 | 4 × u16 | `0x40000DC8`, `DCC`, `DD0`, `DD2` | the four counters (2102 B57, B54, B59, B61) | new |
-| 20-21 | B27:B28 | u16 | `0x40002472` | **maximum of the sensor voltage `0x40011C18`, in mV** (accumulator `0x4001EDFC`); 1,275-1,469 | confirmed layout `MCU_21F2_W27`; the meaning (a maximum) is new |
+| 20-21 | B27:B28 | u16 | `0x40002472` | **maximum of the resolver amplitude `0x40011C18`, in mV** (accumulator `0x4001EDFC`); 1,275-1,469 | confirmed layout `MCU_21F2_W27`; the meaning is new (§12.2) |
 | 22-23 | B29:B30 | u16 | `0x40002474` | the **minimum** of the same voltage (`0x4001EDFE`). **It reads 0 in all 200 captures**: the minimum starts at 0 and is only ever lowered, so it never changes | new (constant 0; a firmware quirk) |
 | 24-25 | B31, B33 | u16 | `0x40002476` | **average** of the same voltage (`0x4001EDFA`), 1,258-1,297 | confirmed layout `MCU_21F2_W31`; the meaning (an average) is new |
 | 26-27 | B34:B35 | u16 | `0x40001E0C` | the `0xABCD` marker | new (constant) |
@@ -754,9 +771,9 @@ code holds the condition. The profile column says whether `mcu.yaml` has the cod
 | P0A40 | **no** | 4.22, 4.23 | `FUN_001395CC` |
 | P0A41 | yes | 4.1-4.6, 4.17-4.19 | `FUN_00152B94` |
 | P0A42 | yes | 4.9-4.16 | `FUN_00152B94` |
-| P0A5F | **no** | 0.3 | none found (raised through a table) |
+| P0A5F | **no** | 0.3 | none: no call raises fault 0.3 (§12.5) |
 | P0A62 | yes | 0.4 | `FUN_00134AF0`, `14E704` |
-| P0A65 | **no** | 0.5 | none found |
+| P0A65 | **no** | 0.5 | none: no call raises fault 0.5 (§12.5) |
 | P0A78 | yes | 1.16 | `FUN_0014DEB0` |
 | P0A8B | yes | 0.2 | `FUN_0014E5D0`, `14E704` |
 | P0A93 | yes | 3.12 | `FUN_0014A65C` |
@@ -779,12 +796,12 @@ code holds the condition. The profile column says whether `mcu.yaml` has the cod
 | P0CEF | **no** | 3.17, 3.18, 3.25 | `FUN_0014BCFC`, `14CBA4` |
 | P0CF0 | yes | 3.27 | `FUN_0014B788` |
 | P0CF1 | yes | 3.26 | `FUN_0014B788` |
-| U0001 | yes | 6.1 | `FUN_00134518` |
+| U0001 | yes | 6.1 | `FUN_00134518` (P-CAN bus-off, §12.5) |
 | U0111 | yes | 6.3 | `FUN_001341AC` |
-| U0129 | yes | none found | |
+| U0129 | yes | none: no fault entry; the brake-frame timeouts go to fault 6.6, which has no DTC (§12.5) | |
 | U019B | yes | 6.8 | `FUN_001341AC` |
 | U0293 | yes | 6.2 | `FUN_001341AC` |
-| U1001 | **no** | 6.9 | `FUN_00134518` |
+| U1001 | **no** | 6.9 | `FUN_00134518` (CCP-CAN bus-off) |
 | U1004 | **no** | 6.10 | `FUN_001341AC` |
 | U1116 | yes | 6.4 | `FUN_001341AC` |
 
@@ -908,7 +925,7 @@ means the byte is `source·k`.
 | 2-3 | s16 | `0x40016650` | motor speed in rpm (the 2102 value) |
 | 4 | u8 | `0x40016660` × 2.55 | a percent (the VCU's "derate input"); 0xFE in the trace |
 | 5, 6 | u8 | `0x40016668`, `0x40016670` × 2.55 | percent available torque limits; 0xFA in the trace |
-| 7 | u8 | `0x40011CC4` × 0.05 | not traced; 0 in the trace |
+| 7 | u8 | `0x40011CC4` × 0.05 | the highest cooling (probably fan) request ÷ 20 (§12.3); 0 in the trace |
 
 **`0x2C1`** (1 ms, CCP-CAN): bytes 0-1 take `0x400166A8` (the measured torque percent, `0x40011D20`
 divided by the maximum and multiplied by 100) in place of `0x40016658`; bytes 2-6 are the same as
@@ -917,8 +934,8 @@ divided by the maximum and multiplied by 100) in place of `0x40016658`; bytes 2-
 **`0x523`** (10 ms): the inverter's temperatures and status. Bytes 0, 1 and 7 are the status
 bytes of 2101 B09, B10 and B11 (`0x400166B4`, `0x400166B6`, `0x400166B8`). Bytes 2-5 are
 temperatures with a +40 offset (°C = byte − 40): `0x40016690`, `0x40016688`, `0x40016678`,
-`0x40016680` (2102 B20, B21, B19, B18 in that order). Byte 6 is `0x40011CBC` × 0.05, a percent
-(probably the coolant-pump duty, as the DBC names it). The uhi22 trace: `0C 38 36 36 2E 2B 00 00`.
+`0x40016680` (2102 B20, B21, B19, B18 in that order). Byte 6 is `0x40011CBC` × 0.05, the
+coolant-pump speed request ÷ 20 (§12.3). The uhi22 trace: `0C 38 36 36 2E 2B 00 00`.
 **This decodes the profile's 2101 B09 = 12 or 140 and B10 = 56 as the first two bytes of `0x523`.**
 
 **`0x524`** (10 ms): bytes 0-1 are an unsigned 16-bit integer, **the DC-link voltage in volts**
@@ -927,23 +944,29 @@ temperatures with a +40 offset (°C = byte − 40): `0x40016690`, `0x40016688`, 
 `0x40015A10` × 128: together with byte 2 they look like an integer part and a fraction, which fits
 the profile's `VEHICLE_SPEED` (bits 23-8, big-endian, 1/256 km/h) (probable; the sources were not
 traced). Bytes 4-5 are a signed 12-bit torque percent ×20.48 (`0x400166A8`, the measured torque);
-byte 6 is the motor speed ÷100 as a signed byte, clipped at ±127; byte 7 is a signed byte from
-`0x40016E64` (not traced).
+byte 6 is the motor speed ÷100 as a signed byte, clipped at ±127; byte 7 is the mechanical motor
+power in kW (§12.3).
 
 **`0x2A1`** (100 ms): seven bytes, the number of the last fault raised in each fault class 0-6
-(§6.1). All zero in the trace (no fault). It was not in the profile.
+(§6.1). All zero in the trace (no fault).
 
-**`0x540`** (200 ms): three unsigned 16-bit values. Bytes 0-1 are `0x40011C18` × 10000 (the 1.1-1.45
-V sensor voltage of 2102 B52:B53: the trace shows `30FA` = 12,538); bytes 2-3 are `0x40011C20` ×
-100; bytes 4-5 are `0x40016C34` × 100 (traced values 15 and 1,563). Not in the profile.
+**`0x540`** (200 ms): three unsigned 16-bit values. Bytes 0-1 are `0x40011C18` × 10000 (the resolver
+amplitude of 2102 B52:B53, §12.2: the trace shows `30FA` = 12,538); bytes 2-3 are `0x40011C20` ×
+100, its variance; bytes 4-5 are `0x40016C34` × 100, the magnitude of the current vector, √(i_d² +
+i_q²) of `0x40016C1C`/`0x40016C24` (traced values 15 and 1,563, 0-239.7 over the drive).
 
 **`0x5DC`** (1 s): bytes 0-1 s16 rpm, byte 2 `0x40011CBC` × 0.05, byte 3 signed torque percent ×1.28
-(`0x40016658`), byte 4 the percent ×2.55 as `0x291` byte 4. Not in the profile.
+(`0x40016658`), byte 4 the percent ×2.55 as `0x291` byte 4.
 
 **`0x5DE`** (1 s): bytes 0-1 `0x400166C2` (u16, the value of the last class-0 fault), byte 2 the
 `0x40016680` temperature +40, byte 3 the DC-link voltage × 0.33 (the trace's `7B` = 123 for 373 V),
-bytes 4-6 the `0x40016690`, `0x40016678`, `0x40016688` temperatures +40, byte 7 flags. Not in the
-profile.
+bytes 4-6 the `0x40016690`, `0x40016678`, `0x40016688` temperatures +40 (coolant, inverter
+sensor, modelled module), byte 7 flags.
+
+All seven P-CAN frames are in `signals/powertrain.yaml` (unverified; names in §12.3). Decoded over
+uhi22's drive trace they give consistent figures: the `0x524` torque percent (−49 to +41 %)
+matches the `0x291` torque (−154 to +123 Nm, so 100 % is about 300 Nm), the `0x5DE` voltage
+reads 370-373 V like `0x524`, and the four temperatures agree between `0x523` and `0x5DE`.
 
 These frames reach the VCU and the cluster only over P-CAN. The OBD-II port is isolated from
 P-CAN by the gateway (see the Ioniq skill), so none of the above has been seen by the dongle.
@@ -996,7 +1019,7 @@ item below follows `10 90` unless stated, and each also works on the functional 
 
 | request | effect | guard |
 |---|---|---|
-| `31 00 xx`, `31 01 xx` | **the MCU enters its bootloader** (`FUN_0010CE78`: watchdog off, the boot server at `0x5848`) and waits for a reflash. The only gate is `FUN_00162014(0x31)`: the model state `0x40016A28` = 1, `0x40016646` = 0, and the vehicle stationary (`FUN_00137230`: wheel speeds `0x40016600`/`04` and motor speed `0x400159E4` below about 1 km/h; unknown speed counts as moving). That can hold in READY at a standstill and while charging | refused |
+| `31 00 xx`, `31 01 xx` | **the MCU enters its bootloader** (`FUN_0010CE78`: watchdog off, the boot server at `0x5848`) and waits for a reflash. The only gate is `FUN_00162014(0x31)`: the model state `0x40016A28` = 1, the VCU not EV-ready (`0x40016646` is `0x200` bit 45, §12.4), and the vehicle stationary (`FUN_00137230`: wheel speeds `0x40016600`/`04` and motor speed `0x400159E4` below about 1 km/h; unknown speed counts as moving). That can hold in READY at a standstill and while charging | refused |
 | `31 F1 22 33 44 55` | **the MCU runs the `0x14` handshake with its watchdog off** (§7.5), then calls an address it reads from RAM (`FUN_0010CEB8`). With nobody on CCP-CAN it blocks in the handshake loop, so it hangs until power is removed. **No gate** | refused |
 | `31 F3 CC DD 33 44` | sets the flag `0x4000CDA8`; its only reader is the SecurityAccess handler (not read). Effect not established | refused |
 | `30 06 07 01\|02 …`, `30 07 07 …` | store the argument in `0x40015E6E`, the trigger of the current-sensor offset calibration (`FUN_001363CC`): it **rewrites the learned offsets and markers in 2102** (`0x40001E74`-`0x40001E7C`) | passes `raw` and the REPL; `canair io` refuses a KWP `0x30` ON without a `release:` |
@@ -1031,7 +1054,7 @@ comment should name it.
 - **The 0x21 records are not computed at the request.** They are 100 ms-old copies; a fast change
   in torque or current is under-sampled (the records, unlike the CAN frames, skip it).
 - **The temperature bytes are signed.** The profile's `B18*2` etc. are wrong below 0 °C.
-- **2102 B52 is not a counter.** It is the low byte of a 16-bit sensor voltage.
+- **2102 B52 is not a counter.** It is the low byte of the 16-bit resolver amplitude (§12.2).
 - **The record converter saturates**: a negative float into an unsigned field becomes 0, and a
   value above the field's range is clipped to the maximum or wraps in the low byte (the code
   stores the low byte only).
@@ -1053,16 +1076,11 @@ comment should name it.
 
 - What the bus bridge does for `0x400000`-`0xFFFFFF`, and why the 2026-11-08 event silenced three
   ECUs (§3).
-- The remaining flag bits of 2101 B09-B11 (§11.3), and the meaning of `0x40015A0C`,
-  `0x40015A10`, `0x40016E64` and of the unnamed floats at `0x40016584`, `0x40011C20`,
-  `0x40016C34`.
-- The sensor behind `0x40011C18` (2102 B52:B53) and the unnamed float `0x40016584` (2101 B18:B19).
+- What is still open after the third pass is listed in §12.7.
 - The conditions and thresholds of 38 of the 44 DTCs.
-- The receive-side decoding: how each received frame (`0x153`, `0x386`, `0x590`, `0x594`, …) feeds
-  the model.
 - The SecurityAccess handler (present at `FUN_0010F048`), by rule.
 - The sub-CPU link behind P0A1B, and the `0x14`/`0x4` handshake.
-- The scheduler tick (1 ms assumed from the VCU) and the PWM-synchronous loop rates.
+- The PWM-synchronous loop rates.
 
 ## 11. Second pass (2026-11-18): persistence, temperatures, status bits, OBD-II mode 01
 
@@ -1138,9 +1156,9 @@ and a heat-sink figure, which fits B21 and B19.
 | B10 | 1, 2 | set by `FUN_00138054`/`FUN_0013869C` and `FUN_00158F78` (not traced) | | 0 |
 | B10 | 3-6 | a bit and a 3-bit field (the override copies them from `0x10206` and `0x10207`); writer not found | `FUN_00155804` | `0x38`: bit 3 = 1, field = 3 |
 | B10 | 7 | the position sensor is not learned (P0C17) | `FUN_00132630` | 0 |
-| B11 | 0 | `0x40016616` = 1 (bit 0 of a received status byte `0x40016614`) **or** the self-check below has not finished | `FUN_0012ECE8` | 1 while charging and during top-ups, 0 in READY |
+| B11 | 0 | the OBC's `0x57F` bit 8 (`OBC_STATUS_B1_0`, through `0x40016616`) **or** the self-check below has not finished | `FUN_0012ECE8` | 1 while charging and during top-ups, 0 in READY |
 | B11 | 3 | the result of `FUN_0012ECE0` (`0x400117E9`, not traced) | `FUN_001559A0` | 0 |
-| B11 | 4 | a standstill self-check is collecting samples of the float `0x40016584` (2101 B18:B19) | `FUN_0012E92C` | 0 |
+| B11 | 4 | a standstill check of the pump is collecting samples of its speed `0x40016584` (2101 B18:B19), while the accelerations of `0x220` and the wheel speeds say the car is still and the VCU is EV-ready | `FUN_0012E92C` | 0 |
 | B11 | 5 | that self-check failed (fault 5.20, which has no DTC) | `FUN_0012E92C` | 0 |
 
 B09 changes from 12 to 8 when the car goes from READY to charging (bit 2), and B11 bit 0 from 0
@@ -1200,3 +1218,138 @@ why they change only when the learning sees a new set, at power-up and on the fi
   `_H2_PHASE` (B34-B42, §11.5), and a corrected 2102 PID note.
 - The mode 01 research entry is closed with the result above; the persistence and temperature
   findings are in the open research entries' results.
+
+## 12. Third pass (2026-11-18): the remaining decode gaps
+
+This pass closed most of the open decode items of section 10. It also corrected four readings of
+the earlier passes: 2102 B52:B53 is not a temperature-sensor voltage, 2101 B20:B21 is not a pump
+duty, 2101 B22:B23 and B25:B26 are not unknown ADC channels, and the `0x524` speed fraction is
+×128, not ×256. Sections 5, 7, 8, 9 and 10 point here.
+
+### 12.1 The remaining 2101 bytes
+
+| WiCAN | source | meaning | evidence | profile signal |
+|---|---|---|---|---|
+| B17 | `0x4001658A` | bit 0 of the coolant pump's `0x570` byte 0 | the receive table (12.4) | new `MCU_EWP_STATUS_BIT` |
+| B18:B19 | `0x40016584` | **coolant-pump (EWP) speed as the pump reports it**, `0x570` byte 1 × 20, rpm. 0-3320 in the captures | the receive table; the P0C73 check (`FUN_0012E44C`) compares it with the pump speed request | new `MCU_EWP_SPEED` |
+| B20:B21 | `0x400117E2` | **the PWM duty the MCU drives on eMIOS channel 11** (`FUN_00103948(0xB, …)`): a nine-point curve, 10-90 %, of the highest cooling request `0x400117FC`. That request is the maximum of the VCU's `0x590` byte 3, the OBC's `0x57F` byte 3 and `0x5F7` byte 7 (each ×20 or ×10) and of the MCU's own temperature requests. The VCU calls `0x590` byte 3 its fan request, so this is probably the radiator-fan control line (inferred) | `FUN_0012E30C`, `FUN_0012E26C` | `MCU_2101_W20` renamed `MCU_FAN_PWM_DUTY` |
+| B22:B23, B25:B26 | `0x400153A8`, `0x400153AC` | **the two HV interlock loop voltages**, mV. `FUN_00137E54`, called by the P0A0D monitor `FUN_001380D4`, flags either loop at **4.75 V** (calibration `0x12414`), the service manual's "EPCU interlock" and "HV input cable interlock" threshold. Which loop is which is not established | P0A0D monitor | renamed `MCU_INTERLOCK_1_MV`, `MCU_INTERLOCK_2_MV` |
+
+### 12.2 2102 B52:B53 and `0x540`: the resolver amplitude
+
+`0x40011C18` is not a sensor voltage. `FUN_00152640` (fast task, through `FUN_00153110`) takes
+four ADC voltages, squares the difference of each of two pairs and adds them; `FUN_001533E0` takes
+the square root into `0x40011C18`, and keeps the variance of the squared value ×1000 in
+`0x40011C20`. The same four inputs feed the position-sensor circuit monitors (P0A3F, P0A41,
+P0A42, `FUN_00152B94`). So 2102 B52:B53 is **probably the position-sensor (resolver) signal
+amplitude**, √(ΔS² + ΔC²) of its sine and cosine windings, in volts (probable). Its slow rise after
+a drive fits a winding whose resistance grows with temperature. `0x540` bytes 0-1 carry the same
+value and bytes 2-3 the variance; the 21F2 statistics at B27-B33 are its maximum, minimum and
+average. Profile: `MCU_RESOLVER_AMPLITUDE`, the 21F2 `MCU_21F2_RESOLVER_AMP_*` and the `0x540`
+signals renamed.
+
+### 12.3 The loose frame bytes, and the corrected scales
+
+| frame | byte | source | meaning |
+|---|---|---|---|
+| `0x291` | 7 | `0x40011CC4` = `0x400117FC` × 0.05 | the highest cooling (probably fan) request ÷ 20 (12.1) |
+| `0x523` | 6 | `0x40011CBC` = `0x400159F0` × 0.05 | **the coolant-pump speed request ÷ 20**: the highest of the VCU's `0x590` byte 5, the OBC's `0x57F` byte 6, `0x5F7` byte 0 and the MCU's own request, capped (`FUN_0012E1BC`). The pump answers with its speed on `0x570` |
+| `0x5DC` | 2 | as `0x523` byte 6 | the same pump request |
+| `0x524` | 2-3 | `0x40015A0C`, `0x40015A10` × 128 | vehicle speed: byte 2 integer km/h, byte 3 the fraction ×128 (never above `0x7F` in the trace). `FUN_0012E7B8` computes it from motor speed with the calibration ratio **7.41** and wheel radius **0.309 m** (×3.6). The profile's `VEHICLE_SPEED` reads bytes 2-3 as 1/256 km/h, which under-reads the fraction by half (at most 0.5 km/h) |
+| `0x524` | 7 | `0x40016E64` | **mechanical motor power, kW**, signed: torque (`0x400167A8`) × speed × π/30 ÷ 1000, clipped to ±88 kW (`FUN_0015F41C`). 0-6 kW over uhi22's slow drive |
+| `0x540` | 2-3 | `0x40011C20` × 100 | the variance of the squared resolver amplitude ×1000 |
+| `0x540` | 4-5 | `0x40016C34` × 100 | current-vector magnitude √(i_d² + i_q²) |
+| `0x5DE` | 7 | `0x400166BC` (from `0x400161ED`) with bit 2 = 2101 B09 bit 4 | flags, not traced further |
+
+The first pass gave `0x523` byte 6 and `0x5DC` byte 2 a scale of 0.05. The byte is the source
+×0.05, so the physical value is the byte ×20; `signals/powertrain.yaml` now says so. The CCP-CAN
+frame `0x2C1` is built by `FUN_001551AC` from the descriptor at `0x4001137C` into the buffer
+`0x400154FA`, which `FUN_001263E4` copies to the `0x2C1` mailbox buffer `0x400151F8` (verified).
+The descriptor at `0x40010ECC`, which the first pass could not place, is a receive descriptor
+(12.4). New profile signals: `MCU_FAN_SPEED_REQUEST_291`, `MCU_PUMP_SPEED_REQUEST_523` and
+`_5DC`, `MCU_MECH_POWER_524`, `MCU_RESOLVER_AMPLITUDE_540`, `MCU_RESOLVER_AMP_VARIANCE_540`.
+
+### 12.4 The receive side: what the MCU reads from each frame
+
+`FUN_00126104` copies the 20 P-CAN receive buffers into an array at `0x40017738`, and the routine
+at `0x15483C` unpacks it with the descriptor groups listed at `0x400113F4` (20 groups of byte
+position, bit length, type, destination, factor and offset; verified). The CCP-CAN frames
+(`0x232`, `0x200`-`0x203` and `0x58F` on CAN A) are read elsewhere and were not traced.
+
+| frame | sender | bytes the MCU reads | use (where traced) |
+|---|---|---|---|
+| `0x594` | BMS | byte 4 flags, byte 5 ×0.5 (SoC %), bytes 6, 7 flags | SoC in the freeze frame |
+| `0x595` | BMS | byte 1 flags | |
+| `0x598` | BMS | byte 2 flags | |
+| `0x57F` | OBC | byte 1 (bit 0 → 2101 B11 bit 0), byte 3 ×20, byte 5, byte 6 ×20 | bytes 3 and 6 are cooling requests (fan chain and pump chain); the profile's `OBC_POWER_B3`/`_B6` are therefore probably the OBC's fan and pump requests, not powers |
+| `0x570` | coolant pump (EWP) | byte 0 flags (bit 0 → 2101 B17), byte 1 ×20 speed | 2101 B18:B19, P0C73 |
+| `0x5F5` | not identified | byte 5 | |
+| `0x5F7` | not identified | byte 0 ×30, byte 5 ×0.5 − 40 (a temperature), byte 7 ×10 | bytes 0 and 7 are pump and fan requests |
+| `0x590` | VCU | bytes 0, 1 flags, byte 3 ×20, byte 5 ×20 | the VCU's fan and pump requests |
+| `0x153` | ESC (`TCS11`) | byte 1 | |
+| `0x010` | airbag (`ACU13`) | byte 0 | crash flag |
+| `0x2A2` | brake system | byte 3, byte 7 ×0.39 % | |
+| `0x220` | ESC (`ESP12`) | lateral and longitudinal acceleration, 11 bits each, ×0.01 − 10.23 (opendbc's layout) | the standstill self-check (B11 bits 4-5) |
+| `0x200` | VCU | byte 1 (gear, bits 3-6), byte 4 pedal %, byte 5 bits (**bit 5 = `VCU_EV_READY` → `0x40016646`**), byte 6 (bits 1-6 scale the maximum torque `0x400167F8`) | gates, torque scaling |
+| `0x201` | VCU | byte 0 | |
+| `0x202` | VCU | byte 0 flags, bits 8-19 signed ×0.0488 % (the VCU's torque command in percent) | |
+| `0x386` | ESC | the four wheel speeds, 1/32 km/h | the standstill test |
+| `0x5D0` | IGPM | the 24-bit odometer ×0.1 km (body.yaml `ODOMETER`) | freeze frames only |
+| `0x331` | ESC | two 14-bit wheel speeds | |
+| `0x57B` | VCU | byte 3 (bit 7 = `VCU_WAKE_WITHOUT_IGNITION` → `0x40016648`) | while it is 1 the chassis-frame timeouts are ignored |
+
+**The reset and bootloader gate.** `0x40016646` is the VCU's EV-ready bit, so the gate of
+`31 00`/`31 01`, `11 01` and `3B` (§8) is: the MCU's model state is 1, **the VCU is not
+EV-ready**, and the car is stationary. That holds when the car is ON but not READY, and while
+charging.
+
+### 12.5 CAN timeouts and the U-codes
+
+`FUN_001053CC` arms a timeout counter per message; `FUN_00105D90` counts it up every 10 ms
+(10 ms task) and flags a timeout at a per-message limit (verified):
+
+| limit | frames |
+|---|---|
+| 0.5 s | `0x153`, `0x010`, `0x2A2`, `0x220`, `0x331`, `0x386`, the VCU's `0x200`-`0x203` on both buses, `0x232` |
+| 2 s | `0x594`, `0x595`, `0x598`, `0x57F`, `0x570`, `0x5F5`, `0x5F7`, `0x590`, `0x58F`, `0x57B` |
+| 5 s | `0x5D0` |
+
+`FUN_001341AC` turns the flags into class-6 faults (`FUN_00133FFC` selects the flag groups):
+
+| fault | frames that time out | DTC |
+|---|---|---|
+| 6.1 | P-CAN bus-off (`FUN_00105388(2)`) | U0001 |
+| 6.9 | CCP-CAN bus-off (`FUN_00105388(0)`; monitored because calibration `0x1242A` = 1) | U1001 |
+| 6.2 | `0x200`, `0x201`, `0x202` (VCU, P-CAN) | U0293 |
+| 6.3 | `0x594`, `0x595`, `0x598` (BMS) | U0111 |
+| 6.4 | `0x570` (pump); also stops the pump logic | U1116 |
+| 6.8 | `0x57F` (OBC) | U019B |
+| 6.5 | `0x590` | none |
+| 6.6 | `0x386`, `0x153`, `0x220`, `0x2A2`, `0x331`, unless the VCU woke without ignition | none |
+| 6.7 | `0x5F5`, `0x5F7` | none |
+| 6.10 | `0x232`, the VCU's torque command on CCP-CAN (probable: the only flag the CCP-CAN branch of `FUN_00133FFC` can report) | U1004 |
+
+**U0129 (brake system) can never be set by this software**: no fault entry points to it, and the
+brake-frame timeouts go to fault 6.6, which has no DTC. The same holds for **P0A5F and P0A65**:
+their fault entries (0.3 and 0.5) exist, but no call raises them (every raise of class 0 uses a
+constant fault number, and 3 and 5 are not among them; a call through a pointer cannot be
+excluded).
+
+### 12.6 The status byte of services 17 and 18
+
+`FUN_0010D340` builds each DTC's status byte in the KWP2000 layout (ISO 14230-3): bits 0-3 the
+symptom from the code's configuration (2 → `01`, 3 → `02`, 4 → `04`, 5 → `08`), bit 4 "test not
+complete" (the record's bit 0 clear), bits 5-6 the storage state (`01` present, `10` stored,
+`11` present and stored, from the record flags `0x20`, `0x08` and `0x10`), bit 7 the warning lamp
+(record bits `0x300`). `18 ss gg 00` with `ss` = `00`, `20`, `40` or `60` selects the records with
+that storage state (`00`: all). The freeze-frame layout of `12` was not decoded.
+
+### 12.7 Still open after this pass
+
+- 2101 B09 bits 2, 3 and 6, B10 bits 1-6 and B11 bit 3 (no writer found for B09 bits 2 and 3
+  outside the calibration override).
+- Which interlock loop is which; the sender of `0x5F5`/`0x5F7`.
+- The freeze-frame layout of `12`; the conditions of 32 of the 44 DTCs.
+- The CCP-CAN receive path: how the MCU uses `0x232` and what it does, beyond raising U1004,
+  when `0x232` stops (the safety items).
+- The `0x5DE` byte 7 flags and the alternate `0x77x` frame set.
