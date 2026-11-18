@@ -1289,6 +1289,96 @@
           "class": "voltage",
           "min": 0,
           "max": 16
+        },
+        {
+          "name": "MCU_DC_LINK_VOLTAGE",
+          "expression": "((B13<<8)|B12)/100",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 655.35
+        },
+        {
+          "name": "MCU_FAN_PWM_DUTY",
+          "expression": "(B21<<8)|B20",
+          "unit": "%",
+          "class": "",
+          "min": 10,
+          "max": 90
+        },
+        {
+          "name": "MCU_POSITION_NOT_LEARNED",
+          "expression": "B10:7",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_2101_B09_BIT4",
+          "expression": "B09:4",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_EWP_SPEED",
+          "expression": "(S19<<8)|B18",
+          "unit": "rpm",
+          "class": "",
+          "min": 0,
+          "max": 5100
+        },
+        {
+          "name": "MCU_EWP_STATUS_BIT",
+          "expression": "B17",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_RUN_STATE",
+          "expression": "B09:2",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_POWERUP_CHECKS_DONE",
+          "expression": "B09:3",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_ACTIVE_DAMPING",
+          "expression": "B09:7",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_HV_INTERLOCK_FAULT",
+          "expression": "B10:1",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_SWITCHING_ENABLE",
+          "expression": "B10:2",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_POSITION_LEARN_PENDING",
+          "expression": "B10:3",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_POSITION_LEARN_CODE",
+          "expression": "(B10>>4)&7",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_PUMP_TEST_ACTIVE",
+          "expression": "B11:3",
+          "unit": "",
+          "class": ""
         }
       ]
     },
@@ -1328,7 +1418,7 @@
         },
         {
           "name": "MCU_COOLANT_TEMP",
-          "expression": "B20*2",
+          "expression": "S20*2",
           "unit": "\u00b0C",
           "class": "temperature",
           "min": -40,
@@ -1336,23 +1426,23 @@
         },
         {
           "name": "MCU_HEATSINK_TEMP",
-          "expression": "B19*2",
+          "expression": "S19*2",
           "unit": "\u00b0C",
           "class": "temperature",
           "min": -40,
           "max": 150
         },
         {
-          "name": "MCU_TEMP_B18",
-          "expression": "B18*2",
+          "name": "MCU_MOTOR_TEMP",
+          "expression": "S18*2",
           "unit": "\u00b0C",
           "class": "temperature",
           "min": -40,
           "max": 150
         },
         {
-          "name": "MCU_MOTOR_COOLANT_TEMP",
-          "expression": "B21*2",
+          "name": "MCU_POWER_MODULE_TEMP_EST",
+          "expression": "S21*2",
           "unit": "\u00b0C",
           "class": "temperature",
           "min": -40,
@@ -1381,6 +1471,34 @@
           "class": "",
           "min": -100,
           "max": 100
+        },
+        {
+          "name": "MCU_RESOLVER_AMPLITUDE",
+          "expression": "((B53<<8)|B52)/10000",
+          "unit": "V",
+          "class": "voltage",
+          "min": 0,
+          "max": 6.5535
+        },
+        {
+          "name": "MCU_2102_LEARNED_ANGLE",
+          "expression": "((B28<<8)|B27)/10000",
+          "unit": "rad",
+          "class": "",
+          "min": 0,
+          "max": 6.5535
+        },
+        {
+          "name": "MCU_2102_LEARN_MARKER",
+          "expression": "(B30<<8)|B29",
+          "unit": "",
+          "class": ""
+        },
+        {
+          "name": "MCU_2102_OFFSET_CAL_MARKER",
+          "expression": "(B49<<8)|B47",
+          "unit": "",
+          "class": ""
         }
       ]
     },
@@ -1396,7 +1514,7 @@
       "parameters": [
         {
           "name": "MCU_21F2_HEATSINK_TEMP_AVG",
-          "expression": "B47",
+          "expression": "(S49<<8)|B47",
           "unit": "\u00b0C",
           "class": "temperature",
           "min": -40,
@@ -1404,23 +1522,23 @@
         },
         {
           "name": "MCU_21F2_HEATSINK_TEMP_MAX",
-          "expression": "B50",
+          "expression": "(S51<<8)|B50",
           "unit": "\u00b0C",
           "class": "temperature",
           "min": -40,
           "max": 150
         },
         {
-          "name": "MCU_21F2_TEMP_B18_AVG",
-          "expression": "B57",
+          "name": "MCU_21F2_MOTOR_TEMP_AVG",
+          "expression": "(S58<<8)|B57",
           "unit": "\u00b0C",
           "class": "temperature",
           "min": -40,
           "max": 150
         },
         {
-          "name": "MCU_21F2_TEMP_B18_MAX",
-          "expression": "B59",
+          "name": "MCU_21F2_MOTOR_TEMP_MAX",
+          "expression": "(S60<<8)|B59",
           "unit": "\u00b0C",
           "class": "temperature",
           "min": -40,
@@ -1428,7 +1546,7 @@
         },
         {
           "name": "MCU_21F2_COOLANT_TEMP_AVG",
-          "expression": "B67",
+          "expression": "S67",
           "unit": "\u00b0C",
           "class": "temperature",
           "min": -40,
@@ -1436,7 +1554,7 @@
         },
         {
           "name": "MCU_21F2_COOLANT_TEMP_MAX",
-          "expression": "B68",
+          "expression": "S68",
           "unit": "\u00b0C",
           "class": "temperature",
           "min": -40,
@@ -1467,20 +1585,26 @@
           "max": 16
         },
         {
-          "name": "MCU_21F2_W27",
+          "name": "MCU_21F2_RESOLVER_AMP_MAX_MV",
           "expression": "(B28<<8)|B27",
-          "unit": "",
-          "class": "",
+          "unit": "mV",
+          "class": "voltage",
           "min": 0,
           "max": 65535
         },
         {
-          "name": "MCU_21F2_W31",
+          "name": "MCU_21F2_RESOLVER_AMP_AVG_MV",
           "expression": "(B33<<8)|B31",
-          "unit": "",
-          "class": "",
+          "unit": "mV",
+          "class": "voltage",
           "min": 0,
           "max": 65535
+        },
+        {
+          "name": "MCU_21F2_RESOLVER_AMP_MIN_MV",
+          "expression": "(B30<<8)|B29",
+          "unit": "mV",
+          "class": "voltage"
         }
       ]
     },
