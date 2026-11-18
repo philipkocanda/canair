@@ -11,7 +11,7 @@ subject: >-
   (LDC), the hard-wired I/O, the platform and its runtime, and the requests that must never be
   sent
 created: 2026-11-08
-updated: 2026-11-10
+updated: 2026-11-18
 status: active
 verification: >-
   Static reverse-engineering of the VCU flash image (Ghidra, 32-bit PowerPC), cross-checked against
@@ -167,6 +167,11 @@ relations:
     - path: plans/2026-11-05-read-memory-by-address.md
       note: The memory-read work that produced the image analysed here (KWP2000 results).
   related:
+    - path: profiles/hyundai-ioniq-ae-ev/research/MCU_FIRMWARE_FINDINGS.md
+      note: >-
+        The MCU's firmware: the same boot code, server, permission matrix and checksum routine.
+        Its section 7 gives the sender's side of the 0x2C1, 0x291, 0x523 and 0x524 frames that
+        sections 19.3 and 22.2 here unpack, and section 3 why 0x23 reaches 16 MiB on the MCU.
     - path: profiles/hyundai-ioniq-ae-ev/research/OBC_FIRMWARE_FINDINGS.md
       note: >-
         The OBC's firmware: the same bootloader and server code base. Its session matrix, OBD-II,
