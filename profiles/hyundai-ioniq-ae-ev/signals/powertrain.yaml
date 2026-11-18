@@ -73,7 +73,7 @@ messages:
         max: 255.0
         unit: km/h
         source: uhi22 Ioniq28 P-CAN tap, drive log (scripts/fetch_can_corpus.py); uhi22 script_VESS_play.js
-        notes: 'Vehicle speed, bytes 2-3 big-endian, 1/256 km/h, unsigned (positive in reverse too). r=0.997 against 0x386 WHL_SPD_FL (n=3327). The VESS takes its speed from this frame. MCU firmware: byte 2 is an integer and byte 3 a fraction (RAM 0x40015A0C, 0x40015A10 x 128), which fits.'
+        notes: 'Vehicle speed, bytes 2-3 big-endian, 1/256 km/h, unsigned (positive in reverse too). r=0.997 against 0x386 WHL_SPD_FL (n=3327). The VESS takes its speed from this frame. MCU firmware: byte 2 is the integer km/h and byte 3 the fraction x 128 (never above 0x7F in the trace), so this 1/256 reading under-reads the fraction by half, at most 0.5 km/h. The MCU computes it from motor speed with calibration ratio 7.41 and radius 0.309 m.'
       MCU_TORQUE_PCT_524:
         start_bit: 32
         length: 12
@@ -98,6 +98,17 @@ messages:
         verified: false
         source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
         notes: Motor speed divided by 100, signed, clipped to +-127; 127 when the speed is invalid.
+      MCU_MECH_POWER_524:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        signed: true
+        min: -88.0
+        max: 88.0
+        unit: kW
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md sections 7.3 and 12); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Mechanical motor power, torque (0x400167A8) x speed x pi/30 / 1000, clipped to +-88 kW by calibration. 0 to 6 kW over the slow uhi22 drive.
   '0x595':
     name: BMS_595
     tx_ecu: BMS
@@ -905,10 +916,9 @@ messages:
         scale: 20.0
         min: 0.0
         max: 5100.0
-        unit: W
         verified: false
         source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
-        notes: A power value the OBC sets from an OBC_TEMP threshold and table; meaning not traced.
+        notes: "A value the OBC sets from an OBC_TEMP threshold and table. MCU firmware: the MCU reads this byte x 20 as a cooling request and takes the highest of it, the VCU's fan request (0x590 byte 3) and others, so it is probably the OBC's fan request, not a power (MCU_FIRMWARE_FINDINGS.md section 12.4)."
       OBC_POWER_B6:
         start_bit: 48
         length: 8
@@ -916,10 +926,9 @@ messages:
         scale: 20.0
         min: 0.0
         max: 5100.0
-        unit: W
         verified: false
         source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
-        notes: A second power value set from a temperature table; meaning not traced.
+        notes: "A second value set from a temperature table. MCU firmware: the MCU reads it x 20 as a coolant-pump request, maxed with the VCU's pump request (0x590 byte 5), so it is probably the OBC's pump request, not a power (MCU_FIRMWARE_FINDINGS.md section 12.4)."
       OBC_STATUS_B4_0:
         start_bit: 32
         length: 1
@@ -1382,7 +1391,7 @@ messages:
         scale: 20.0
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 18.6)
-        notes: 'Byte 3: probably the cooling-fan request divided by 20. It follows the LDC temperature (75-82.5 degC) and the vehicle speed. The unit is not known.'
+        notes: 'Byte 3: probably the cooling-fan request divided by 20. It follows the LDC temperature (75-82.5 degC) and the vehicle speed. The unit is not known. The MCU reads it x 20 into its fan-request chain (MCU_FIRMWARE_FINDINGS.md section 12.4).'
       VCU_LDC_PUMP_REQUEST_590:
         start_bit: 40
         length: 8
@@ -1390,7 +1399,7 @@ messages:
         scale: 20.0
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 18.6)
-        notes: 'Byte 5: probably the water-pump request divided by 20: 0 below 55 degC, then 1000-3320 (rpm-like) up to 75 degC. The unit is not known.'
+        notes: 'Byte 5: probably the water-pump request divided by 20: 0 below 55 degC, then 1000-3320 (rpm-like) up to 75 degC. The unit is not known. The MCU reads it x 20, takes the highest pump request and sends it to the pump on 0x523 byte 6 (MCU_FIRMWARE_FINDINGS.md section 12.4).'
       VCU_LDC_INPUT_POWER_590:
         start_bit: 48
         length: 8
@@ -1687,6 +1696,16 @@ messages:
         verified: false
         source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
         notes: Second available torque limit in percent (0x40016670, x 2.55). 0xFA in the trace.
+      MCU_FAN_SPEED_REQUEST_291:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        scale: 20.0
+        min: 0.0
+        max: 5100.0
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md sections 7.3 and 12); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: The highest of the cooling requests 0x590 byte 3 (VCU), 0x57F byte 3 (OBC), 0x5F7 byte 7 and the MCU's own temperature-based requests (0x400117FC), divided by 20; probably the radiator-fan request (the VCU calls 0x590 byte 3 its fan request). The MCU also turns it into the PWM duty of MCU 2101 B20:B21. 0 in the trace.
   '0x594':
     name: BMS_594
     tx_ecu: BMS
@@ -1948,14 +1967,6 @@ messages:
         verified: false
         source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
         notes: Drive-motor temperature sensor (MCU 2102 B18).
-      MCU_523_B6:
-        start_bit: 48
-        length: 8
-        byte_order: little
-        scale: 0.05
-        verified: false
-        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
-        notes: RAM 0x40011CBC (from 0x400159F0) x 0.05; the uhi22 DBC calls it the EPCU cooling-pump percent. Source not traced. 0 in the trace.
       MCU_523_STATUS_C:
         start_bit: 56
         length: 8
@@ -1963,6 +1974,17 @@ messages:
         verified: false
         source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
         notes: Status byte C, the same byte as MCU 2101 B11.
+      MCU_PUMP_SPEED_REQUEST_523:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        scale: 20.0
+        min: 0.0
+        max: 5100.0
+        unit: rpm
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md sections 7.3 and 12); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: "Coolant-pump speed request divided by 20 (0x400159F0): the highest of the VCU's 0x590 byte 5, the OBC's 0x57F byte 6, 0x5F7 byte 0 and the MCU's own request, capped. The MCU's P0C73 check compares it with the pump's reported speed (0x570 byte 1). The uhi22 DBC calls it the EPCU cooling-pump byte. 0 in the trace."
   '0x2A1':
     name: MCU_2A1
     tx_ecu: MCU
@@ -2022,25 +2044,6 @@ messages:
     tx_ecu: MCU
     length: 8
     signals:
-      MCU_SENSOR_V_540:
-        start_bit: 0
-        length: 16
-        byte_order: little
-        scale: 0.0001
-        min: 0.0
-        max: 6.5535
-        unit: V
-        verified: false
-        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
-        notes: The analog sensor voltage of MCU 2102 B52:B53 (0x40011C18). 1.2538 V in the trace. 200 ms.
-      MCU_540_W2:
-        start_bit: 16
-        length: 16
-        byte_order: little
-        scale: 0.01
-        verified: false
-        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
-        notes: RAM 0x40011C20 x 100; source not traced. 0.15 in the trace.
       MCU_CURRENT_MAG_540:
         start_bit: 32
         length: 16
@@ -2049,6 +2052,25 @@ messages:
         verified: false
         source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
         notes: Current-vector magnitude, sqrt(id^2+iq^2) of 0x40016C1C/0x40016C24 (0x40016C34) x 100; probably amperes. 15.63 in the trace.
+      MCU_RESOLVER_AMPLITUDE_540:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        scale: 0.0001
+        min: 0.0
+        max: 6.5535
+        unit: V
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md sections 7.3 and 12); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: Position-sensor (resolver) signal amplitude, sqrt of the sum of squares of two differential ADC pairs (0x40011C18), the same value as MCU 2102 B52:B53 (probable reading). 1.21-1.26 V in the trace. 200 ms.
+      MCU_RESOLVER_AMP_VARIANCE_540:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        scale: 0.01
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md sections 7.3 and 12); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: The short-term variance of the squared resolver amplitude x 1000 (0x40011C20 = 0x400216F4). 0.03-1.37 in the trace.
   '0x5DC':
     name: MCU_5DC
     tx_ecu: MCU
@@ -2063,14 +2085,6 @@ messages:
         verified: false
         source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
         notes: Motor speed (the 2102 MCU_MOTOR_RPM value). 1 s.
-      MCU_5DC_B2:
-        start_bit: 16
-        length: 8
-        byte_order: little
-        scale: 0.05
-        verified: false
-        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
-        notes: The same source as 0x523 byte 6 (0x40011CBC x 0.05).
       MCU_TORQUE_PCT_5DC:
         start_bit: 24
         length: 8
@@ -2094,6 +2108,17 @@ messages:
         verified: false
         source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
         notes: The 0x291 byte 4 percent (0x40016660). 0xFE in the trace.
+      MCU_PUMP_SPEED_REQUEST_5DC:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        scale: 20.0
+        min: 0.0
+        max: 5100.0
+        unit: rpm
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md sections 7.3 and 12); checked against the uhi22 Ioniq28 P-CAN tap
+        notes: The coolant-pump speed request of 0x523 byte 6, divided by 20.
   '0x5DE':
     name: MCU_5DE
     tx_ecu: MCU
