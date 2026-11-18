@@ -10,7 +10,7 @@ subject: >-
   2102, 2103, 21F2), the DTC manager and its 44 codes, the CAN mailbox map and the transmitted
   frames, and the requests that must never be sent
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-18
 status: active
 verification: >-
   Static reverse-engineering of the MCU flash image (Ghidra 12.2, 32-bit PowerPC e500 language,
@@ -78,6 +78,15 @@ sections:
       Requests canair must never send to this MCU. The guard already refuses 99, 11, 28, 29, KWP
       31 00/01/F1/F3 and 10 85. 30 xx 07 and 23 above 0x3FFFFF still pass raw and the REPL.
     target: src/canair/safety/blocklist.py
+  - section: "11"
+    status: integrated
+    date: 2026-11-18
+    note: >-
+      Second pass: the 8 KiB SPI EEPROM that keeps the learned values, DTCs and VIN; the sensor
+      behind each 2102 temperature (B18 motor, B19 inverter sensor, B20 coolant, B21 a modelled
+      power-module temperature); the known bits of 2101 B09-B11; why OBD-II 01 01 and 01 21 reply
+      with one zero byte. Signals renamed and research entries closed in mcu.yaml.
+    target: profiles/hyundai-ioniq-ae-ev/ecus/mcu.yaml
 relations:
   expands_on:
     - path: profiles/hyundai-ioniq-ae-ev/ecus/mcu.yaml
@@ -217,8 +226,8 @@ and the final call goes to `0x100000` (the VCU's to `0x180000`). It does, in ord
 
 1. Clears SRAM `0x40008000`-`0x4003FFFF` with `stmw` (224 KiB). **`0x40000000`-`0x40007FFF` is
    not cleared**: it keeps its contents across a warm reset (it holds the exception record at
-   `0x40002000`, the retained calibration values and the DTC records, §2.5; probably the 32 KiB
-   standby-RAM block of the part, kept alive by a keep-alive supply).
+   `0x40002000`, the learned values and the DTC records, §2.5). Across a power loss only
+   `0x40000000`-`0x40001FFF` survives, through an SPI EEPROM (§11.1).
 2. Writes the byte `3` to `0xFFF40043` (probable: the ECC error-reporting enable of the platform
    error module).
 3. Writes **six TLB entries** (TLB1, all valid, protected, user and supervisor read/write/execute,
@@ -279,7 +288,8 @@ the retained area and the part cleared by the reset code.
 
 | RAM | content |
 |---|---|
-| `0x40000000`-`0x40001FFF` | retained: the start-up and DTC records (`0x4000004C`+, 60 bytes per DTC), the VIN image at `0x40001FC0` (32 bytes), the current-sensor offsets and learned values at `0x40001E0C`-`0x40001EA0`, the last-cycle statistics at `0x40002464`-`0x40002476` |
+| `0x40000000`-`0x40001FFF` | the EEPROM image (§11.1): the DTC records (`0x4000004C`+, 60 bytes per DTC), the counters at `0x40000DC8`-`0x40000DF8`, the current-sensor offsets and learned values at `0x40001E0C`-`0x40001EA0`, the VIN page at `0x40001FC0` (32 bytes), the image marker `0x40001FE0` and byte sum `0x40001FE3` |
+| `0x40002010`-`0x40007FFF` | kept across a warm reset only: the last-cycle statistics at `0x40002464`-`0x40002476` (21F2) |
 | `0x40002000`-`0x40002008` | exception record: a code (§2.6) and the saved `SRR0`/`SRR1` |
 | `0x4000CD6C`-`0x40012197` | `.data`: tables copied from flash (the three record-converter tables, the frame descriptor tables, the identity strings) |
 | `0x40013DDC`-`0x40013EEC` | the diagnostic request, response and ISO-TP state (§4.1) |
@@ -423,7 +433,7 @@ design as the VCU's `FUN_00192788`):
 | `34`, `36`, `37` | empty cases | none | no reply |
 | `3B` | WriteDataByLocalIdentifier | `FUN_0011113C` | writes only the `1A` entries marked writable: `1A90` (the VIN image at `0x40001FC0`); needs the stationary test for `3B` |
 | `3E` | TesterPresent | `FUN_0010EF0C` | `3E 00` answers `7E 00`; `3E 80` is silent; refused in session `81` |
-| `99` | manufacturer service | `FUN_0010D28C` | **no permission-matrix call in the handler**; erases the VIN image (§8) |
+| `99` | manufacturer service | `FUN_0010D28C` | **no permission-matrix call in the handler**; erases the VIN in RAM and in the EEPROM (§8) |
 
 An unknown service below `0x10` gets no reply; any other unknown service gets NRC `0x12`. The
 wire NRC bytes are the ones in the handlers: `0x12` (sub-function not supported), `0x22`
@@ -558,9 +568,9 @@ code), **contradicts** (the code shows it differently) or **new** (no profile si
 | data | WiCAN | form | source (RAM) | → value | what it is | vs profile |
 |---|---|---|---|---|---|---|
 | 0-3 | B05-B08 | constant | `00 00 03 FF` | | header | new (constant) |
-| 4 | B09 | u8 | `0x400166B4` | flags | status byte A. The same byte is `0x523` byte 0. Bit 4 is "any of three sensor checks failed" (`0x40016260`/`61`/`63`); other bits come from the model (not traced). Obs. 8, 12, 140 | new |
-| 5 | B10 | u8 | `0x400166B6` | flags | status byte B (`0x523` byte 1). **Bit 7 = the position sensor is not learned** (§5.3, P0C17). Obs. 56 | new |
-| 6 | B11 | u8 | `0x400166B8` | flags | status byte C (`0x523` byte 7). Bit 3 is the result of `FUN_0012ECE0`. Obs. 0, 1 | new |
+| 4 | B09 | u8 | `0x400166B4` | flags | status byte A, also `0x523` byte 0. Bit layout in §11.3. Obs. 8, 12, 140 | new |
+| 5 | B10 | u8 | `0x400166B6` | flags | status byte B, also `0x523` byte 1. **Bit 7 = the position sensor is not learned** (§5.3, P0C17); §11.3. Obs. 56 | new |
+| 6 | B11 | u8 | `0x400166B8` | flags | status byte C, also `0x523` byte 7; §11.3. Obs. 0, 1 | new |
 | 7-8 | B12:B13 | u16 | `0x40011D00` (float) | ×100 → V | **DC-link voltage in 0.01 V**. 65535 (655.35 V) means the voltage sensor is flagged faulty. The integer-volt copy goes out as `0x524` bytes 0-1 | **confirmed**, and finer: `MCU_HV_VOLTAGE = B13*2.56` is its high byte (verified live: same mean within 1.2 V over 10,811 captures, max 399.80 V) |
 | 9-10 | B14:B15 | u16 | `0x40015E74` (float) | ×1000 → mV | 12 V supply, first reading: `FUN_001259C4`, the ADC supply channel (raw `0x400152EC`) times a gain plus an offset (calibration `0x10238`/`0x1023C`) | **confirmed** `MCU_SUPPLY_VOLTAGE_1` |
 | 11 | B17 | u8 | `0x4001658A` | flag | bit 0 of `0x40016588` (written by `FUN_001559A0`). Obs. 0 | new |
@@ -588,19 +598,19 @@ about ±1000 A (probable).
 | 6-7 | B11:B12 | s16 | `0x40016780` (float) | ×10 → 0.1 Nm | motor torque (written by `FUN_00158390`) | **confirmed** `MCU_MOTOR_TORQUE` |
 | 8-9 | B13:B14 | s16 | `0x400167A8` (float) | ×10 → 0.1 Nm | a second torque value (`FUN_00157598`); the profile found it byte-identical to the first in all 8,231 captures, which fits a limited and an unlimited copy that agree in the states captured. It is the source of the `0x291` torque field | confirmed `MCU_MOTOR_TORQUE_2` |
 | 10-11 | B15:B17 | u16 | `0x40015EAC` (float) | ×10 → 0.1 | motor current magnitude: `0.70721 × √(0x400164E4)` (`FUN_00136FE0`), i.e. an RMS-style figure from the sum of two squared current components | **confirmed** `MCU_MOTOR_CURRENT` (never negative, as the profile found) |
-| 12 | B18 | **s8** | `0x40016680` (float) | ×0.5 | temperature, °C = raw × 2. Output of the temperature chain (`FUN_00153A74`); in the fault freeze frame | **contradicts** in the sign: the profile reads `B18*2` as unsigned, which is wrong below 0 °C (`S18*2`) |
-| 13 | B19 | **s8** | `0x40016678` (float) | ×0.5 | temperature (`FUN_00153A94`); the profile's heatsink | contradicts in the sign |
-| 14 | B20 | **s8** | `0x40016690` (float) | ×0.5 | temperature (`FUN_001539CC`); the profile's coolant | contradicts in the sign |
-| 15 | B21 | **s8** | `0x40016688` (float) | ×0.5 | temperature (`FUN_00153A64`); the profile's motor coolant | contradicts in the sign |
+| 12 | B18 | **s8** | `0x40016680` (float) | ×0.5 | **motor temperature sensor**, °C = raw × 2 (§11.2) | **contradicts** in the sign: the profile reads `B18*2` as unsigned, which is wrong below 0 °C (`S18*2`); the component is new |
+| 13 | B19 | **s8** | `0x40016678` (float) | ×0.5 | **inverter temperature sensor** (§11.2); the profile's heatsink | confirmed meaning; contradicts in the sign |
+| 14 | B20 | **s8** | `0x40016690` (float) | ×0.5 | **coolant temperature sensor** (§11.2); the profile's coolant | confirmed meaning; contradicts in the sign |
+| 15 | B21 | **s8** | `0x40016688` (float) | ×0.5 | **modelled power-module temperature**: coolant plus a loss-model rise (§11.2) | **contradicts** the profile's "motor coolant" and the sign |
 | 16-17 | B22:B23 | s16 | `0x40001E20` | ×1 | current-sensor offset 1 (standby RAM; the profile's range −11 to −7) | **confirmed** `MCU_CURRENT_SENSOR_OFFSET_1` |
 | 18-19 | B25:B26 | s16 | `0x40001E24` | ×1 | current-sensor offset 2 | confirmed (`_2`) |
 | 20-21 | B27:B28 | u16 | `0x40001E14` (float) | ×10000 | **probably the learned position-sensor (resolver) offset angle in radians**: 5.4909 in all 8,871 captures (the default `FUN_00132630` loads is 5.49; 2π = 6.2832, the range of an angle) | new (constant) |
 | 22-23 | B29:B30 | u16 | `0x40001E0C` | ×1 | marker `0xABCD`: **learned data valid**. If it is anything else, `FUN_00132630` raises fault class 5 #11 (DTC P0C17 "position sensor not learned") and sets bit 7 of status byte B. `0xABCD` = 43,981 in every capture | new (constant) |
-| 24-25 | B31, B33 | u16 | `0x40001E80` | ×1 | marker `0xCDC2` = 52,674 in every capture; its readers are `FUN_0013DF54` and `FUN_0014A1CC` | new (constant) |
-| 26-27 | B34:B35 | s16 | `0x40001E88` (float) | ×10000 | stored value 0.0163 (163), written only by an end-of-line routine guarded by a calibration word `0xCAFE` that reads 0 here | new (constant) |
-| 28-29 | B36:B37 | s16 | `0x40001E90` (float) | ×10000 | stored value 0.0432 (432), as above | new (constant) |
-| 30-31 | B38:B39 | s16 | `0x40001E98` (float) | ×10000 | stored value 0.0050 (50), as above | new (constant) |
-| 32-33 | B41:B42 | s16 | `0x40001EA0` (float) | ×10000 | stored value 0.1311 (1311), as above | new (constant) |
+| 24-25 | B31, B33 | u16 | `0x40001E80` | ×1 | marker `0xCDC2` = 52,674 in every capture; probably "the angle-error correction below has been learned" (§11.5) | new (constant) |
+| 26-27 | B34:B35 | s16 | `0x40001E88` (float) | ×10000 | **learned position-angle correction, first harmonic: amplitude** (§11.5). 67-163 in the captures | new |
+| 28-29 | B36:B37 | s16 | `0x40001E90` (float) | ×10000 | the same, first harmonic: phase in radians. −4702 to 1247 | new |
+| 30-31 | B38:B39 | s16 | `0x40001E98` (float) | ×10000 | the same, second harmonic: amplitude. 36-53 | new |
+| 32-33 | B41:B42 | s16 | `0x40001EA0` (float) | ×10000 | the same, second harmonic: phase in radians. 599-2779 | new |
 | 34-35 | B43:B44 | s16 | `0x40001E78` (float) | ×10000 | result of the current-sensor offset calibration (`FUN_001363CC`, `FUN_00133EB4`): 0.9975 (9975) | new (constant) |
 | 36-37 | B45:B46 | s16 | `0x40001E7C` (float) | ×10000 | second result of the same calibration: 0.1782 (1782) | new (constant) |
 | 38-39 | B47:B49 | u16 | `0x40001E74` | ×1 | marker `0xCDC1` = 52,673: **the offset calibration has completed** (`FUN_001363CC` writes it after the last state) | new (constant) |
@@ -640,7 +650,7 @@ block holds the figures of the last period in state 1 and survives a reset.
 | 24-25 | B31, B33 | u16 | `0x40002476` | **average** of the same voltage (`0x4001EDFA`), 1,258-1,297 | confirmed layout `MCU_21F2_W31`; the meaning (an average) is new |
 | 26-27 | B34:B35 | u16 | `0x40001E0C` | the `0xABCD` marker | new (constant) |
 | 28-29 | B36:B37 | u16 | `0x40001E80` | the `0xCDC2` marker | new (constant) |
-| 30-37 | B38:B39, B41:B42, B43:B44, B45:B46 | 4 × s16 | `0x40001E88`, `E90`, `E98`, `EA0` ×10000 | the four stored values (2102 B34-B42) | new (constant) |
+| 30-37 | B38:B39, B41:B42, B43:B44, B45:B46 | 4 × s16 | `0x40001E88`, `E90`, `E98`, `EA0` ×10000 | live copies of the angle-error correction (2102 B34-B42, §11.5) | confirms the profile's "latched 2102 bytes" |
 | 38-39 | B47:B49 | s16 | `0x4000246A` | **average heatsink temperature** of the cycle, °C (`0x4001EDF2`) | **confirmed** `MCU_21F2_HEATSINK_TEMP_AVG`: it is a signed 16-bit value in °C, not a byte |
 | 40-41 | B50:B51 | s16 | `0x4000246C` | **maximum heatsink temperature**, °C (`0x4001EDF4`) | confirmed `..._MAX` (16-bit) |
 | 42-43 | B52:B53 | u16 | `0x40001E6C` | unused slot, 0 | new |
@@ -688,8 +698,9 @@ code alone. The names in the tables above are the ones the profile had when the 
   `MCU_21F2_SENSOR_V_MIN_MV` (always 0).
 - The phase-current notes carry the ×50 scale. The unit stays open (research entry).
 
-The remaining unmapped bytes of 2102 are the constants of §5.3 (B31/B33, B34-B46), the counters
-(B50:B51, B54-B65) and the header; the research entries name what is left.
+The remaining unmapped bytes of 2102 are the marker B31/B33, the offset-calibration results
+B43-B46, the counters (B50:B51, B54-B65) and the header; B34-B42 were added in the second pass
+(§11.5). The research entries name what is left.
 
 ## 6. The DTC manager and the 44 codes
 
@@ -808,9 +819,8 @@ decode of §5.
 The conditions of the remaining DTCs are in the monitors listed above; their thresholds are
 calibration constants and their timing the 1 ms or 10 ms task that calls them. The freeze-frame
 layout of `12 00 00` (26 values copied from `0x40015F10`-`0x40015F38` and the tables at
-`0x4000DBF8`+) and the status bytes of `17`/`18` were not decoded. Whether the DTC records
-persist across a power loss follows the retained RAM (§2.5), not a stored copy; no flash or
-EEPROM write was found.
+`0x4000DBF8`+) and the status bytes of `17`/`18` were not decoded. The DTC records persist
+across a power loss through the SPI EEPROM (§11.1).
 
 ## 7. CAN: controllers, mailboxes and frames
 
@@ -993,7 +1003,7 @@ item below follows `10 90` unless stated, and each also works on the functional 
 | `30 01 07`, `30 02 07`, `30 04 07`, `30 05 07`, `30 08 07` | latch an output or state of unknown meaning; only LIDs `05` and `08` have a release (`30 05 00`, `30 08 00`) | as above |
 | `11 01` | software system reset (`FUN_0010CFD8` → `FUN_00103714`), gated like `31 00`: needs the stationary test. In session `85` it needs the key | refused |
 | `28 01`, `28 02` | stop every periodic MCU frame (`FUN_0010CFEC` gates `0x2C1`, `0x291`, `0x523`, `0x524`, `0x2A1`, `0x540`, `0x5DC`, `0x5DE`): **the VCU loses its torque feedback** with no READY gate. Cleared by `29`, `20`, `10 81` or the session timeout | refused |
-| `99` | the handler `FUN_0010D28C` has **no permission-matrix call**: it overwrites the 32-byte VIN image at `0x40001FC0` with `FF`, then loops on message numbers 14 and 15, which have no mailbox, in any session | refused |
+| `99` | the handler `FUN_0010D28C` has **no permission-matrix call**: it overwrites the 32-byte VIN image at `0x40001FC0` with `FF` and writes it to the SPI EEPROM page `0x1FC0` (messages 14 and 15 are the EEPROM's DSPI channel, §11.1), in any session | refused |
 | `23` above `0x3FFFFF` | no address check (§3); the effect depends on the hardware. Keep reads inside `0x000000`-`0x3FFFFF` | passes |
 | `14 FF 00` | clears every DTC and freeze frame: evidence loss, not a hazard | passes, by design |
 | `3B 90 …` | writes the VIN image; needs the key (matrix `secured`) and the stationary test | refused |
@@ -1027,6 +1037,8 @@ comment should name it.
   stores the low byte only).
 - **2101 B09-B11 are `0x523`'s status bytes.** Their bit meanings are shared between the record
   and the CAN frame.
+- **The 21F2 statistics do not survive a 12 V disconnect**: they sit above the EEPROM image
+  (§11.1), so they are lost with the RAM.
 - **The 21F2 minimum voltage never moves** (it starts at 0): a firmware quirk, not an
   unobserved state.
 - **Many variables have no direct store in the image.** The model writes them through an index
@@ -1041,13 +1053,150 @@ comment should name it.
 
 - What the bus bridge does for `0x400000`-`0xFFFFFF`, and why the 2026-11-08 event silenced three
   ECUs (§3).
-- The meaning of the flag bits of 2101 B09-B11 (`0x400166B4`/`B6`/`B8`), of `0x40015A0C`,
+- The remaining flag bits of 2101 B09-B11 (§11.3), and the meaning of `0x40015A0C`,
   `0x40015A10`, `0x40016E64` and of the unnamed floats at `0x40016584`, `0x40011C20`,
   `0x40016C34`.
-- The physical sensor behind each temperature (B18-B21) and the sensor behind `0x40011C18`.
+- The sensor behind `0x40011C18` (2102 B52:B53) and the unnamed float `0x40016584` (2101 B18:B19).
 - The conditions and thresholds of 38 of the 44 DTCs.
 - The receive-side decoding: how each received frame (`0x153`, `0x386`, `0x590`, `0x594`, …) feeds
   the model.
 - The SecurityAccess handler (present at `FUN_0010F048`), by rule.
 - The sub-CPU link behind P0A1B, and the `0x14`/`0x4` handshake.
 - The scheduler tick (1 ms assumed from the VCU) and the PWM-synchronous loop rates.
+
+## 11. Second pass (2026-11-18): persistence, temperatures, status bits, OBD-II mode 01
+
+This pass checked five gaps of the first one against the image and found an error in §5.3 (11.5).
+Sections 2.5, 5.2, 5.3, 5.4, 6.4, 8 and 10 were corrected where it showed them wrong; the first pass
+had said "no flash or EEPROM write was found", which was wrong.
+
+### 11.1 The SPI EEPROM keeps the learned values, DTCs and VIN
+
+**An 8 KiB SPI EEPROM on DSPI C** (`0xFFF98000`, chip select 0) holds an image of RAM
+`0x40000000`-`0x40001FFF` (verified). It is the VCU's design (VCU doc §14.4). The MCU's logical
+message layer reaches it as messages 14 (transmit) and 15 (receive); each transfer is a list of
+DSPI push words `0x8001xxxx` (continuous chip select 0) ending in `0x88000000`. The commands are
+the standard 95xxx-class set: `05` read status (polled until the write-in-progress bit clears,
+20 tries), `06` write enable, `01` write status, `03` read and `02` write, with a 16-bit address
+and 32-byte pages.
+
+- **Start-up** (`FUN_001158D0`, from the application entry). It reads the RAM marker
+  `0x40001FE0`, the EEPROM marker byte `0x1FE7` and status byte `0x1FE8`, and compares the byte
+  sum of the RAM image with the stored sum at `0x40001FE3`. If the RAM marker is `Z` (`0x5A`)
+  and a flag at `0xC3FBC008` (probably a power-on status) is clear, or the RAM sum is valid, the
+  RAM is kept. Otherwise, when the EEPROM status is 4 ("good"), the MCU reads 255 pages
+  (`0x0000`-`0x1FDF`) back into RAM (`FUN_0011635C`) and checks the sum twice. Otherwise it zeroes
+  `0x40000000`-`0x40001DFF` and loads defaults (`FUN_00117064`, `FUN_00116F54`). It ends with
+  write enable and a write of 0 to the status register, which clears the block protection.
+- **Shut-down** (`FUN_00115084` → `FUN_00115A44` → `FUN_00116A9C`). The 1 ms task calls it after the
+  supply input (ADC channel `0x10`) has stayed low: once a stop flag (`0x40014C9C`) is set or
+  180,000 calls have passed, it counts 5,000 more calls (probable: 180 s and 5 s). It increments the
+  counter `0x40001E00`, recomputes the sum, and writes back **only the 32-byte pages that differ**
+  from the EEPROM (it reads each page first). Then it writes status 4 (good), 3 (sum mismatch) or 2
+  (write failure) to `0x1FE8`, and waits for the supply to fall before it resets.
+- **The VIN page** (`0x1FC0`, 32 bytes) is handled apart: if the EEPROM page carries the tag
+  `VIN` at bytes `0x11`-`0x13` it is copied into RAM, otherwise the RAM page is written out. The
+  `99` service (`FUN_0010D28C`) fills the RAM page with `FF` and writes it to the EEPROM, so it
+  erases the VIN for good (§8).
+
+So the learned position offset, the offset-calibration results and markers, the DTC records and
+the 2102 counters survive a 12 V disconnect. **The 21F2 statistics (`0x40002464`-`0x40002476`)
+and the exception record (`0x40002000`) do not**: they lie above the image and survive only a
+warm reset. A 21F2 read after the 12 V battery has been disconnected shows whatever the start-up
+leaves there (not traced).
+
+### 11.2 Which sensor each 2102 temperature is
+
+Traced from each record byte to the DTC monitor that tests the same variable (verified; the DTC
+titles come from the profile's service-manual list):
+
+| byte | record source | chain | the same variable is tested by | meaning |
+|---|---|---|---|---|
+| B18 | `0x40016680` ← `0x40016404` | `FUN_00153E10` converts a sensor voltage (`0x40015394`) to °C, caps it at 213 °C (215 °C on a sensor fault) in `FUN_00153720` | the sensor-voltage checks of P0A2C/P0A2D (0.40 V/4.93 V, `FUN_0014B2E8`) and, after a filter, the over-temperature stages of P0A2F (170/180 °C, `FUN_0014A3A4`) | **drive-motor temperature sensor** |
+| B19 | `0x40016678` ← `0x400163FC` | `FUN_00153B24` converts `0x4001539C`, `FUN_001537B0` stores it and three filtered copies | the inverter-sensor circuit checks (P0AEE, P0AEF, P0AF0) and, through the filtered copy, P0A3C and P0A93 (`FUN_0014A65C`) | **inverter temperature sensor A** (the profile's heatsink) |
+| B20 | `0x40016690` ← `0x4001640C` | `FUN_00153E10` converts the coolant channel (`0x400153A4` and a look-up), `FUN_0015393C` stores it | the coolant-sensor circuit checks P0CF0/P0CF1 (`FUN_0014B788`) and P0CEF (`FUN_0014CBA4`) | **EV electronics coolant temperature sensor** |
+| B21 | `0x40016688` ← `0x400163F4` ← `0x40015FA4` | `FUN_001386BC`: a loss model from the current magnitude (`0x40016C34`), the DC-link voltage and calibration loss coefficients, run through two first-order filters as a thermal model, **added to the filtered coolant temperature** | P0A3C's 125 °C module test (`FUN_0014DB30`) | **modelled power-module (switch) temperature**, not a sensor |
+
+This explains the profile's observations: B21 follows the coolant at rest (the profile saw it
+1 °C below the AAF's coolant figure, r = 0.991) and rises faster under load (36 to 58 °C over a
+drive); B18 heats most under load because it is the motor's own sensor. B19 is a sensor in the
+inverter. The service manual's P0A3C text names both a module temperature (125 °C, this model)
+and a heat-sink figure, which fits B21 and B19.
+
+### 11.3 The status bytes 2101 B09, B10, B11 (also `0x523` bytes 0, 1, 7)
+
+| byte | bit | meaning | evidence | observed |
+|---|---|---|---|---|
+| B09 | 0 | a raised fault has reaction word 1 set (any class) | `FUN_00151588` ORs the fault manager's mask-word summaries (§6.1) | 0 |
+| B09 | 1 | a raised fault has reaction word 2 set | same | 0 |
+| B09 | 2, 3 | not traced (no writer found; the calibration override copies them from `0x101CD`/`0x101CE`) | `FUN_00155804` | bit 3 always 1, bit 2 = 1 in READY, 0 while charging |
+| B09 | 4 | a sensor plausibility check is non-zero (`0x40016260`/`61`/`63`) | `FUN_001373A4`, `FUN_0015177C` | 0 |
+| B09 | 5 | set when the coolant-pump fault 5.18 (P0C73) is raised | `FUN_0012E44C` | 0 |
+| B09 | 6 | set by a one-shot check keyed on `0x5A` in `0x40011978` (meaning not traced) | `FUN_0013278C` | 0 |
+| B09 | 7 | a torque-correction function is in states 4 or 5; its output is added to the motor torque value `0x40016780` (gain from calibration `0x13D14`); probably the active damping of drivetrain oscillation (inferred) | `FUN_00158360`, `FUN_0016114C` | 1 in some READY captures (140), else 0 |
+| B10 | 0 | a raised fault has reaction word 4 set | `FUN_00151588` | 0 |
+| B10 | 1, 2 | set by `FUN_00138054`/`FUN_0013869C` and `FUN_00158F78` (not traced) | | 0 |
+| B10 | 3-6 | a bit and a 3-bit field (the override copies them from `0x10206` and `0x10207`); writer not found | `FUN_00155804` | `0x38`: bit 3 = 1, field = 3 |
+| B10 | 7 | the position sensor is not learned (P0C17) | `FUN_00132630` | 0 |
+| B11 | 0 | `0x40016616` = 1 (bit 0 of a received status byte `0x40016614`) **or** the self-check below has not finished | `FUN_0012ECE8` | 1 while charging and during top-ups, 0 in READY |
+| B11 | 3 | the result of `FUN_0012ECE0` (`0x400117E9`, not traced) | `FUN_001559A0` | 0 |
+| B11 | 4 | a standstill self-check is collecting samples of the float `0x40016584` (2101 B18:B19) | `FUN_0012E92C` | 0 |
+| B11 | 5 | that self-check failed (fault 5.20, which has no DTC) | `FUN_0012E92C` | 0 |
+
+B09 changes from 12 to 8 when the car goes from READY to charging (bit 2), and B11 bit 0 from 0
+to 1. Neither cause was traced to its source, so neither is a proven READY or CHARGING flag.
+
+### 11.4 OBD-II mode 01: why `01 01` and `01 21` answer one zero byte
+
+`FUN_0010D528` serves mode 01 from two tables (verified):
+
+- **Support maps** (`0x162132`, eight entries for PIDs `00`-`E0`): `01 00` → `80 00 00 01`
+  (PIDs 01 and 20) and `01 20` → `80 01 80 00` (PIDs 21, 30 and 31). These are what the car
+  answers (the profile's research entry).
+- **Data** (`0x162194`, three entries, count `0x1226CB` = 3): PID `01`, one byte from RAM
+  `0x40017390`; PID `20`, one byte from `0x400173C5` (unreachable: `01 20` takes the support-map
+  path); PID `21`, one byte from `0x400173C5`.
+
+**The table gives PIDs 01 and 21 a length of one byte**, where SAE J1979 defines four and two, and
+**nothing in the image writes `0x40017390` or `0x400173C5`**, so both read 0 for ever. That is
+exactly the live reply `41 01 00` and `41 21 00`. PIDs 30 and 31 are in the support map but not in
+the data table: a request for either finds nothing, and the handler sets the flag the server uses to
+send no reply (probable), as the car does. The mode 01 PIDs of this MCU carry no information.
+
+### 11.5 Correction: 2102 B34-B42 are learned, not constant
+
+The first pass called 2102 B34-B42 constants written by an end-of-line routine. That was wrong:
+the profile's 21F2 research entry already shows they change at power-up and at the first motion
+of a drive, and the captures confirm it (B34:B35 takes 22 values, B36:B37 26). The end-of-line
+routine (`FUN_00132630`, guarded by the calibration word `0xCAFE`, which reads 0) is one writer;
+the main one is a state machine at `0x1323B8` (verified):
+
+- `FUN_00131D48` runs a harmonic analysis while the motor turns: for each of two harmonics of the
+  electrical angle it accumulates a sine/cosine pair (`0x4001B28C`-`0x4001B298`), then takes the
+  magnitude (`FUN_001627E4`, a square root) and the angle (`FUN_0012A950`, an arctangent),
+  corrected by calibration gains, into `0x40015BE4`/`BEC`/`BF4`/`BFC`.
+- `FUN_00131FF8` compares these new estimates with the stored ones (amplitude difference above a
+  calibration limit, or a phase difference after wrapping by 2π). If they differ, the code at
+  `0x132504` stores the new set into `0x40001E88` (amplitude 1), `E90` (phase 1), `E98`
+  (amplitude 2) and `EA0` (phase 2).
+- The current-control interrupt (`FUN_0015B65C`) subtracts the two phases from the measured angle
+  terms and scales the two amplitudes into a correction, once the marker `0x40001EA8` holds
+  `0xCDC3` (a learned flag, not in any record).
+
+So these four values are a **learned correction of the position-sensor (resolver) angle error**,
+probably in radians: the first two harmonics of the error, amplitude and phase (probable; the
+code shows the method, not the physical name). They sit in the EEPROM image (§11.1), which is
+why they change only when the learning sees a new set, at power-up and on the first motion.
+`0x40001E80` (`0xCDC2`) is probably its "learned" marker.
+
+### 11.6 What changed in the profile
+
+- `MCU_TEMP_B18` is now `MCU_MOTOR_TEMP`, and `MCU_MOTOR_COOLANT_TEMP` is now
+  `MCU_POWER_MODULE_TEMP_EST`; their 21F2 statistics `MCU_21F2_TEMP_B18_AVG`/`_MAX` are now
+  `MCU_21F2_MOTOR_TEMP_AVG`/`_MAX`. The notes of `MCU_HEATSINK_TEMP` and `MCU_COOLANT_TEMP` name
+  their sensors.
+- The 2101 PID note no longer calls B23 and B26 constant; it names the status-byte bits.
+- New unverified, unshipped 2102 signals `MCU_ANGLE_CORR_H1_AMP`, `_H1_PHASE`, `_H2_AMP` and
+  `_H2_PHASE` (B34-B42, §11.5), and a corrected 2102 PID note.
+- The mode 01 research entry is closed with the result above; the persistence and temperature
+  findings are in the open research entries' results.
