@@ -288,7 +288,7 @@
         "MCU_2101_B09_BIT4": "B09:4",
         "MCU_EWP_SPEED": "(S19<<8)|B18",
         "MCU_EWP_STATUS_BIT": "B17",
-        "MCU_RUN_STATE": "B09:2",
+        "MCU_INVERTER_ENABLED": "B09:2",
         "MCU_POWERUP_CHECKS_DONE": "B09:3",
         "MCU_ACTIVE_DAMPING": "B09:7",
         "MCU_HV_INTERLOCK_FAULT": "B10:1",

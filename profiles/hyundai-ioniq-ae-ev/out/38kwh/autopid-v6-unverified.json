@@ -1333,7 +1333,7 @@
           "class": ""
         },
         {
-          "name": "MCU_RUN_STATE",
+          "name": "MCU_INVERTER_ENABLED",
           "expression": "B09:2",
           "unit": "",
           "class": ""
