@@ -181,17 +181,18 @@ MCU:
           source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 12)
           verified: false
           notes: Bit 0 of the pump's 0x570 byte 0 (RAM 0x4001658A). 0 in all 10811 captures.
-        MCU_RUN_STATE:
+        MCU_INVERTER_ENABLED:
           expression: B09:2
           type: enum
           values:
-            0: not_running
-            1: running
+            0: not_enabled
+            1: enabled
           source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md sections 11.3 and 13)
           verified: false
           notes: >-
-            The inverter is in its run state (main state 2 of FUN_00159964). 1 in READY, 0 when ON
-            but not READY and while charging.
+            The inverter is enabled: main states 2, 3, 5, 8 and 10 of FUN_00159964
+            (MCU_FIRMWARE_FINDINGS.md 15.1). Set when the BMS reports HV ready and the VCU's 0x202
+            enable bit is set. 1 in READY, 0 when ON but not READY and while charging.
         MCU_POWERUP_CHECKS_DONE:
           expression: B09:3
           source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md sections 11.3 and 13)
@@ -219,9 +220,11 @@ MCU:
           source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md sections 11.3 and 13)
           verified: false
           notes: >-
-            The switching-enable request (0x40016A56); clearing it drives digital output 0x70,
-            probably the gate-driver disable (probable). 1 in 1699 of 10811 captures (READY and
-            driving); in uhi22's P-CAN trace (0x523 byte 1) 1 whenever torque is produced.
+            The switching-enable request (0x40016A56): the gate drive runs in main states 3, 5, 8, 9
+            and 10 and during the active DC-link discharge of state 4 (MCU_FIRMWARE_FINDINGS.md
+            15.1); clearing it drives digital output 0x70, probably the gate-driver disable
+            (probable). 1 in 1699 of 10811 captures (READY and driving); in uhi22's P-CAN trace
+            (0x523 byte 1) 1 exactly while torque is produced.
         MCU_POSITION_LEARN_PENDING:
           expression: B10:3
           source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md sections 11.3 and 13)
