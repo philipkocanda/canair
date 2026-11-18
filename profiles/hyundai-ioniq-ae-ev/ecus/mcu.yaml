@@ -1110,7 +1110,7 @@ MCU:
         - profiles/hyundai-ioniq-ae-ev/research/MCU_FIRMWARE_FINDINGS.md
       what_to_test:
         - 2102 temperatures below 0 C with S18*2 etc.
-        - MCU_2102_SENSOR_V vs motor temperature, cold start and hot drive
+        - MCU_RESOLVER_AMPLITUDE over a cold start and a hot drive
     - type: decode
       target: 2101 B09, B10, B11 status bits (also 0x523 bytes 0, 1, 7)
       status: pending
