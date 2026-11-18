@@ -181,6 +181,75 @@ MCU:
           source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 12)
           verified: false
           notes: Bit 0 of the pump's 0x570 byte 0 (RAM 0x4001658A). 0 in all 10811 captures.
+        MCU_RUN_STATE:
+          expression: B09:2
+          type: enum
+          values:
+            0: not_running
+            1: running
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md sections 11.3 and 13)
+          verified: false
+          notes: >-
+            The inverter is in its run state (main state 2 of FUN_00159964). 1 in READY, 0 when ON
+            but not READY and while charging.
+        MCU_POWERUP_CHECKS_DONE:
+          expression: B09:3
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md sections 11.3 and 13)
+          verified: false
+          notes: >-
+            Set in start-up sub-state 4 once the power-up checks pass; never cleared afterwards. 1
+            in all but one of 10811 captures.
+        MCU_ACTIVE_DAMPING:
+          expression: B09:7
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md sections 11.3 and 13)
+          verified: false
+          notes: >-
+            A torque-correction function (FUN_0016114C) is in states 4 or 5; its output is added to
+            the torque value. Probably the drivetrain active damping (inferred). In uhi22's P-CAN
+            trace (0x523 byte 0) it is 1 only while the motor turns with torque.
+        MCU_HV_INTERLOCK_FAULT:
+          expression: B10:1
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md sections 11.3 and 13)
+          verified: false
+          notes: >-
+            Set by the P0A0D monitor once an HV interlock loop (MCU_INTERLOCK_1_MV or _2_MV) has
+            stayed at 4.75 V or above for its count. 0 in the captures.
+        MCU_SWITCHING_ENABLE:
+          expression: B10:2
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md sections 11.3 and 13)
+          verified: false
+          notes: >-
+            The switching-enable request (0x40016A56); clearing it drives digital output 0x70,
+            probably the gate-driver disable (probable). 1 in 1699 of 10811 captures (READY and
+            driving); in uhi22's P-CAN trace (0x523 byte 1) 1 whenever torque is produced.
+        MCU_POSITION_LEARN_PENDING:
+          expression: B10:3
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md sections 11.3 and 13)
+          verified: false
+          notes: >-
+            A position-sensor offset learning is pending (FUN_00130888). This image's calibration
+            requests a relearn at every power-up; it needs coasting at 1000-4000 rpm with zero
+            torque. 1 in 10156 captures, 0 (learned this power cycle) in 655, all READY or driving.
+        MCU_POSITION_LEARN_CODE:
+          expression: (B10>>4)&7
+          type: enum
+          values:
+            0: learned_this_cycle
+            1: learning_failed
+            3: relearn_requested
+            5: not_learned
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md sections 11.3 and 13)
+          verified: false
+          notes: >-
+            Bits 4-6 of B10: why the position-offset learning is pending, or how it ended
+            (FUN_00130888). 1 comes with fault 5.12 (P0C4E). 3 in 10156 captures, 0 in 655.
+        MCU_PUMP_TEST_ACTIVE:
+          expression: B11:3
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md sections 11.3 and 13)
+          verified: false
+          notes: >-
+            The IOControl pump test (30 05 07, session 90) is running: the pump request is 3720 rpm.
+            0 in the captures.
     2102:
       response_frames: 9
       status: active
@@ -390,6 +459,15 @@ MCU:
           notes: >-
             Phase of the second-harmonic angle-error correction (RAM 0x40001EA0). 599-2779 raw in
             the captures.
+          ship: false
+        MCU_INTERLOCK_OPEN_COUNT:
+          expression: (B65<<8)|B63
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md sections 11.3 and 13)
+          verified: false
+          notes: >-
+            HV interlock open count: the P0A0D monitor adds 1 on each 1 ms call while a loop reads
+            4.75 V or more (RAM 0x40001E6C, a 32-bit counter clipped to 16 bits, kept in the
+            EEPROM). 0 in all captures. Also 21F2 B52:B53.
           ship: false
 
     2103:
@@ -1113,11 +1191,17 @@ MCU:
         - MCU_RESOLVER_AMPLITUDE over a cold start and a hot drive
     - type: decode
       target: 2101 B09, B10, B11 status bits (also 0x523 bytes 0, 1, 7)
-      status: pending
+      status: done
       priority: P3
       vehicle_states: [READY, CHARGING]
       created: "2026-11-12"
-      updated: "2026-11-12"
+      updated: "2026-11-18"
+      result: >-
+        Every bit traced (MCU_FIRMWARE_FINDINGS.md 11.3, 13): run state, power-up done, interlock
+        fault, switching enable, position-offset learning pending and its code, pump test, pump
+        standstill check, fault-reaction summaries, active damping; B09 bit 6 and B11 bits 1, 2, 6,
+        7 are never set. Signals added unverified. The calibration requests a position-offset
+        relearn at every power-up; it completed in 655 READY/driving captures.
       notes: >-
         Firmware (MCU_FIRMWARE_FINDINGS.md 11.3, 12.2) names most bits: B09 bits 0/1 and B10 bit 0
         summarise the reaction words of raised faults, B09 bit 4 a sensor check, bit 5 the pump
