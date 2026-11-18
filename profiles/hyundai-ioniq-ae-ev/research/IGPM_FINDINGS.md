@@ -6,13 +6,23 @@ subject: >-
   hardware, signal routing between the five buses, network management, the 22BCxx status DIDs
   and the 2F BCxx actuators
 created: 2026-10-30
-updated: 2026-11-08
+updated: 2026-11-18
 status: active
 verification: >-
   Mostly sibling-vehicle (Kona, Niro, i30) and first-party document evidence; each claim is tagged
   confirmed, probable or speculative. The section 6.2 verdicts were cross-checked against this
-  car's captures on 2026-10-30.
+  car's captures on 2026-10-30. The MCU part number (section 2.3) is read off the chip of a bench
+  IGPM from a car of the same market, year and specification (recorded 2026-11-18).
 sections:
+  - section: "2.3"
+    status: open
+    date: 2026-11-18
+    note: >-
+      MCU identified from a bench unit: NXP MPC5605BK, mask 0N13E; U17 is a TJA1043 wake-capable
+      CAN transceiver. The bench unit's housing label (section 2.1) dates it to 2017-10-16 with
+      S/W 1.09. Not yet reflected in the IGPM research entry "memory access without 0x23",
+      which still says the MCU is unknown. Bench follow-ups are section 11 item 7.
+    target: profiles/hyundai-ioniq-ae-ev/ecus/igpm.yaml
   - section: "6.2"
     status: integrated
     date: 2026-10-30
@@ -62,6 +72,16 @@ relations:
     - path: plans/2026-10-29-support-bitmap-coverage.md
     - path: profiles/hyundai-ioniq-ae-ev/can_buses.yaml
 sources:
+  - name: Bench IGPM
+    kind: >-
+      a used IGPM of the same model, from a 2017 Ioniq AE EV of the same market and specification,
+      on the owner's bench; chip markings read directly
+  - name: NXP MPC5606BK data sheet (document MPC5606B, Rev. 5, 11/2017)
+    kind: manufacturer data sheet; covers the MPC5605BK and MPC5606BK
+    url: https://www.nxp.com/docs/en/data-sheet/MPC5606B.pdf
+  - name: NXP mask set errata MPC5606BK_0N13E (Rev. 16, 1/2023)
+    kind: manufacturer errata; names the parts that use mask 0N13E
+    url: https://www.nxp.com/docs/en/errata/MPC5606BK0N13E.pdf
   - name: igpm-research bundle
     kind: downloaded third-party material, mixed licences, never committed
     location: references/can/igpm-research/
@@ -127,6 +147,9 @@ Evidence classes, strongest first:
   patents.
 - **Hardware photos**: a drive2.ru teardown of a 2017 Ioniq Electric IGPM (part G7510), parts
   listings with label close-ups, and projectgus's teardown of a Kona OS EV IGPM.
+- **A bench IGPM**: a used module of the same model as this car's, from a 2017 Ioniq AE EV of the
+  same market and specification, recently acquired. Its hardware stands for this car's IGPM, and
+  chip markings on it are read directly.
 - **Sibling-vehicle captures and code**: projectgus's 2019/2021 Kona EV logs (CC0), bench code
   and IGPM emulator; Pelland-Coupe's bench work on an isolated 2021 Kona EV IGPM with all five
   buses wired out; OVMS, evDash and Battery-Emulator source; OBDb test cases (about 3,200 raw
@@ -169,10 +192,31 @@ facts from it and never commit it.
 
 ### 2.1 Identity and part-number lineage
 
-The label reads `LOT NO : G75101606170103  H/W : 1.00  S/W : 1.07`, `91950-G7510`,
-`13-16617-012`, `V12`, `YURA Corporation QC`. The lot number is part suffix + YYMMDD + serial. Units
-built in 2016 shipped with S/W 1.07; this car's identity reads SW `109`, so it has been updated or
-was built later. The application software field `160205` reads like a build date (2016-02-05):
+The housing label of a 2016 unit (parts-listing photos) and of the bench IGPM (photographed
+2026-11-18) read:
+
+| Field | 2016 unit | Bench IGPM |
+|---|---|---|
+| `LOT NO` | `G75101606170103` | `G75101710160150` |
+| `H/W` / `S/W` | `1.00` / `1.07` | `1.00` / `1.09` |
+| Part number | `91950-G7510` | `91950-G7510` |
+| Second code | `13-16617-012` | `13-17A13-022` |
+| Other | `V12`, `YURA Corporation QC` | `V12`, `YURA Corporation QC`, a red QC inspector stamp |
+
+- **Lot number**: part suffix + YYMMDD + serial. The bench unit was built on **2017-10-16**
+  (serial `0150`), the 2016 unit on 2016-06-17. On both units the second code (next item) gives a
+  date within three days of the lot date.
+- **Second code**: `13-` + YY + month + DD + `-` + a three-digit code, with the month as one
+  character (`6` = June, `A` = October). It gives 2016-06-17 for the 2016 unit, the same day as
+  its lot, and 2017-10-13 for the bench unit, three days before its lot. It may be the date of a
+  sub-assembly or of the label. **Probable.** The meaning of `-012`/`-022` and of `V12` is unknown.
+- **Software**: units built in 2016 shipped with S/W 1.07. The bench unit, built in October 2017,
+  shipped with **1.09**, the version this car's identity reports (SW `109`). So this car's IGPM
+  may run its factory software rather than a dealer update; it does not prove which.
+- The dates fit the bench board: the MCU's trace code points to week 32 of 2017, and the PCB mark
+  `17-10-01` now reads as a PCB date two weeks before the lot (section 2.3).
+
+The application software field `160205` reads like a build date (2016-02-05):
 the 2021 Kona IGPM's same field is `200901`. **Probable.**
 
 | Vehicle | IGPM part numbers (`91950-…`) | ROM IDs from TSBs |
@@ -202,18 +246,80 @@ SW 401 is ROM K401), hence the `G109` guess. `22BCFF` reading `1090` fits a full
 
 ### 2.3 Chips
 
-No chip marking is fully legible in any photo found (conformal coating and glare).
+No chip marking is fully legible in any photo found (conformal coating and glare). The bench IGPM
+gives two legible markings, the MCU and U17 (photo of the control board's component side, recorded
+2026-11-18). The other rows still come from the earlier photos.
 
 | Part | What is visible | Best identification | Confidence |
 |---|---|---|---|
-| MCU | LQFP-144, ~20 mm body, 0.5 mm pitch, centre of the control board; same package on the Kona | a 32-bit part with at least 5 CAN controllers; the JTAG footprint argues against S12/S12X (BDM debug). Candidates: MPC5606B/5607B (Bolero), RH850/F1L or F1K, Infineon XC23xx | speculative |
+| MCU (U30) | LQFP-144, ~20 mm body, 0.5 mm pitch, centre of the control board; same package on the Kona. Bench IGPM marking: **`SPC5605BMLQ6` / `0N13E` / `QML1732D`** | NXP (ex-Freescale) **MPC5605BK** (Qorivva MPC560xB, "Bolero"), orderable part `SPC5605BK0MLQ6`, see below | confirmed (bench unit) |
+| U17, beside the two 220 µF capacitors | SO-14, marking **`TJA1043` / `…EVY00523` / `ZnD17251`** (last two lines partly legible) | NXP TJA1043 high-speed CAN transceiver with wake-up and an INH output, see below | confirmed (part), probable (role) |
 | U2, upper right | SOICW-32, Freescale logo, `MC3?97?` | fits the MC33972 multiple-switch-detection interface (22 switch inputs over SPI), a standard body-module part | speculative |
-| U32, U19, U20 + U4, U1, beside `MAIN_G` | 3× SO-8 + 2× SO-14 in one row with common-mode chokes; the Kona board has the same row with matching designators | five CAN transceivers, one per bus. The 3+2 split fits three high-speed parts (P-, C-, D-CAN) and two fault-tolerant low-speed parts such as TJA1055 (B- and M-CAN; see 2.5) | probable (count), speculative (types) |
+| U32, U19, U20 + U4, U1, beside `MAIN_G` | 3× SO-8 + 2× SO-14 in one row with common-mode chokes; the Kona board has the same row with matching designators; markings not legible on the bench photo | CAN transceivers. The 3+2 split fits three high-speed parts (P-, C-, D-CAN) and two fault-tolerant low-speed parts such as TJA1055 (B- and M-CAN; see 2.5). With U17 a TJA1043, either the board has six transceivers or one part in this row is something else | probable (count), speculative (types) |
 | Power board relays | Fujitsu FBR53ND12-Y-HW ×2 (silkscreen `P/WDW LH RLY`, `P/WDW RH RLY`), NEC/TOKIN EX2-2U1 twin (`DR LOCK/UNLOCK RLY`), EX1-2U1 ×2, Fujitsu FTR-P3CN012W1 (25 A) | the manual's six: leak-current autocut (LCAD), burglar alarm, power window RH, power window LH, door lock/unlock, tailgate | confirmed (parts), probable (which is which) |
 | Lamp drivers | not identified on the photos | 6 IPS devices plus 2 four-channel "ARISU" drivers per the AE fuse tables; the Kona lists IPS0–IPS8. ARISU is Hyundai's name for a 4-channel IPS; its maker is unknown | confirmed (counts) |
+| Other control-board parts, bench photo | not legible: U7 (fine-pitch SSOP, ~44 pins) and U6 (~36 pins) at the lower left; U16 and U3 (2× ~28-pin SSOP) below the MCU; U5, U11, U9, U45 (4× SO-16) in a column at the right edge; U14, U15 (8-pin, exposed pad) beside the 47 µF capacitors; power packages T3, T5, T6, T7, T10, T11; crystal X1 below the MCU | — | — |
 
 Each turn lamp has its own output line and is diagnosed separately (teardown author, and the AE
 manual's open-lamp detection "applied to the turn signal lamp 4 channel").
+
+**The MCU: NXP MPC5605BK, mask set 0N13E (bench IGPM, recorded 2026-11-18).** The bench unit
+comes from a car of the same market, model year and specification as this one, so this car's IGPM
+carries the same part. **Confirmed.** The chip prints three lines:
+
+- `SPC5605BMLQ6`: the part number without the fab and mask field.
+- `0N13E`: the mask set. NXP's errata sheet `MPC5606BK_0N13E` says this mask applies to the
+  MPC5605BK and MPC5606BK only, so the orderable part is `SPC5605BK0MLQ6`.
+- `QML1732D`: a trace code. Freescale trace codes usually carry the year and week, which would make
+  `1732` week 32 of 2017. **Probable.**
+
+The NXP MPC5606BK data sheet (document MPC5606B, Rev. 5) decodes the orderable part number:
+
+| Field | Marking | Meaning |
+|---|---|---|
+| Qualification | `S` | automotive qualified |
+| Core family | `PC56` `0` | Power Architecture, 90 nm platform, e200z0 core |
+| Flash size | `5` | 768 KB code flash |
+| Product | `B` | body |
+| Fab and mask | `K0` | TSMC fab, mask set 0, first production mask set (printed as `0N13E`) |
+| Temperature | `M` | −40 to 125 °C |
+| Package | `LQ` | 144 LQFP (20 × 20 mm) |
+| Frequency | `6` | up to 64 MHz |
+
+What the data sheet gives for the MPC5605BK in this package:
+
+- e200z0h core, VLE (variable-length encoding) instructions only, up to 64 MHz.
+- 768 KB code flash, 64 KB (4 × 16 KB) data flash for EEPROM emulation, 64 KB SRAM.
+- **6 FlexCAN controllers**: one per bus for the five buses, plus one spare.
+- 5 DSPI (SPI), 6 LINFlex, 1 I²C, 121 GPIO at most, eMIOS timers, 10- and 12-bit ADCs.
+- A JTAG debug port, which fits the `JTAG2` footprint.
+
+This matches the earlier evidence: the LQFP-144 package, the JTAG footprint, the MC33972 switch
+interface that Freescale pairs with MPC560xB parts, and the BCM's MPC560xB/C memory map
+(`ecus/bcm.yaml` research). The BCM and the IGPM probably share the MCU family, but the BCM's
+exact part is still unknown.
+
+**U17: a wake-capable CAN transceiver beside the supply.** The TJA1043 is a high-speed CAN
+transceiver with a low-power mode, wake-up from the bus or a local pin, and an INH output that
+normally switches the module's voltage regulator on. U17 sits next to the two 220 µF capacitors
+and a common-mode choke, not in the transceiver row at `MAIN_G`. That placement fits the usual
+design: in sleep the regulator is off, and bus traffic on U17's bus wakes the transceiver, which
+switches the regulator and the MCU on through INH. That would explain the 200 µA dark current and
+the wake on "CAN network activates" (section 5). Which bus U17 serves is not traced. **Probable.**
+
+**`JTAG2` and `J2` (bench photo).** `JTAG2` is a 2 × 6 through-hole footprint (12 holes, pin 1
+square), so the "possibly 2 × 7" in section 2.6 is settled. Resistors R179, R184, R185 and R191
+sit along it, probably series or pull resistors on the JTAG lines. Beside it is `J2`, an
+unpopulated 2-pin through-hole footprint. Its use is unknown. One candidate is the MPC560xB's
+`FAB` (force alternate boot) pin, which starts the on-chip serial boot loader over CAN or UART
+when held high at reset; that is **speculative** until the trace is followed.
+
+**Labels on the bench control board.** The silkscreen matches the teardown board (`AE IGPM C/B EV
+1.00 PHEV 1.02 16. 03. 17`). The PCB maker's mark reads `SL-M4`, `17-10-01`, `94V-0` (UL
+flammability class). A white DataMatrix label reads `G7510` / `1HAG0` / `870E8`: `G7510` is the
+part suffix (91950-G7510, as on the teardown unit); the other two lines are not decoded. The
+housing label dates the module to 2017-10-16 with S/W 1.09 (section 2.1). The MCU's probable
+2017 week-32 trace code and the PCB mark `17-10-01`, read as a date, both come before it.
 
 ### 2.4 Power, protection and connectors (confirmed unless marked)
 
@@ -285,16 +391,13 @@ requests while it charged. Every item names the diagnostic software, not the sil
   with `AA`, and the IGPM's flow control is `30 08 0A`: block size 8, STmin 10 ms. The Kona
   IGPM's consecutive frames are 10.0 ms apart and its replies come 20-29 ms after the request,
   which fits a 10 ms diagnostic task.
-- **What the board adds** (section 2.3, speculative): a Freescale MC33972 switch interface, five
-  CAN transceivers, an LQFP-144 MCU and a 2 × 6 (possibly 2 × 7) through-hole `JTAG2` footprint.
-  Freescale reference designs pair the MC33972 with MPC560xB parts, and this car's BCM has an
-  MPC560xB/C memory map (`ecus/bcm.yaml` research). That makes a Freescale/ST MPC560xB the first
-  candidate, but nothing above proves it.
+- **What the board adds** (section 2.3): a Freescale MC33972 switch interface (speculative), five
+  CAN transceivers, an LQFP-144 MCU and a 2 × 6 through-hole `JTAG2` footprint.
+  The IGPM's MCU is an NXP SPC5605BK0MLQ6 (MPC5605BK), read off the bench unit, so the MPC560xB
+  guess was right.
 
-**What would settle it.** On a used 91950-G75xx module on the bench, a JTAG adapter on `JTAG2` can
-read the IEEE 1149.1 IDCODE register, which names the maker and the part. Reading it changes
-nothing in the module. Raking light, or removing the conformal coating over the marking, is the
-other way. Neither is possible on the car without removing the IGPM.
+**Optional cross-check.** A JTAG adapter on the bench unit's `JTAG2` can read the IEEE 1149.1
+IDCODE register, which also gives the mask set. Reading it changes nothing in the module.
 
 ## 3. The gateway: how frames cross buses ("ID conversion")
 
@@ -720,3 +823,15 @@ public.
 6. **Diagnostic routing on this car**: send one harmless request (e.g. `3E 00`) to each 11-bit ID
    on the OBD port with a tap on P-, C- and B-CAN to build the Ioniq's own version of section 4's
    table.
+7. **Bench IGPM** (section 2.3), none of which needs the car:
+   - done 2026-11-18: the housing label (section 2.1: built 2017-10-16, H/W 1.00, S/W 1.09);
+   - photograph U2, U3, U6, U7, U16, the `MAIN_G` transceiver row and the U5/U11/U9/U45 column with
+     raking light, and the power board's lamp drivers;
+   - with a continuity tester, map the `JTAG2` holes to the MCU's JTAG pins, follow `J2` (the
+     `FAB` candidate), and follow U17's CANH/CANL to the I/P-G pins to learn which bus can wake the
+     module;
+   - read the JTAG IDCODE through `JTAG2`, and find out whether the flash is censored
+     (password-protected against debug access);
+   - power the module on the bench and read its identity DIDs (`F187`, `F18B`, `F193`, `F195`,
+     `BCFF`) and the `0000`-`00FF` sweep over D-CAN. This uses the dongle, so it needs the same
+     approval as a read on the car.
