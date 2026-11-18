@@ -29,12 +29,12 @@ MCU:
       period: 10000
       vehicle_states: [IG3]
       notes: >-
-        30 bytes. Words are little-endian, unlike BMS 2101. B23 and B26 are constant 0x02 and 0x04.
-        B9/B10/B11 read 8/56/1 in 5121 of 5776 CHARGING captures and in all 301 captures of the
-        three recorded 12 V top-ups; in READY B11 is 0 in all 2369 captures and B9 is 140 or 12.
-        Firmware (MCU_FIRMWARE_FINDINGS.md section 5): B09, B10 and B11 are also bytes 0, 1 and 7 of
-        the 0x523 frame. B12:B13, B22:B23 and B25:B26 are 16-bit. The record is refreshed every 100
-        ms.
+        30 bytes, refreshed every 100 ms. Words are little-endian, unlike BMS 2101. B22:B23 and
+        B25:B26 are 16-bit millivolt values, so B23 (0x02) and B26 (0x04) are high bytes that did
+        not change in the captures. B09, B10 and B11 are status bytes, also bytes 0, 1 and 7 of the
+        0x523 frame (bits in MCU_FIRMWARE_FINDINGS.md section 11.3). B9/B10/B11 read 8/56/1 in 5121
+        of 5776 CHARGING captures and in all 301 captures of the three recorded 12 V top-ups; in
+        READY B11 is 0 in all 2369 captures and B9 is 140 or 12.
       source: canair analysis 2026-08-08 long drive + DCFC
       verified: false
       parameters:
@@ -168,12 +168,14 @@ MCU:
       period: 10000
       vehicle_states: [CHARGING]
       notes: >-
-        56 bytes, refreshed every 100 ms. B27-B49 are learned and calibration values held in standby
-        RAM (the angle B27:B28, the markers 0xABCD B29:B30, 0xCDC2 B31:B33 and 0xCDC1 B47:B49, and
-        six small values at B34-B46); all constant in the captures, and copied to 21F2. B50:B51 is a
-        counter (9). B52:B53 is a 16-bit sensor voltage. B54-B65 are event counters and an unused
-        slot, 0 in all 7757 captures. The four temperatures B18-B21 are signed. See
-        MCU_FIRMWARE_FINDINGS.md section 5.3.
+        56 bytes, refreshed every 100 ms. B27-B49 are learned and calibration values kept in the
+        MCU's SPI EEPROM: the angle B27:B28, the markers 0xABCD B29:B30, 0xCDC2 B31:B33 and 0xCDC1
+        B47:B49, the learned angle-error correction B34-B42 (changes at power-up and first motion),
+        and the offset-calibration results B43-B46 (constant); B27-B42 are copied to 21F2. B50:B51
+        is a counter (9). B52:B53 is a 16-bit sensor voltage. B54-B65 are event counters and an
+        unused slot, 0 in all 7757 captures. B18 is the motor sensor, B19 the inverter sensor, B20
+        the coolant sensor and B21 a modelled power-module temperature, all signed. See
+        MCU_FIRMWARE_FINDINGS.md sections 5.3 and 11.
       source: canair align/hunt vs AAF 2181 and VCU 2102 temperatures 2026-10-22
       verified: false
       parameters:
@@ -226,10 +228,10 @@ MCU:
           min: "-40"
           max: "150"
           notes: >-
-            Powertrain coolant temperature, 2 °C per count. Mirrors VCU:2102:VCU_LDC_TEMP: r=+0.991
+            EV electronics coolant temperature sensor, 2 °C per count, signed. Firmware: the
+            variable the P0CF0/P0CF1 and P0CEF checks test. Mirrors VCU:2102:VCU_LDC_TEMP: r=+0.991
             over 8332 rows, 1 °C below it (median). Slow: 36 to 42 °C over the 2026-08-08
-            15:33-16:31 drive. Firmware: a signed 8-bit value (float x 0.5), so read it with S, not
-            B; the unsigned read is wrong below 0 C.
+            15:33-16:31 drive.
           verified: false
 
         MCU_HEATSINK_TEMP:
@@ -238,32 +240,38 @@ MCU:
           min: "-40"
           max: "150"
           notes: >-
-            Inverter heatsink temperature, 2 °C per count. Mirrors AAF:2181:HEATSINK_TEMP: r=+0.990
-            over 1973 co-polled rows, reading 1 °C below it (median). Firmware: a signed 8-bit value
-            (float x 0.5), so read it with S, not B; the unsigned read is wrong below 0 C.
+            Inverter temperature sensor A, 2 °C per count, signed. Firmware: the variable the
+            P0AEE/P0AEF/P0AF0 circuit checks test; a filtered copy feeds P0A3C and P0A93. Mirrors
+            AAF:2181:HEATSINK_TEMP: r=+0.990 over 1973 co-polled rows, reading 1 °C below it
+            (median).
           verified: false
-        MCU_TEMP_B18:
+        MCU_MOTOR_TEMP:
           expression: S18*2
           unit: °C
           min: "-40"
           max: "150"
           notes: >-
-            A fourth temperature, 2 °C per count; which component is unknown. Heats most under load:
-            16 to 54 °C over the 2026-08-08 10:02-11:41 drive (cycle mean 43 °C, against 36 °C for
-            MCU_HEATSINK_TEMP), and cools while parked or DC charging. Firmware: a signed 8-bit
-            value (float x 0.5), so read it with S, not B; the unsigned read is wrong below 0 C.
+            Drive-motor temperature sensor, 2 °C per count, signed. Firmware: the variable whose
+            sensor voltage the P0A2C/P0A2D checks test and whose filtered value the P0A2F stages
+            (170/180 °C) test; capped at 213 °C, 215 °C on a sensor fault. Heats most under load: 16
+            to 54 °C over the 2026-08-08 10:02-11:41 drive (cycle mean 43 °C, against 36 °C for
+            MCU_HEATSINK_TEMP), and cools while parked or DC charging.
           verified: false
-        MCU_MOTOR_COOLANT_TEMP:
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 11.2)
+        MCU_POWER_MODULE_TEMP_EST:
           expression: S21*2
           unit: °C
           min: "-40"
           max: "150"
           notes: >-
-            2 °C per count. Mirrors AAF:2181:MOTOR_COOLANT_TEMP: r=+0.991 over 1973 rows, 1 °C below
-            it (median). Rises faster under load than MCU_COOLANT_TEMP: 36 to 58 °C over the
-            2026-08-08 15:33-16:31 drive. Firmware: a signed 8-bit value (float x 0.5), so read it
-            with S, not B; the unsigned read is wrong below 0 C.
+            Modelled power-module (switch) temperature, 2 °C per count, signed; not a sensor.
+            Firmware (FUN_001386BC): the filtered coolant temperature plus a loss-model rise from
+            the current magnitude and the DC-link voltage; the P0A3C 125 °C module test reads it. So
+            it follows the coolant at rest: it mirrors AAF:2181:MOTOR_COOLANT_TEMP (r=+0.991 over
+            1973 rows, 1 °C below it) and rises faster under load: 36 to 58 °C over the 2026-08-08
+            15:33-16:31 drive.
           verified: false
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 11.2)
         MCU_MOTOR_POWER:
           expression: ((S12<<8)|B11)/10*((S10<<8)|B09)*0.00010472
           unit: kW
@@ -327,6 +335,42 @@ MCU:
           notes: >-
             0xCDC1 (52673) = the current-sensor offset calibration has completed (FUN_001363CC
             writes it), in all 8871 captures.
+        MCU_ANGLE_CORR_H1_AMP:
+          expression: ((S35<<8)|B34)/10000
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 11.5)
+          verified: false
+          notes: >-
+            Learned position-sensor angle-error correction, first harmonic, amplitude (probably
+            radians; RAM 0x40001E88, kept in the EEPROM). The MCU relearns it while the motor turns
+            and stores a new set when it differs. 67-163 raw in the captures, changing at power-up
+            and first motion.
+          ship: false
+        MCU_ANGLE_CORR_H1_PHASE:
+          expression: ((S37<<8)|B36)/10000
+          unit: rad
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 11.5)
+          verified: false
+          notes: >-
+            Phase of the first-harmonic angle-error correction (RAM 0x40001E90). -4702 to 1247 raw
+            in the captures.
+          ship: false
+        MCU_ANGLE_CORR_H2_AMP:
+          expression: ((S39<<8)|B38)/10000
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 11.5)
+          verified: false
+          notes: >-
+            Amplitude of the second-harmonic angle-error correction (RAM 0x40001E98). 36-53 raw in
+            the captures.
+          ship: false
+        MCU_ANGLE_CORR_H2_PHASE:
+          expression: ((S42<<8)|B41)/10000
+          unit: rad
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 11.5)
+          verified: false
+          notes: >-
+            Phase of the second-harmonic angle-error correction (RAM 0x40001EA0). 599-2779 raw in
+            the captures.
+          ship: false
 
     2103:
       response_frames: 4
@@ -342,11 +386,13 @@ MCU:
       vehicle_states: [CHARGING]
       notes: >-
         67 data bytes. A summary of the previous drive or charge cycle, like BMS 21F2: average and
-        peak of three temperatures (heatsink, MCU_TEMP_B18, coolant), the min, max and average 12 V
-        supply, and two unexplained words (B27:B28, B31:B33). Also carries live copies of the two
-        current-sensor offsets and of the latched MCU 2102 bytes B34-B42 (at B38-B46), and the ASCII
-        tag 'EHEL-MS2' at B69-B77. The cycle values were checked against the five fully logged
-        2026-08-08 cycles (preconditioning, three drives, a DC charge).
+        peak of three temperatures (inverter sensor, motor, coolant), the min, max and average 12 V
+        supply, and max/min/average of the 2102 B52:B53 sensor voltage. Also carries live copies of
+        the two current-sensor offsets, the learned angle, markers and the angle-error correction
+        (2102 B27-B42 at B13-B46), and the ASCII tag 'EHEL-MS2' at B69-B77. The cycle statistics
+        live in RAM outside the EEPROM image, so a 12 V disconnect loses them. The cycle values were
+        checked against the five fully logged 2026-08-08 cycles (preconditioning, three drives, a DC
+        charge). Firmware map: MCU_FIRMWARE_FINDINGS.md sections 5.4 and 11.
       source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
       verified: false
       parameters:
@@ -378,25 +424,25 @@ MCU:
             2026-08-08 cycles, never below the sampled peak of AAF:2181:HEATSINK_TEMP. Firmware:
             signed 16-bit, degrees C; the statistics are kept while the model state is 1.
           verified: false
-        MCU_21F2_TEMP_B18_AVG:
+        MCU_21F2_MOTOR_TEMP_AVG:
           expression: (S58<<8)|B57
           unit: °C
           min: "-40"
           max: "150"
           notes: >-
-            Average over the previous cycle of the sensor behind MCU:2102 MCU_TEMP_B18; within 1 °C
-            of its time-weighted mean on the five 2026-08-08 cycles. Firmware: signed 16-bit,
-            degrees C; the statistics are kept while the model state is 1.
+            Average motor temperature (MCU:2102 MCU_MOTOR_TEMP) over the previous cycle, °C, signed
+            16-bit; within 1 °C of its time-weighted mean on the five 2026-08-08 cycles. Kept in RAM
+            only: lost when the 12 V supply is removed.
           verified: false
-        MCU_21F2_TEMP_B18_MAX:
+        MCU_21F2_MOTOR_TEMP_MAX:
           expression: (S60<<8)|B59
           unit: °C
           min: "-40"
           max: "150"
           notes: >-
-            Peak over the previous cycle of the sensor behind MCU:2102 MCU_TEMP_B18; within 2 °C of
-            its sampled peak on the five 2026-08-08 cycles. Firmware: signed 16-bit, degrees C; the
-            statistics are kept while the model state is 1.
+            Peak motor temperature (MCU:2102 MCU_MOTOR_TEMP) over the previous cycle, °C, signed
+            16-bit; within 2 °C of its sampled peak on the five 2026-08-08 cycles. Kept in RAM only:
+            lost when the 12 V supply is removed.
           verified: false
         MCU_21F2_COOLANT_TEMP_AVG:
           expression: S67
@@ -903,16 +949,15 @@ MCU:
         state 1 holds; the three u16 at B27/B29/B31 are max/min/average of the 2102 B52:B53 sensor
         voltage (min stuck at 0); temperatures are 16-bit or signed.
       notes: >-
-        Open: MCU_21F2_W27/W31 (B27:B28, B31:B33), the latched MCU 2102 bytes B34-B42 copied to 21F2
-        B38-B46, and what MCU_TEMP_B18 measures. Only cycles with nothing unlogged between the cycle
-        and the next 21F2 read can be matched (2026-08-08 has five). The latched bytes (B34 67-146,
-        signed (S37<<8)|B36 -4702 to 648, B38 36-51, (B42<<8)|B41 599-2779) change only at power-up
-        and at the first motion of a drive. The parked 12 V top-up is not recorded as a cycle: BMS
-        OPERATING_TIME advanced only 118 s between the end of the 2026-10-21 top-up and the
-        2026-10-22 09:25:50 read, so the top-up was the last completed cycle, yet that read (like
-        the 25 reads during the top-up) shows a cycle with the 12 V at 11.6-12.2 V and coolant at
-        8-9 °C, not 14.6 V. BMS 21F2 did not change across that top-up either, and VCU 21F2 only in
-        B10 (0x5E to 0x3E by the next morning).
+        Closed by the firmware read (MCU_FIRMWARE_FINDINGS.md 5.4, 11.2, 11.5): W27/W31 are the max
+        and average of the 2102 B52:B53 sensor voltage; the latched 2102 bytes B34-B42 are a learned
+        position-sensor angle-error correction (two harmonics, amplitude and phase), relearned while
+        the motor turns; MCU_TEMP_B18 is the motor sensor (now MCU_MOTOR_TEMP). The top-up not
+        appearing as a cycle fits: the statistics are kept only while the model state is 1. Earlier
+        evidence: only cycles with nothing unlogged between the cycle and the next 21F2 read can be
+        matched (2026-08-08 has five); BMS OPERATING_TIME advanced only 118 s between the end of the
+        2026-10-21 top-up and the 2026-10-22 09:25:50 read, yet that read showed a cycle with the 12
+        V at 11.6-12.2 V and coolant at 8-9 °C.
       sources:
         - canair 21F2 cross-check vs live data 2026-10-21
       what_to_test:
@@ -921,18 +966,15 @@ MCU:
         - Identify the latched 2102 B34-B42 values, learned at power-up and first motion
     - type: scan
       target: 01 01, 01 21, 01 30, 01 31
-      status: pending
+      status: done
       priority: P3
       vehicle_states: [READY]
       created: "2026-10-27"
-      updated: "2026-10-27"
+      updated: "2026-11-18"
       result: >-
-        2026-11-01, AC charging: 01 00 -> 41 00 80 00 00 01 (PIDs 01 and 20) and 01 20 -> 41 20 80
-        01 80 00 (PIDs 21, 30 and 31; no 40). 01 01 and 01 21 answer with a single data byte, 00,
-        where SAE J1979 defines four and two: malformed. 01 30 and 01 31 stay silent when sent
-        functionally; 01 40 returns NO DATA. Mode 09: 09 00 -> 14 40 00 00 (InfoTypes 04, 06 and
-        0A); 09 04 and 09 0A report one item each but empty (01 00), 09 06 (CVN) is C2199D2C, 09 02
-        (VIN) is not answered.
+        Firmware (MCU_FIRMWARE_FINDINGS.md section 11.4): the mode 01 data table gives PIDs 01 and
+        21 one byte each, from RAM no code writes, so they always answer 00. PIDs 30 and 31 are in
+        the support map but have no data entry, so they get no reply. Nothing to read here.
       notes: >-
         OBDb command_support for 2017 and 2018 lists these four Mode 01 PIDs answering from 0x7E3.
         The OBC answers the same four correctly while charging (OBC research entry).
@@ -1035,11 +1077,14 @@ MCU:
       created: "2026-11-12"
       updated: "2026-11-12"
       notes: >-
-        Candidates from MCU_FIRMWARE_FINDINGS.md section 5, all unverified. Check on the car: (1)
-        2102 S18..S21 read negative on a cold soak below 0 C; (2) MCU_2102_SENSOR_V (B52:B53)
-        against AAF MOTOR_COOLANT_TEMP over a cold start and a hot drive (it should rise with motor
-        temperature); (3) MCU_DC_LINK_VOLTAGE against BMS BATTERY_VOLTAGE; (4) MCU_2101_ADC_1_MV and
-        _2_MV against temperatures.
+        Candidates from MCU_FIRMWARE_FINDINGS.md sections 5 and 11, all unverified. Check on the
+        car: (1) 2102 S18..S21 read negative on a cold soak below 0 C; (2) MCU_2102_SENSOR_V
+        (B52:B53) against AAF MOTOR_COOLANT_TEMP over a cold start and a hot drive; (3)
+        MCU_DC_LINK_VOLTAGE against BMS BATTERY_VOLTAGE; (4) MCU_2101_ADC_1_MV and _2_MV against
+        temperatures; (5) MCU_POWER_MODULE_TEMP_EST rises above MCU_COOLANT_TEMP under hard
+        acceleration and falls back at rest (a model, not a sensor); (6) MCU_MOTOR_TEMP leads the
+        others after a long climb or hard drive; (7) the MCU_ANGLE_CORR values change only at
+        power-up or first motion.
       sources:
         - profiles/hyundai-ioniq-ae-ev/research/MCU_FIRMWARE_FINDINGS.md
       what_to_test:
@@ -1053,11 +1098,13 @@ MCU:
       created: "2026-11-12"
       updated: "2026-11-12"
       notes: >-
-        Firmware shows the three bytes are flag bytes (0x400166B4, B6, B8) shared with the 0x523
-        frame. Known bits: B10 bit 7 = position sensor not learned (MCU_POSITION_NOT_LEARNED); B09
-        bit 4 = a sensor check failed. Observed B09 = 8, 12, 140; B10 = 56; B11 = 0 or 1. The other
-        bits come from the model and were not traced. Capture them across READY, CHARGING, driving
-        and a fault.
+        Firmware (MCU_FIRMWARE_FINDINGS.md section 11.3) names most bits: B09 bits 0/1 and B10 bit 0
+        summarise the reaction words of raised faults, B09 bit 4 a sensor check, bit 5 the pump
+        fault P0C73, bit 7 a torque-correction function in states 4/5 (probably active damping), B10
+        bit 7 position not learned, B11 bit 0 a received status bit or an unfinished standstill
+        self-check, B11 bits 4/5 that self-check running/failed. Not traced: B09 bits 2, 3 and 6,
+        B10 bits 1-6, B11 bit 3. Observed B09 = 8, 12, 140; B10 = 56; B11 = 0 or 1. Capture across
+        READY, CHARGING, driving and a fault to name the rest.
       sources:
         - profiles/hyundai-ioniq-ae-ev/research/MCU_FIRMWARE_FINDINGS.md
     - type: decode
