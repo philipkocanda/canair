@@ -38,16 +38,16 @@ MCU:
       source: canair analysis 2026-08-08 long drive + DCFC
       verified: false
       parameters:
-        MCU_2101_ADC_1_MV:
+        MCU_INTERLOCK_1_MV:
           expression: (B23<<8)|B22
           min: "0"
           max: "5000"
-          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-12 (research/MCU_FIRMWARE_FINDINGS.md)
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 12)
           notes: >-
-            16-bit little-endian millivolts: an ADC channel voltage (raw 0x40015318 x 0.001221 V,
-            float x 1000 into a u16). B22 alone is its low byte. Observed 518-681 mV. Which sensor
-            it is is not known. Earlier note: on 2026-08-08 the low byte fell 37 in 22 s and read
-            22-31 during a DC charge.
+            First HV interlock loop voltage in mV (ADC raw 0x40015318 x 0.001221 V). The P0A0D
+            monitor (FUN_001380D4) sets the code when this or MCU_INTERLOCK_2_MV reaches 4.75 V, the
+            service manual's EPCU and HV-input-cable interlock threshold; which loop is which is not
+            established. Observed 518-681 mV (loop closed). B22 alone is its low byte.
           ship: false
           unit: mV
           verified: false
@@ -61,18 +61,17 @@ MCU:
           notes: >-
             Coarse HV DC-link voltage, about 2.56 V per LSB. Slope 0.991, r=0.981 vs BMS
             BATTERY_VOLTAGE over 2016 samples of a 3 h AC charge (360-399 V).
-        MCU_2101_ADC_2_MV:
+        MCU_INTERLOCK_2_MV:
           expression: (B26<<8)|B25
           min: "0"
           max: "5000"
           notes: >-
-            16-bit little-endian millivolts: an ADC channel voltage (raw 0x4001531C x 0.001221 V).
-            B25 alone is its low byte. Observed 1062-1145 mV, slow, falling as the coolant warms
-            (r=-0.72 on the low byte vs AAF MOTOR_COOLANT_TEMP and HEATSINK_TEMP): probably a
-            temperature-sensor divider.
+            Second HV interlock loop voltage in mV (ADC raw 0x4001531C x 0.001221 V); 4.75 V sets
+            P0A0D, see MCU_INTERLOCK_1_MV. Observed 1062-1145 mV, slowly falling as the coolant
+            warms (r=-0.72 on the low byte vs AAF temperatures).
           ship: false
           unit: mV
-          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-12 (research/MCU_FIRMWARE_FINDINGS.md)
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 12)
           verified: false
         MCU_PHASE_CURRENT_1:
           expression: (S30 << 8) | B29
@@ -134,14 +133,19 @@ MCU:
             = sensor flagged faulty. MCU_HV_VOLTAGE (B13*2.56) is its high byte. The integer-volt
             copy is 0x524 bytes 0-1. Replayed on 10811 captures: mean 359.4 V, max 399.80 V, within
             1.2 V of MCU_HV_VOLTAGE.
-        MCU_2101_W20:
+        MCU_FAN_PWM_DUTY:
           expression: (B21<<8)|B20
-          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-12 (research/MCU_FIRMWARE_FINDINGS.md)
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 12)
           verified: false
           notes: >-
-            Output of a nine-point curve (10 to 90) driven by an unnamed float (FUN_0012E26C, RAM
-            0x400117E2). Probably a coolant-pump duty request in percent (inferred). Observed 10,
-            45, 59, 75.
+            PWM duty the MCU drives on eMIOS channel 11: a nine-point curve (10-90 %) of the highest
+            cooling request (0x400117FC: the VCU's 0x590 byte 3, the OBC's 0x57F byte 3, 0x5F7 byte
+            7 and the MCU's own temperature requests; also 0x291 byte 7). Probably the radiator-fan
+            control line (inferred from the VCU's fan request feeding it). 10 = minimum. Observed
+            10, 45, 59, 75.
+          unit: "%"
+          min: "10"
+          max: "90"
         MCU_POSITION_NOT_LEARNED:
           expression: B10:7
           type: enum
@@ -162,6 +166,21 @@ MCU:
             Bit 4 of status byte 0x400166B4 (also 0x523 byte 0): set when any of three sensor checks
             (0x40016260, 0x40016261, 0x40016263) is non-zero. B09 reads 8, 12 or 140, so it is
             always 0 here.
+        MCU_EWP_SPEED:
+          expression: (S19<<8)|B18
+          unit: rpm
+          min: "0"
+          max: "5100"
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 12)
+          verified: false
+          notes: >-
+            Coolant-pump (EWP) speed as the pump reports it: 0x570 byte 1 x 20 (RAM 0x40016584). The
+            P0C73 check compares it with the pump speed request (0x523 byte 6). Observed 0-3320 rpm.
+        MCU_EWP_STATUS_BIT:
+          expression: B17
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 12)
+          verified: false
+          notes: Bit 0 of the pump's 0x570 byte 0 (RAM 0x4001658A). 0 in all 10811 captures.
     2102:
       response_frames: 9
       status: active
@@ -172,10 +191,10 @@ MCU:
         MCU's SPI EEPROM: the angle B27:B28, the markers 0xABCD B29:B30, 0xCDC2 B31:B33 and 0xCDC1
         B47:B49, the learned angle-error correction B34-B42 (changes at power-up and first motion),
         and the offset-calibration results B43-B46 (constant); B27-B42 are copied to 21F2. B50:B51
-        is a counter (9). B52:B53 is a 16-bit sensor voltage. B54-B65 are event counters and an
-        unused slot, 0 in all 7757 captures. B18 is the motor sensor, B19 the inverter sensor, B20
-        the coolant sensor and B21 a modelled power-module temperature, all signed. See
-        MCU_FIRMWARE_FINDINGS.md sections 5.3 and 11.
+        is a counter (9). B52:B53 is probably the resolver signal amplitude. B54-B65 are event
+        counters and an unused slot, 0 in all 7757 captures. B18 is the motor sensor, B19 the
+        inverter sensor, B20 the coolant sensor and B21 a modelled power-module temperature, all
+        signed. See MCU_FIRMWARE_FINDINGS.md sections 5.3 and 11.
       source: canair align/hunt vs AAF 2181 and VCU 2102 temperatures 2026-10-22
       verified: false
       parameters:
@@ -298,18 +317,19 @@ MCU:
           notes: >-
             Small signed word, -13 to -7; see MCU_CURRENT_SENSOR_OFFSET_1. Copied live into
             MCU:21F2.
-        MCU_2102_SENSOR_V:
+        MCU_RESOLVER_AMPLITUDE:
           expression: ((B53<<8)|B52)/10000
           unit: V
           min: "0"
           max: "6.5535"
-          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-12 (research/MCU_FIRMWARE_FINDINGS.md)
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 12)
           verified: false
           notes: >-
-            An analog sensor voltage (float 0x40011C18 x 10000 as u16); B52 alone is its low byte.
-            Observed 1.10-1.45 V (mean 1.28 V, 8871 captures); it rises after driving, so it is
-            probably the motor temperature sensor (inferred). Also 0x540 bytes 0-1 and the source of
-            the 21F2 max/min/average voltage.
+            Probably the position-sensor (resolver) signal amplitude: FUN_00152640 squares the
+            differences of two ADC channel pairs and FUN_001533E0 takes the square root
+            (0x40011C18); the same inputs feed the resolver monitors (P0A3F-P0A42). Observed
+            1.10-1.45 V (mean 1.28 V, 8871 captures); it rises after driving, as a winding warms.
+            Also 0x540 bytes 0-1. The 21F2 MCU_21F2_RESOLVER_AMP_* statistics are of this value.
         MCU_2102_LEARNED_ANGLE:
           expression: ((B28<<8)|B27)/10000
           unit: rad
@@ -387,8 +407,8 @@ MCU:
       notes: >-
         67 data bytes. A summary of the previous drive or charge cycle, like BMS 21F2: average and
         peak of three temperatures (inverter sensor, motor, coolant), the min, max and average 12 V
-        supply, and max/min/average of the 2102 B52:B53 sensor voltage. Also carries live copies of
-        the two current-sensor offsets, the learned angle, markers and the angle-error correction
+        supply, and max/min/average of the 2102 B52:B53 resolver amplitude. Also carries live copies
+        of the two current-sensor offsets, the learned angle, markers and the angle-error correction
         (2102 B27-B42 at B13-B46), and the ASCII tag 'EHEL-MS2' at B69-B77. The cycle statistics
         live in RAM outside the EEPROM image, so a 12 V disconnect loses them. The cycle values were
         checked against the five fully logged 2026-08-08 cycles (preconditioning, three drives, a DC
@@ -490,23 +510,23 @@ MCU:
             Lowest 12 V supply of the previous cycle, 0.1 V per count; 11.4-12.4 V. The DC-charge
             cycle reads 12.3 V, the sampled minimum before the LDC started. Drive cycles read
             11.4-11.9 V, below anything polled.
-        MCU_21F2_SENSOR_V_MAX_MV:
+        MCU_21F2_RESOLVER_AMP_MAX_MV:
           expression: (B28<<8)|B27
           min: "0"
           max: "65535"
           notes: >-
-            Maximum over the last cycle of the sensor voltage in 2102 B52:B53, in mV (RAM
-            0x40002472). 1275-1469 on 200 captures, higher after drives.
+            Maximum over the last cycle of MCU:2102 MCU_RESOLVER_AMPLITUDE, in mV (RAM 0x40002472).
+            1275-1469 on 200 captures, higher after drives.
           unit: mV
           source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-12 (research/MCU_FIRMWARE_FINDINGS.md)
           verified: false
-        MCU_21F2_SENSOR_V_AVG_MV:
+        MCU_21F2_RESOLVER_AMP_AVG_MV:
           expression: (B33<<8)|B31
           min: "0"
           max: "65535"
           notes: >-
-            Average over the last cycle of the sensor voltage in 2102 B52:B53, in mV (RAM
-            0x40002476). 1258-1297 on 200 captures.
+            Average over the last cycle of MCU:2102 MCU_RESOLVER_AMPLITUDE, in mV (RAM 0x40002476).
+            1258-1297 on 200 captures.
           unit: mV
           source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-12 (research/MCU_FIRMWARE_FINDINGS.md)
           verified: false
@@ -526,14 +546,14 @@ MCU:
             Live copy of MCU:2102 MCU_CURRENT_SENSOR_OFFSET_2: matched the latest MCU 2102 value at
             every change checked (30-32 changes).
           ship: false
-        MCU_21F2_SENSOR_V_MIN_MV:
+        MCU_21F2_RESOLVER_AMP_MIN_MV:
           expression: (B30<<8)|B29
           unit: mV
           source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-12 (research/MCU_FIRMWARE_FINDINGS.md)
           verified: false
           notes: >-
-            The firmware keeps a minimum that starts at 0 and is only lowered, so it reads 0 in all
-            200 captures (RAM 0x40002474).
+            Minimum of MCU:2102 MCU_RESOLVER_AMPLITUDE. The firmware's minimum starts at 0 and is
+            only lowered, so it reads 0 in all 200 captures (RAM 0x40002474).
   # Meanings, causes, thresholds and fail-safes are from the Ioniq Electric 2017 service manual,
   # EV Motor Control System chapter. Unless an entry says "Enabled when", the manual checks the
   # code only with the ignition on and the auxiliary battery at 9-16 V. "Also needs" adds to that.
@@ -914,15 +934,15 @@ MCU:
           steady cruise"
     - type: decode
       target: 2101 B22 / B25 identity
-      status: captured
+      status: done
       priority: P2
       vehicle_states: [DRIVING]
       created: "2026-08-08"
-      updated: "2026-11-03"
+      updated: "2026-11-18"
       result: >-
-        Firmware: B22:B23 and B25:B26 are 16-bit ADC voltages in mV (B22 and B25 were their low
-        bytes); signals renamed MCU_2101_ADC_1_MV and _2_MV. Which physical sensor each is stays
-        open.
+        Firmware: B22:B23 and B25:B26 are the two HV interlock loop voltages in mV; P0A0D trips at
+        4.75 V on either (MCU_FIRMWARE_FINDINGS.md section 12.1). Renamed MCU_INTERLOCK_1_MV and
+        _2_MV. Which loop is which is open.
       notes: >-
         Neither is a temperature (see MCU_2101_B22, MCU_2101_B25). B22 is fast, 6-136, and steps
         with propulsion; B23 is constant 0x02, so it is a single byte. B25 is slow but r=-0.720 vs
@@ -950,14 +970,14 @@ MCU:
         voltage (min stuck at 0); temperatures are 16-bit or signed.
       notes: >-
         Closed by the firmware read (MCU_FIRMWARE_FINDINGS.md 5.4, 11.2, 11.5): W27/W31 are the max
-        and average of the 2102 B52:B53 sensor voltage; the latched 2102 bytes B34-B42 are a learned
-        position-sensor angle-error correction (two harmonics, amplitude and phase), relearned while
-        the motor turns; MCU_TEMP_B18 is the motor sensor (now MCU_MOTOR_TEMP). The top-up not
-        appearing as a cycle fits: the statistics are kept only while the model state is 1. Earlier
-        evidence: only cycles with nothing unlogged between the cycle and the next 21F2 read can be
-        matched (2026-08-08 has five); BMS OPERATING_TIME advanced only 118 s between the end of the
-        2026-10-21 top-up and the 2026-10-22 09:25:50 read, yet that read showed a cycle with the 12
-        V at 11.6-12.2 V and coolant at 8-9 °C.
+        and average of the 2102 B52:B53 resolver amplitude; the latched 2102 bytes B34-B42 are a
+        learned position-sensor angle-error correction (two harmonics, amplitude and phase),
+        relearned while the motor turns; MCU_TEMP_B18 is the motor sensor (now MCU_MOTOR_TEMP). The
+        top-up not appearing as a cycle fits: the statistics are kept only while the model state is
+        1. Earlier evidence: only cycles with nothing unlogged between the cycle and the next 21F2
+        read can be matched (2026-08-08 has five); BMS OPERATING_TIME advanced only 118 s between
+        the end of the 2026-10-21 top-up and the 2026-10-22 09:25:50 read, yet that read showed a
+        cycle with the 12 V at 11.6-12.2 V and coolant at 8-9 °C.
       sources:
         - canair 21F2 cross-check vs live data 2026-10-21
       what_to_test:
@@ -1077,14 +1097,15 @@ MCU:
       created: "2026-11-12"
       updated: "2026-11-12"
       notes: >-
-        Candidates from MCU_FIRMWARE_FINDINGS.md sections 5 and 11, all unverified. Check on the
-        car: (1) 2102 S18..S21 read negative on a cold soak below 0 C; (2) MCU_2102_SENSOR_V
-        (B52:B53) against AAF MOTOR_COOLANT_TEMP over a cold start and a hot drive; (3)
-        MCU_DC_LINK_VOLTAGE against BMS BATTERY_VOLTAGE; (4) MCU_2101_ADC_1_MV and _2_MV against
-        temperatures; (5) MCU_POWER_MODULE_TEMP_EST rises above MCU_COOLANT_TEMP under hard
-        acceleration and falls back at rest (a model, not a sensor); (6) MCU_MOTOR_TEMP leads the
-        others after a long climb or hard drive; (7) the MCU_ANGLE_CORR values change only at
-        power-up or first motion.
+        Candidates from MCU_FIRMWARE_FINDINGS.md sections 5, 11 and 12, all unverified. Check on the
+        car: (1) 2102 S18..S21 read negative on a cold soak below 0 C; (2) MCU_RESOLVER_AMPLITUDE
+        (B52:B53) over a cold start and a hot drive; (3) MCU_DC_LINK_VOLTAGE against BMS
+        BATTERY_VOLTAGE; (4) MCU_INTERLOCK_1_MV and _2_MV stay well below 4.75 V and do not move
+        with load; (5) MCU_POWER_MODULE_TEMP_EST rises above MCU_COOLANT_TEMP under hard
+        acceleration and falls back at rest; (6) MCU_MOTOR_TEMP leads the others after a long climb
+        or hard drive; (7) the MCU_ANGLE_CORR values change only at power-up or first motion; (8)
+        MCU_EWP_SPEED follows the VCU's 0x590 pump request and MCU_FAN_PWM_DUTY the fan (radiator
+        fan audible above 10 %).
       sources:
         - profiles/hyundai-ioniq-ae-ev/research/MCU_FIRMWARE_FINDINGS.md
       what_to_test:
@@ -1098,22 +1119,27 @@ MCU:
       created: "2026-11-12"
       updated: "2026-11-12"
       notes: >-
-        Firmware (MCU_FIRMWARE_FINDINGS.md section 11.3) names most bits: B09 bits 0/1 and B10 bit 0
+        Firmware (MCU_FIRMWARE_FINDINGS.md 11.3, 12.2) names most bits: B09 bits 0/1 and B10 bit 0
         summarise the reaction words of raised faults, B09 bit 4 a sensor check, bit 5 the pump
         fault P0C73, bit 7 a torque-correction function in states 4/5 (probably active damping), B10
-        bit 7 position not learned, B11 bit 0 a received status bit or an unfinished standstill
-        self-check, B11 bits 4/5 that self-check running/failed. Not traced: B09 bits 2, 3 and 6,
-        B10 bits 1-6, B11 bit 3. Observed B09 = 8, 12, 140; B10 = 56; B11 = 0 or 1. Capture across
-        READY, CHARGING, driving and a fault to name the rest.
+        bit 7 position not learned, B11 bit 0 the OBC's 0x57F bit 8 (OBC_STATUS_B1_0) or an
+        unfinished standstill self-check, B11 bits 4/5 that self-check running/failed. Not traced:
+        B09 bits 2, 3 and 6 (no writer found outside the calibration override), B10 bits 1-6, B11
+        bit 3. Observed B09 = 8, 12, 140; B10 = 56; B11 = 0 or 1.
       sources:
         - profiles/hyundai-ioniq-ae-ev/research/MCU_FIRMWARE_FINDINGS.md
     - type: decode
       target: broadcast 0x2C1, 0x523, 0x540, 0x5DC, 0x5DE, 0x2A1 (MCU frames)
-      status: pending
+      status: captured
       priority: P2
       vehicle_states: [READY]
       created: "2026-11-12"
-      updated: "2026-11-12"
+      updated: "2026-11-18"
+      result: >-
+        Added 2026-11-18 as unverified signals in signals/powertrain.yaml from the firmware's frame
+        descriptors, checked against uhi22's P-CAN trace (MCU_FIRMWARE_FINDINGS.md 7.3, 12.3). 0x2C1
+        is on CCP-CAN, which is not in can_buses.yaml. Verifying needs a tapped P-CAN capture from
+        this car.
       notes: >-
         MCU_FIRMWARE_FINDINGS.md section 7.3 gives every byte of the seven frames the MCU sends on
         P-CAN (0x2C1 on CCP-CAN), checked against uhi22's trace. Only 0x524 and 0x291 are in
@@ -1129,9 +1155,13 @@ MCU:
       updated: "2026-11-12"
       notes: >-
         The firmware has 44 DTC codes; P0A2B, P0A40, P0A5F, P0A65, P0AEE, P0CEF, U1001 and U1004 are
-        not in dtcs:. Thresholds were read for P0A3C (125 C), P0A2C/P0A2D (0.40 V / 4.93 V), P0A2F
-        (180 C); the monitors of the others are listed in MCU_FIRMWARE_FINDINGS.md section 6.2.
-        Their thresholds are calibration constants to read from the image.
+        not in dtcs:, and no canair editor writes dtcs: yet (adding them needs one). Read so far:
+        P0A3C 125 C, P0A2C/P0A2D 0.40/4.93 V, P0A2F 170/180 C, P0A78, P0A0D 4.75 V interlock, and
+        the CAN timeouts behind U0001 (P-CAN bus-off), U1001 (CCP-CAN bus-off), U0293 (0x200-0x202,
+        0.5 s), U0111 (BMS 0x594/595/598, 2 s), U1116 (pump 0x570, 2 s), U019B (OBC 0x57F, 2 s) and
+        probably U1004 (0x232 on CCP-CAN) (MCU_FIRMWARE_FINDINGS.md 6.3, 12.5). No code raises
+        P0A5F, P0A65 or U0129. The monitors of the others are listed in section 6.2; their
+        thresholds are calibration constants.
       sources:
         - profiles/hyundai-ioniq-ae-ev/research/MCU_FIRMWARE_FINDINGS.md
     - type: verify
