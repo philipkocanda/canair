@@ -98,6 +98,15 @@ sections:
       timeouts behind each U-code, and the DTC status byte. Applied to mcu.yaml and
       signals/powertrain.yaml as unverified signals.
     target: profiles/hyundai-ioniq-ae-ev/signals/powertrain.yaml
+  - section: "13"
+    status: integrated
+    date: 2026-11-18
+    note: >-
+      Fourth pass: every bit of the 2101 status bytes B09-B11, the HV interlock open counter in
+      2102 B63:B65, and what IOControl 30 04, 30 05 and 30 08 do. 30 04 07 erases the learned
+      position-sensor offset; it is added to the never-send list (section 8). Applied to mcu.yaml
+      as unverified signals.
+    target: profiles/hyundai-ioniq-ae-ev/ecus/mcu.yaml
 relations:
   expands_on:
     - path: profiles/hyundai-ioniq-ae-ev/ecus/mcu.yaml
@@ -527,7 +536,8 @@ in `0x40015E6E`, the trigger of the current-sensor offset calibration state mach
 `FUN_001363CC` (§5.3). Only LIDs `05` and `08` accept control `00` (release); LIDs `02`, `04`,
 `06` and `07` have no release in this handler. Local ids `0x20`, `0x40`, `0x60`, `0x80`, `0xA0`,
 `0xC0` and `0xE0` answer a fixed reply to control `01`. Treat every `30 .. 07` as a latched
-actuation (§8). Whether a session timeout or reset clears the latches was not traced.
+actuation (§8). Whether a session timeout or reset clears the latches was not traced. What LIDs
+`04`, `05` and `08` do is in §13.2.
 
 ## 5. The 0x21 records: the source of every byte
 
@@ -637,11 +647,11 @@ about ±1000 A (probable).
 | 46-47 | B57:B58 | u16 | `0x40000DC8` | ×1 | counter written by `FUN_00123B64`, `FUN_00124688`, `FUN_0013A118`. Obs. 0 | new |
 | 48-49 | B59:B60 | u16 | `0x40000DD0` | ×1 | counter written by the interrupt `FUN_001242B4`. Obs. 0 | new |
 | 50-51 | B61:B62 | u16 | `0x40000DD2` | ×1 | counter written by the interrupt `FUN_0012434C`. Obs. 0 | new |
-| 52-53 | B63:B65 | u16 | `0x40001E6C` | ×1 | a 32-bit variable clipped to 16 bits; no writer in the image. Obs. 0 | new |
+| 52-53 | B63:B65 | u16 | `0x40001E6C` | ×1 | **HV interlock open count**: the P0A0D monitor adds 1 on each call while a loop is open (§13.1); a 32-bit counter clipped to 16 bits, kept in the EEPROM. Obs. 0 | new |
 
-The profile's "B54 to B65 read 0 in all captures" is explained: all six are event counters or an
-unused slot. The three counters `0x40000DCC`, `DD0` and `DD2` are each owned by one eMIOS
-interrupt, so they are probably per-channel fault-trip counts (inferred).
+The profile's "B54 to B65 read 0 in all captures" is explained: all six are event counters (B63:B65
+the interlock open count, §13.1). The three counters `0x40000DCC`, `DD0` and `DD2` are each owned by
+one eMIOS interrupt, so they are probably per-channel fault-trip counts (inferred).
 
 **Motor power** (`MCU_MOTOR_POWER`) is derived and needs no source. The unit of the torque and
 the current is not stated in the code. The 100 % torque scale of the CAN frames is 300 Nm
@@ -670,7 +680,7 @@ block holds the figures of the last period in state 1 and survives a reset.
 | 30-37 | B38:B39, B41:B42, B43:B44, B45:B46 | 4 × s16 | `0x40001E88`, `E90`, `E98`, `EA0` ×10000 | live copies of the angle-error correction (2102 B34-B42, §11.5) | confirms the profile's "latched 2102 bytes" |
 | 38-39 | B47:B49 | s16 | `0x4000246A` | **average heatsink temperature** of the cycle, °C (`0x4001EDF2`) | **confirmed** `MCU_21F2_HEATSINK_TEMP_AVG`: it is a signed 16-bit value in °C, not a byte |
 | 40-41 | B50:B51 | s16 | `0x4000246C` | **maximum heatsink temperature**, °C (`0x4001EDF4`) | confirmed `..._MAX` (16-bit) |
-| 42-43 | B52:B53 | u16 | `0x40001E6C` | unused slot, 0 | new |
+| 42-43 | B52:B53 | u16 | `0x40001E6C` | the HV interlock open count (2102 B63:B65), 0 | new |
 | 44-45 | B54:B55 | u16 | `0x40000DF8` | a counter | new |
 | 46-47 | B57:B58 | s16 | `0x4000246E` | **average of the temperature behind 2102 B18**, °C (`0x4001EDF6`) | confirmed `MCU_21F2_TEMP_B18_AVG` (16-bit) |
 | 48-49 | B59:B60 | s16 | `0x40002470` | **maximum of the same temperature**, °C (`0x4001EDF8`) | confirmed `..._MAX` (16-bit) |
@@ -1023,7 +1033,10 @@ item below follows `10 90` unless stated, and each also works on the functional 
 | `31 F1 22 33 44 55` | **the MCU runs the `0x14` handshake with its watchdog off** (§7.5), then calls an address it reads from RAM (`FUN_0010CEB8`). With nobody on CCP-CAN it blocks in the handshake loop, so it hangs until power is removed. **No gate** | refused |
 | `31 F3 CC DD 33 44` | sets the flag `0x4000CDA8`; its only reader is the SecurityAccess handler (not read). Effect not established | refused |
 | `30 06 07 01\|02 …`, `30 07 07 …` | store the argument in `0x40015E6E`, the trigger of the current-sensor offset calibration (`FUN_001363CC`): it **rewrites the learned offsets and markers in 2102** (`0x40001E74`-`0x40001E7C`) | passes `raw` and the REPL; `canair io` refuses a KWP `0x30` ON without a `release:` |
-| `30 01 07`, `30 02 07`, `30 04 07`, `30 05 07`, `30 08 07` | latch an output or state of unknown meaning; only LIDs `05` and `08` have a release (`30 05 00`, `30 08 00`) | as above |
+| `30 04 07` | **erases the learned position-sensor offset** (`FUN_00132630`): clears the `0xABCD` marker and loads the default angle, so P0C17 sets and the offset has to be relearned, which needs coasting at 1,000-4,000 rpm with zero torque (§13.2). Whether the car still drives until then was not established | as above |
+| `30 05 07` | runs the coolant pump at 3,720 rpm for up to 10 minutes (probable); release `30 05 00` | as above |
+| `30 08 07` | raises the cooling-fan request to 1,800 for up to 3 minutes (probable); release `30 08 00` | as above |
+| `30 01 07`, `30 02 07` | latch an output or state of unknown meaning | as above |
 | `11 01` | software system reset (`FUN_0010CFD8` → `FUN_00103714`), gated like `31 00`: needs the stationary test. In session `85` it needs the key | refused |
 | `28 01`, `28 02` | stop every periodic MCU frame (`FUN_0010CFEC` gates `0x2C1`, `0x291`, `0x523`, `0x524`, `0x2A1`, `0x540`, `0x5DC`, `0x5DE`): **the VCU loses its torque feedback** with no READY gate. Cleared by `29`, `20`, `10 81` or the session timeout | refused |
 | `99` | the handler `FUN_0010D28C` has **no permission-matrix call**: it overwrites the 32-byte VIN image at `0x40001FC0` with `FF` and writes it to the SPI EEPROM page `0x1FC0` (messages 14 and 15 are the EEPROM's DSPI channel, §11.1), in any session | refused |
@@ -1143,26 +1156,32 @@ and a heat-sink figure, which fits B21 and B19.
 
 ### 11.3 The status bytes 2101 B09, B10, B11 (also `0x523` bytes 0, 1, 7)
 
+Completed in a fourth pass (2026-11-18, §13). The first and second passes had missed the
+writers of B09 bits 2 and 3 and of B10 bits 3-6, because they address the byte through a
+channel index (`base + n`), which the address scans did not resolve.
+
 | byte | bit | meaning | evidence | observed |
 |---|---|---|---|---|
 | B09 | 0 | a raised fault has reaction word 1 set (any class) | `FUN_00151588` ORs the fault manager's mask-word summaries (§6.1) | 0 |
 | B09 | 1 | a raised fault has reaction word 2 set | same | 0 |
-| B09 | 2, 3 | not traced (no writer found; the calibration override copies them from `0x101CD`/`0x101CE`) | `FUN_00155804` | bit 3 always 1, bit 2 = 1 in READY, 0 while charging |
+| B09 | 2 | **the inverter is in its run state** (main state 2 of `FUN_00159964`); set on the change from standby (state 1) to run, cleared on every way out | `FUN_00159964` | 1 in READY, 0 when ON but not READY and while charging |
+| B09 | 3 | **the power-up checks have finished** (sub-state 4 of start-up state 0); never cleared afterwards | `FUN_00159964` | 1 in all but one of 10,811 captures |
 | B09 | 4 | a sensor plausibility check is non-zero (`0x40016260`/`61`/`63`) | `FUN_001373A4`, `FUN_0015177C` | 0 |
 | B09 | 5 | set when the coolant-pump fault 5.18 (P0C73) is raised | `FUN_0012E44C` | 0 |
-| B09 | 6 | set by a one-shot check keyed on `0x5A` in `0x40011978` (meaning not traced) | `FUN_0013278C` | 0 |
-| B09 | 7 | a torque-correction function is in states 4 or 5; its output is added to the motor torque value `0x40016780` (gain from calibration `0x13D14`); probably the active damping of drivetrain oscillation (inferred) | `FUN_00158360`, `FUN_0016114C` | 1 in some READY captures (140), else 0 |
+| B09 | 6 | set only by `FUN_0013278C`, which nothing calls (no branch, pointer or address formation reaches it); cleared in main state 8. So it is always 0 in this software | `FUN_0013278C`, `FUN_00159964` | 0 |
+| B09 | 7 | a torque-correction function is in states 4 or 5; its output is added to the motor torque value `0x40016780` (gain from calibration `0x13D14`); probably the active damping of drivetrain oscillation (inferred) | `FUN_00158360`, `FUN_0016114C` | in uhi22's trace 1 only while the motor turns with torque |
 | B10 | 0 | a raised fault has reaction word 4 set | `FUN_00151588` | 0 |
-| B10 | 1, 2 | set by `FUN_00138054`/`FUN_0013869C` and `FUN_00158F78` (not traced) | | 0 |
-| B10 | 3-6 | a bit and a 3-bit field (the override copies them from `0x10206` and `0x10207`); writer not found | `FUN_00155804` | `0x38`: bit 3 = 1, field = 3 |
+| B10 | 1 | **the HV interlock fault is confirmed**: set by the P0A0D monitor when an interlock loop has stayed at 4.75 V or above for its count | `FUN_00138054` | 0 |
+| B10 | 2 | **the switching-enable request** (`0x40016A56`, set by `FUN_00158F78`); clearing it drives digital output `0x70`, the same output the over-current interrupts drive, so probably the gate-driver disable (probable) | `FUN_00158F78`, `FUN_00159964` | 1 in 1,699 of 10,811 captures (READY and driving); in uhi22's trace 1 whenever torque is produced |
+| B10 | 3 | **a position-sensor offset learning is pending** | `FUN_00130888` | 1 in 10,156 captures, 0 in 655 (READY and driving) |
+| B10 | 4-6 | **why it is pending, or how it ended**: 5 = no valid learned data (the `0xABCD` marker is missing), 3 = a relearn requested by calibration (`0x122E0` = 1 in this image), 1 = the learning failed (fault 5.12, P0C4E), 0 = learned in this power cycle | `FUN_00130888` | 3, or 0 in the same 655 captures |
 | B10 | 7 | the position sensor is not learned (P0C17) | `FUN_00132630` | 0 |
-| B11 | 0 | the OBC's `0x57F` bit 8 (`OBC_STATUS_B1_0`, through `0x40016616`) **or** the self-check below has not finished | `FUN_0012ECE8` | 1 while charging and during top-ups, 0 in READY |
-| B11 | 3 | the result of `FUN_0012ECE0` (`0x400117E9`, not traced) | `FUN_001559A0` | 0 |
+| B11 | 0 | the OBC's `0x57F` bit 8 (`OBC_STATUS_B1_0`, through `0x40016616`) **or** the pump standstill check below has not finished | `FUN_0012ECE8` | 1 while charging and during top-ups, 0 in READY |
+| B11 | 3 | **the IOControl pump test `30 05 07` is running** (`0x400117E9`, §13.2) | `FUN_0012EE38` | 0 |
 | B11 | 4 | a standstill check of the pump is collecting samples of its speed `0x40016584` (2101 B18:B19), while the accelerations of `0x220` and the wheel speeds say the car is still and the VCU is EV-ready | `FUN_0012E92C` | 0 |
-| B11 | 5 | that self-check failed (fault 5.20, which has no DTC) | `FUN_0012E92C` | 0 |
+| B11 | 5 | that check failed (fault 5.20, which has no DTC) | `FUN_0012E92C` | 0 |
 
-B09 changes from 12 to 8 when the car goes from READY to charging (bit 2), and B11 bit 0 from 0
-to 1. Neither cause was traced to its source, so neither is a proven READY or CHARGING flag.
+B11 bits 1, 2, 6 and 7 have no writer: they are always 0.
 
 ### 11.4 OBD-II mode 01: why `01 01` and `01 21` answer one zero byte
 
@@ -1346,10 +1365,78 @@ that storage state (`00`: all). The freeze-frame layout of `12` was not decoded.
 
 ### 12.7 Still open after this pass
 
-- 2101 B09 bits 2, 3 and 6, B10 bits 1-6 and B11 bit 3 (no writer found for B09 bits 2 and 3
-  outside the calibration override).
+- The meaning of the inverter's main states 3 to 10 (§13.1).
 - Which interlock loop is which; the sender of `0x5F5`/`0x5F7`.
 - The freeze-frame layout of `12`; the conditions of 32 of the 44 DTCs.
 - The CCP-CAN receive path: how the MCU uses `0x232` and what it does, beyond raising U1004,
   when `0x232` stops (the safety items).
 - The `0x5DE` byte 7 flags and the alternate `0x77x` frame set.
+
+## 13. Fourth pass (2026-11-18): the status bits, and what IOControl 04, 05 and 08 do
+
+### 13.1 Where the bits come from
+
+The bits of §11.3 come from four places (verified):
+
+- **The inverter's main state machine** (`FUN_00159964`, state `0x40016A18`, sub-states
+  `0x40016A1C` in start-up and `0x40016A20` in standby). State 0 is start-up: its sub-state 4
+  sets B09 bit 3 once the power-up checks pass. State 1 is standby; when the VCU enables the
+  inverter (a request flag `0x40011E34` with the VCU's `0x202` byte 0 bit 1, or a torque mode
+  above 4) it sets B09 bit 2 and moves to state 2, the run state. Every exit from state 2 clears
+  bit 2: at once on the way back to standby or to state 7, and at the end of the shut-down
+  sequence of the fault state 4. The meaning of states 3 and 5
+  to 10 was not traced; the position-offset learning below runs only in states 3 and 5.
+- **The position-sensor offset learning** (`FUN_00130888`, state `0x40015A74`). At power-up its
+  state 0 asks `FUN_0012FED4` why to learn: 2 when the `0xABCD` marker is missing, 1 when the
+  calibration word `0x122E0` is 1, else 0. For 1 or 2 it sets B10 bit 3 and writes 3 or 5 into
+  bits 4-6. The learning then waits for main state 3 or 5, a motor speed of 1,000-4,000 rpm
+  (calibration `0xA53CC`/`0xA53D4`) and a torque request of exactly 0, and averages over a
+  calibrated count. It ends by storing the new angle (2102 B27:B28), the `0xABCD` marker and
+  `0xCDC3`, and clearing bits 3-6; or it fails with fault 5.12 (P0C4E) and writes 1. **In this
+  image `0x122E0` is 1, so a relearn is requested at every power-up.** In the captures B10 bits
+  3-6 read 3 (pending) in 10,156 of 10,811 and 0 (learned in this power cycle) in 655, all from
+  READY and driving sessions, so the relearn completes on some drives. The stored angle stayed
+  5.4909 rad in every 2102 capture, so each relearn found the same value (or a difference too
+  small to store); it differs from the default 5.445 rad, so it was first learned at the factory
+  (probable).
+- **The P0A0D interlock monitor** (`FUN_00138054`). While either interlock loop reads 4.75 V or more
+  it counts, and adds 1 to the 32-bit counter `0x40001E6C` (2102 B63:B65, 21F2 B52:B53, kept in the
+  EEPROM) on each call of the 1 ms task. When the count passes its calibrated limit it raises the
+  P0A0D fault and sets B10 bit 1.
+- **The cooling logic** (`FUN_0012EE38`, the IOControl latches, §13.2) for B11 bit 3, and the
+  enable request `FUN_00158F78` for B10 bit 2.
+
+The uhi22 trace shows the bits in use on a drive: B09 is `0x0C` at rest and `0x8C` while the
+motor turns with torque, and B10 is `0x38` at rest and `0x3C` whenever torque is produced.
+
+### 13.2 What IOControl 04, 05 and 08 do
+
+`FUN_001371AC` writes a LID's enable byte (`0x400173B4+LID`) and `FUN_001371A0` reads its latch
+(`0x400173BC+LID`, set by `30 LID 07`, §4.5). Three users were found (verified):
+
+- **LID 04, `FUN_00132630`.** Enabled whenever the function runs. When the latch is set it
+  writes 0 over the `0xABCD` learned-data marker, loads the default angle 5.445 rad into
+  `0x40001E14`, resets the learning, and writes 2 to the latch (done). The next check then raises
+  fault 5.11 (**P0C17, position sensor not learned**) and sets B10 bit 7. So **`30 04 07` erases
+  the learned position-sensor offset**, and the MCU has to relearn it under the conditions of
+  §13.1. What the inverter does with P0C17 set (refuse to run, or run with the default angle) was
+  not established. It is listed in §8.
+- **LID 05, `FUN_0012EE38`.** Enabled while the model state is 1, the pump reports no fault bit
+  and its `0x570` frame is present. A latch sets `0x400159FA` and `0x400117E9` (2101 B11 bit 3):
+  the pump request becomes 3,720 rpm (calibration `0x12298`) for up to 6,000 calls of the 100 ms
+  task (`0x1229C`; probable: 10 minutes), then the latch is released. `30 05 00` stops it.
+- **LID 08, `FUN_0012EE38`.** The same enable; a latch raises the fan-chain request to 1,800
+  (calibration `0x122A0`) for up to 1,800 calls of the 100 ms task (`0x122A4`; probable: 3
+  minutes), so the PWM duty of 2101 B20:B21 rises. `30 08 00` stops it.
+
+LIDs 06 and 07 start the current-sensor offset calibration (§4.5). LIDs 01 and 02 were not
+traced.
+
+### 13.3 What went into the profile
+
+New unverified bit signals on 2101: `MCU_RUN_STATE` (B09:2), `MCU_POWERUP_CHECKS_DONE` (B09:3),
+`MCU_ACTIVE_DAMPING` (B09:7), `MCU_HV_INTERLOCK_FAULT` (B10:1), `MCU_SWITCHING_ENABLE` (B10:2),
+`MCU_POSITION_LEARN_PENDING` (B10:3), `MCU_POSITION_LEARN_CODE` (B10 bits 4-6, an enum) and
+`MCU_PUMP_TEST_ACTIVE` (B11:3); on 2102 `MCU_INTERLOCK_OPEN_COUNT` (B63:B65). The status-bits
+research entry is closed. The IOControl findings are in §8; `mcu.yaml` has no IOControl
+entries for this ECU.
