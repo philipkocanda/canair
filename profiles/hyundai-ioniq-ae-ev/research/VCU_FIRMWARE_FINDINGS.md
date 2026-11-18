@@ -26,20 +26,20 @@ verification: >-
   and torque frames match uhi22's P-CAN trace; nothing in it was tried on the car.
 sections:
   - section: "3"
-    status: open
-    date: 2026-11-08
+    status: integrated
+    date: 2026-11-18
     note: >-
-      The 0x1A DID map, confirmed live. 8C/8D/8E/91/90(VIN) match ecus/vcu.yaml; the other readable
-      records (80, 8A, 8B, 92, 98, 99, FF) are not defined yet. The read-flag-2 slots (84/86/87/88/
-      94) are not 0x1A-readable (NRC 0x12 live). 1A80 embeds the VIN (pass 4).
+      The 0x1A DID map, confirmed live. 8C/8D/8E/91/90(VIN) match ecus/vcu.yaml; 1A80 is defined
+      as the joined record (8A, 8B, 90, 91, 98, 99, 8C, 8D, 8E, 92; VIN masked) and 1AFF as the
+      test-mode byte. The read-flag-2 slots (84/86/87/88/94) are not 0x1A-readable (NRC 0x12 live).
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
   - section: "2"
-    status: open
-    date: 2026-11-08
+    status: integrated
+    date: 2026-11-18
     note: >-
-      Corrected in pass 4: sessions 85, 90 and F1 open without SecurityAccess, and session 90
-      opens 0x30, 0x31, 0x11 and 0x28/0x29. The vcu.yaml header ("Only KWP2000 session 0x81 is
-      accepted") and the sessions block still say otherwise; 85/90/F1 were never tried live.
+      Sessions 85, 90 and F1 open without SecurityAccess, and session 90 opens 0x30, 0x31, 0x11
+      and 0x28/0x29. The vcu.yaml header and its service-support research entry carry this;
+      85/90/F1 were never tried live.
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
   - section: "4"
     status: integrated
@@ -105,38 +105,56 @@ sections:
       captured.
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
   - section: "18"
-    status: open
-    date: 2026-11-08
+    status: integrated
+    date: 2026-11-18
     note: >-
-      The integrated LDC. 2102 B9/B10 are LDC states (not HV/relay states), B12/B13 are the LDC
-      fault warning and output-limited bits, VCU_COOLANT_TEMP is the LDC's own temperature, and
-      the LDC current is measured but never published (the "LDC output current" research entry's
-      result). Not applied to vcu.yaml yet.
+      The integrated LDC. 2102 B9/B10 are LDC states (VCU_LDC_STATE_GE3, VCU_LDC_RUNNING), B12/B13
+      the LDC fault warning and output-limited bits, VCU_LDC_TEMP the LDC's own temperature, and
+      the "LDC output current" research entry carries the result: measured, never published.
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
   - section: "21"
-    status: open
-    date: 2026-11-08
+    status: integrated
+    date: 2026-11-18
     note: >-
-      The 45-code DTC table: P1A8A, U1005, U0103 and P1676/P1690/P1696/P1699 are missing from
-      vcu.yaml; the U-code frame lists, LDC thresholds and the 12 00 00 freeze-frame layout are
-      not recorded there yet.
+      The 45-code DTC table: P1A8A, U1005, U0103 and P1676/P1690/P1696/P1699 are in vcu.yaml with
+      the firmware detectors (U-code frame lists, 5 V and 12 V thresholds, LDC trips). The
+      12 00 00 freeze-frame layout is a research entry; canair has no KWP2000 freeze-frame decoder.
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
   - section: "19"
-    status: open
-    date: 2026-11-08
+    status: integrated
+    date: 2026-11-18
     note: >-
-      The drivetrain frames (0x109, 0x200-0x202, 0x291, 0x10C, 0x153) and the 2101 bits named in
-      sections 7.1 and 19.4; candidates for signals/powertrain.yaml and vcu.yaml.
+      The drivetrain frames (0x109, 0x10C, 0x200-0x202, 0x291) are in signals/powertrain.yaml and
+      the 2101 bits named in sections 7.1 and 19.4 in vcu.yaml. Section 32 renames the 0x291
+      limits (motoring/regen) and the 0x200 49|6 full scale; those renames are not applied yet.
     target: profiles/hyundai-ioniq-ae-ev/signals/
   - section: "27"
-    status: open
-    date: 2026-11-08
+    status: integrated
+    date: 2026-11-18
     note: >-
-      Pass 5 results. vcu.yaml and signals/ should take: the 2101 B10/B11/B23/B26 and 2102
-      B9/B10/B12/B13 renames and notes (the table in 27.9), BAT11 temperature unsigned
-      plus its flag bits, 0x10C/0x354/0x200/0x57B/0x592 definitions, the 21F2 byte map, and the
-      LDC-current result.
+      Pass 5 results: the 2101 B10/B11/B23/B26 and 2102 B9/B10/B12/B13 renames (the table in
+      27.9), BAT11 temperature unsigned plus its flag bits, the 0x10C/0x354/0x200/0x57B/0x592
+      definitions, the 21F2 byte map and the LDC-current result are in vcu.yaml and signals/.
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
+  - section: "31"
+    status: open
+    date: 2026-11-18
+    note: >-
+      Pass 6, the range 0x1D9000-0x1E63FF: the auxiliary load and HV power estimates, 0x594 bits
+      0-15 = charge (regen) and 16-31 = discharge limit (probable), 0x462 and the 0x419-0x41C
+      horizon inert (a coasting guide whose decision half is never called), 0x109 12|4 always 0.
+      signals/ should take the 0x594 renames and the 0x109 field.
+    target: profiles/hyundai-ioniq-ae-ev/signals/
+  - section: "32"
+    status: open
+    date: 2026-11-18
+    note: >-
+      Pass 6, the VCU against the MCU image: every shared field agrees; the MCU drives the pump
+      (0x523 byte 6) and the fan; 0x570 is the pump; the 0x2C1/0x291 torque is a limited
+      reference, byte 4 the derate factor, bytes 5/6 the motoring/regen limits; 0x200 49|6 is the
+      torque full scale; 0x202 bit 1 the inverter-enable request. signals/ should take the
+      renames and the 0x570/0x5F7/0x523 fields; MCU_FIRMWARE_FINDINGS.md the MCU-side corrections.
+    target: profiles/hyundai-ioniq-ae-ev/signals/
   - section: "29"
     status: integrated
     date: 2026-11-08
@@ -216,7 +234,10 @@ captures. Sections 2-13 hold the first three passes (the diagnostic interface, t
 scheduling, climate and 12 V top-up models). Sections 14-26 hold the fourth pass, which maps the
 rest of the ECU: the platform and runtime, the hard-wired I/O, the integrated LDC, the torque
 path, the power states, the DTC manager and every received frame. Section 23 lists the requests
-that must never be sent, and sections 24-25 the traps and opportunities for later work. The image
+that must never be sent, and sections 24-25 the traps and opportunities for later work. Sections
+27-29 hold the fifth pass and its audit, and section 30 the dash charge LEDs. Sections 31-33 hold
+the sixth pass: the code range `0x1D9000`-`0x1E63FF`, a bit-by-bit check of every frame between
+the VCU and the MCU against the MCU's own image, and the open list after it. The image
 itself stays on the machine (it is the manufacturer's software); only facts derived from it are
 here.
 
@@ -1168,7 +1189,8 @@ two places.
    | setpoint enable (`cbc2`) | | | 1 | 1 | 1 | 1 | 1 | | | | | | |
 
    So codes 1-3 are HV precharge/startup, 4-6 a heating run, 7-11 a cooling (compressor) run, 0 is
-   idle and 12 reset. Which family is heat versus cool is probable (fewer heater states), not proven.
+   idle and 12 reset. Which family is heat versus cool is probable (fewer heater states), not
+   proven.
 5. **The HV contactors are not closed by the climate or charge chart.** They request HV through the
    power-state machine (section 20.1): the chart drives `power_state`, broadcast on `0x200` bits
    24-27 and readable as `2101 B25` `VCU_POWER_STATE`; the BMS closes the main relay and reports
@@ -1626,15 +1648,15 @@ About 1,920 functions in `0x180000`-`0x2208DB`, grouped by what they touch and w
 | `19CA00`-`19EFFF` | ~45 | the real-time clock and wake alarm, start-up and shutdown |
 | `19F9EC`-`1A7FFF` | ~25 | CAN supervision and timeouts, the RX copy, the TX tasks, the fast RX path, the `0x232` sender |
 | `1A8000`-`1ABFFF` | ~100 | ROM and flash checks, the power-state machine `FUN_001ABEBC`, power-path outputs |
-| `1AC000`-`1D8FFF` | ~250 | one unpack function per received frame, with override and default handling, and the per-signal conditioning: pedal, gear and shift-by-wire, brakes, drive mode and regen, LDC enable `FUN_001C1800` |
-| `1D9000`-`1E63FF` | ~60 | vehicle functions in the 10 ms groups (not mapped) |
+| `1AC000`-`1D8E67` | ~250 | one unpack function per received frame, with override and default handling, and the per-signal conditioning: pedal, gear and shift-by-wire, brakes, drive mode and regen, LDC enable `FUN_001C1800` |
+| `1D8E68`-`1E63FF` | 55 | vehicle estimates in the 10 ms and 1 ms groups (auxiliary load, HV battery power, filtered motor speed and power, traction control), the standby defaults loader, and a map-based coasting guide whose decision half is never called (section 31) |
 | `1E6400`-`1EEFFF` | ~70 | range and energy estimation |
 | `1EF000`-`1FFFFF` | ~160 | drivetrain status (`0x592`), the TX packers, the 2101 producer, the 1 ms torque path |
 | `200000`-`2057D7` | ~70 | 21F2, IOControl, routines, the record tables, the DTC report task `FUN_00205074` |
 | `2057D8`-`20EDF7` | ~380 | the scheduling model (section 10), mostly one-line getters and setters |
 | `211000`-`2208DB` | ~185 | **the LDC and 12 V application** (section 18): control law, PWM, trips, temperature, the 12 V top-up, the `0x590` and `0x549` builders, the 2102 producer |
 
-Still unmapped: `181630`-`182560`, `1D9000`-`1E63FF` and `20EE00`-`210FFF`.
+Still unmapped: `181630`-`182560` and `20EE00`-`210FFF`.
 
 ## 17. Fourth pass: the hard-wired inputs and outputs
 
@@ -1909,13 +1931,18 @@ in 1/8 Nm (verified). The chain:
    rate-limited and filtered (`FUN_001C592C` group, 10 ms) → `0x400056F6`, sent in `0x201`.
 2. **Arbitration** (1 ms, `FUN_001F50F0` → `FUN_001BC4D0` chain): wheel → motor torque, the main
    limiter, anti-jerk and zero-crossing tables, the drive-mode change blend.
-3. **Limits** (10 ms, `FUN_001CB38C`): the BMS power limits from `0x594` less the auxiliary load,
-   divided through motor speed, then the minimum with the MCU's available torque (`0x2C1` byte 5)
-   and the temperature derates → the motoring limit `0x40006A1A`, sent in `0x109` byte 2.
+3. **Limits** (10 ms, `FUN_001CB38C`): the BMS **discharge** limit (`0x594` bits 16-31, capped
+   by an SoC table) less the auxiliary load, divided through motor speed, then the minimum with
+   the MCU's motoring limit (`0x2C1` byte 5) and the temperature derates → the motoring limit
+   `0x40006A1A`, sent in `0x109` byte 2. The regen limits `0x40006A14`/`0x40006A18`
+   (`FUN_001CBA24`) take the BMS **charge** limit (`0x594` bits 0-15) **plus** the auxiliary load,
+   and the minimum with the MCU's regen limit (`0x2C1` byte 6). The auxiliary load is the climate
+   unit's two power fields plus the LDC's HV input power (section 31.2).
 4. **Traction control** (`FUN_001D9D68`): with `0x153` `TCS_REQ` the drive torque is limited to
-   the smaller of `TQI_TCS` and `TQI_SLW_TCS` (unless `TCS_MFRN`); with `MSR_C_REQ`, `TQI_MSR`
-   raises the regen side. ABS active (`0x153` `ABS_ACT`) zeroes the coast/creep torque in the regen
-   direction.
+   the smaller of `TQI_TCS` and `TQI_SLW_TCS` (unless `TCS_MFRN`). The MSR branch runs only while
+   `TCS_REQ` is also set, and its output is `TQI_MSR` minus the command (the literal arithmetic;
+   the intent is not established, section 31.5). ABS active (`0x153` `ABS_ACT`) zeroes the
+   coast/creep torque in the regen direction.
 5. **Command** `0x40005AEC` → CCP-CAN **`0x232`** every 1 ms, mirrored in P-CAN `0x202` every
    10 ms. Both send 0 unless EV-ready (`0x40004B0D`) is set.
 
@@ -1945,13 +1972,13 @@ in 1/8 Nm (verified). The chain:
 
 | frame | dir, bus, period | layout (DBC little-endian start bits) |
 |---|---|---|
-| `0x232` | TX, CCP-CAN, 1 ms | 0\|12 signed motor torque command, ≈ 0.1465 Nm/bit (2048 ≈ 300 Nm); nothing else, no counter or checksum |
-| `0x2C1` | RX, CCP-CAN, 1 ms | 0\|12 signed actual torque (same scale); 16\|16 signed motor rpm (`0x7FFF` invalid); 32\|8 a derate input; 40\|8, 48\|8 available torque limits (× 800/255) |
-| `0x291` | RX, P-CAN, 10 ms | the same layout as `0x2C1`; the VCU falls back to it (and `0x524`) when the CCP-CAN link fails |
-| `0x202` | TX, P-CAN, 10 ms | flags 0-4, 7; counter 5-6; **8\|12 final torque command (= `0x232`)**; 20\|4 regen level; 24\|8; **32\|12 torque before traction control**; XOR checksum in byte 7 |
+| `0x232` | TX, CCP-CAN, 1 ms | 0\|12 signed motor torque command, ≈ 0.1465 Nm/bit (2048 = 100 % of the `0x200` 49\|6 full scale, 300 Nm); nothing else, no counter or checksum |
+| `0x2C1` | RX, CCP-CAN, 1 ms | 0\|12 signed: the MCU's limited, slewed torque reference (same scale), not a measured torque; 16\|16 signed motor rpm (`0x7FFF` invalid); 32\|8 the MCU's derate factor (% × 2.55, 100 % = no derate); 40\|8 the MCU's motoring limit, 48\|8 its regen limit (% of 300 Nm × 2.55) |
+| `0x291` | RX, P-CAN, 10 ms | the same layout as `0x2C1`, with the MCU's damping term in the torque, and 56\|8 the MCU's fan request / 20 (not read by the VCU); the VCU falls back to it (and `0x524`) when the CCP-CAN link fails |
+| `0x202` | TX, P-CAN, 10 ms | flags 0-4, 7 (bit 1 the inverter-enable request the MCU waits for, section 32.2); counter 5-6; **8\|12 final torque command (= `0x232`)**; 20\|4 regen level; 24\|8; **32\|12 torque before traction control**; XOR checksum in byte 7 |
 | `0x201` | TX, P-CAN, 10 ms | flags 0-5; counter 6-7; 8\|16 a torque (0 unless EV-ready); **24\|16 driver wheel-torque demand, 1 Nm**; 40\|16 a brake-related word from `0x2A2`; XOR checksum in byte 7 |
-| `0x200` | TX, P-CAN, 10 ms | **11\|4 gear** (P 0, D 5, N 6, R 7, `E` pending, `F` shifter fault); 24\|4 the power state (2101 `B25`); **32\|8 pedal × 2.55, `FF` on a pedal fault**; 44 IG3; 45 EV-ready; counter 46-47; 49\|6 a constant 30 |
-| `0x109` | TX, P-CAN, 10 ms | **0\|8 the park request to the shift-by-wire unit** (probable); 8\|4; **16\|8 the motoring torque limit**, ≈ 0.39 %/bit of 300 Nm; counter and nibble checksum in byte 7 |
+| `0x200` | TX, P-CAN, 10 ms | **11\|4 gear** (P 0, D 5, N 6, R 7, `E` pending, `F` shifter fault); 24\|4 the power state (2101 `B25`); **32\|8 pedal × 2.55, `FF` on a pedal fault**; 44 IG3; 45 EV-ready; counter 46-47; **49\|6 the MCU's torque full scale, 10 Nm/bit (reads 30 = 300 Nm)** |
+| `0x109` | TX, P-CAN, 10 ms | **0\|8 the park request to the shift-by-wire unit** (probable); 8\|4; 12\|4 two 2-bit `0x51B` cluster settings, always 0 on this image (section 31.4); **16\|8 the motoring torque limit**, ≈ 0.39 %/bit of 300 Nm; counter and nibble checksum in byte 7 |
 
 Two corrections to earlier readings: the `fields_tx.txt` probe missed or mis-split the `0x201`
 fields that are gated by EV-ready, and **`0x200` bit 28 is not "close contactors"** on this VCU
@@ -1976,11 +2003,11 @@ profile's known +3.6 % speed error. The word is signed (negative in reverse).
 
 ### 19.6 Not traced
 
-Brake-pressure-to-regen blending (the brake system's `0x2A2` and `0x462` feed the regen torque,
-section 22.2), brake-accelerator override, limp-home torque modes, cruise control
-(`FUN_001CD364` replaces the pedal sum with a target torque and reads `0x394` ACC bits; the
-switch frame was not found), and which of `0x594`'s two power limits is charge and which
-discharge.
+The brake-pressure-to-regen blending through `0x2A2` in `FUN_001C6E30` (`0x462` reaches the regen
+torque only through a branch that never runs, section 31.3), brake-accelerator override,
+limp-home torque modes in the VCU (the MCU's derates reach the VCU only as lower limits in
+`0x2C1` bytes 4-6, section 32.4), and cruise control (`FUN_001CD364` replaces the pedal sum with
+a target torque and reads `0x394` ACC bits; the switch frame was not found).
 
 ## 20. Fourth pass: power states, HV sequencing, charging and cooling
 
@@ -2021,7 +2048,9 @@ too brief for a 5 s poll.
 No VCU pin or frame bit is a dedicated "close the contactors" command; the battery controller
 closes its own relays. The practical request is `0x200` bit 44 (IG3) with bits 40-41, sent from
 power state 1 (probable, section 27.6). The VCU waits for `0x594` bit 34 (HV ready) and a DC link
-above 200 V before state 2 and before it lets the LDC run. No output follows the IG3 flag
+above 200 V before state 2 and before it lets the LDC run. The MCU enables its inverter only on
+`0x202` bit 1 together with `0x594` bit 34 or 59, and reports the run state in `0x523` bit 2,
+which the VCU reads as "MCU ready" (section 32.2). No output follows the IG3 flag
 `0x40004B17`, so the VCU does not drive the IG3 relay itself in this code (probable): the IGPM
 does that, and `0x57B` bits 20-23 are the likely request (not shown to be read).
 
@@ -2029,12 +2058,10 @@ does that, and `0x57B` bits 20-23 are the likely request (not shown to be read).
 
 - The power state only tells 6 (connected) from 7 (BMS charging). The charge-control state machine
   of the scheduling model (`0x40006D2A`, section 10.1) is still not named.
-- **Cooling:** the LDC requests cooling and does not drive it (probable): `0x590` bytes 3 and 5
-  (18.6). The manual's cooling chapter says the EPCU commands the electric water pump and the
-  fan; `0x523` byte 6 carries the MCU's pump figure. The wiring manual says the pump is commanded
-  and reports over CAN, and the VCU has no fan PWM output (section 27.5). Who merges the LDC's
-  and the MCU's requests into the pump and fan commands was not traced. Battery thermal
-  management is the BMS's.
+- **Cooling:** the LDC requests cooling and does not drive it: `0x590` bytes 3 (fan) and 5
+  (pump), each / 20 (18.6). The **MCU** merges these requests with its own, the OBC's and the
+  climate unit's, drives the fan PWM itself and commands the pump in `0x523` byte 6 (section
+  32.3, verified from the MCU image). Battery thermal management is the BMS's.
 - **Range and energy:** `0x598` 32\|16 (probably the remaining energy in Wh), the climate power
   from `0x5F5`/`0x5F6`, the route segments in `0x55F`/`0x561` and the map stream `0x419`-`0x41C`
   feed the range estimate (`0x1E6400`-`0x1EEFFF`); its outputs go into 21F2 (sections 13.4 and
@@ -2157,23 +2184,23 @@ The RX timeout per frame is section 22.1. `0x587` (the telematics unit) and `0x5
 | `0x010` | airbag unit, `ACU13` | bit 0 crash active → the power state and LDC off; no timeout |
 | `0x10C` | shift-by-wire unit (probable) | park-lock state, 2101 `B26` (section 19.4) |
 | `0x153` | ESC, `TCS11` | traction-control and MSR torque requests, ABS flags (opendbc layout confirmed) |
-| `0x291` | MCU (P-CAN) | torque, rpm, limits; same layout as `0x2C1` |
+| `0x291` | MCU (P-CAN) | torque reference, rpm, derate factor, motoring and regen limits; same layout as `0x2C1` (section 19.3) |
 | `0x2A2` | brake system (probable) | bytes 3-4 non-zero exactly while braking in uhi22's trace: a brake demand that feeds the regen torque |
 | `0x418` | head unit (inferred) | received, never read |
-| `0x419`-`0x41C` | head unit (inferred) | a multiplexed stream (type field, segment index, all-ones invalid), probably map data for the range estimate; absent in the EU logs |
-| `0x462` | via the gateway, sender unknown | two values into the regen torque and `FUN_001E52BC` |
+| `0x419`-`0x41C` | head unit (inferred) | the map horizon (type field, segment index, all-ones invalid), used only by the coasting guide, whose decision half never runs (section 31.4); absent in the EU logs |
+| `0x462` | via the gateway, sender unknown | two values into the regen torque and `FUN_001E52BC`; both end at a branch that never runs, so they have no effect (section 31.3) |
 | `0x490` | electric parking brake, `EPB11` | `EPB_STATUS` |
 | `0x4FE` | via the gateway | received, never read; its loss counts toward U0146 |
 | `0x507` | ESC, `TCS15` | TCS lamps, for the range estimate |
 | `0x51B` | cluster, `CLU16` | Aux. Battery Saver+ (46\|2), 39\|1 (forces it on), 22\|2 and 44\|2 |
-| `0x523` | **MCU** (not opendbc's gateway frame) | flags (bit 0 fault), temperatures in bytes 2-5 (raw − 40 °C), 48\|8 × 0.156 (uhi22: cooling pump %) |
+| `0x523` | **MCU** (not opendbc's gateway frame) | bit 0 fault, **bit 2 the inverter run state ("MCU ready")**, bit 8 keeps the LDC off, bit 9 the MCU's fault-shutdown latch, temperatures in bytes 2-5 (raw − 40 °C; byte 5 the motor), **48\|8 the MCU's pump speed request / 20** (the VCU only logs it), bit 60 the pump self-check (the LDC holds 13.8 V), section 32.2 |
 | `0x553` | gateway, `CGW2` | rear doors; 2\|4 = 2 opens the unplugged remote-climate path |
-| `0x570` | unknown | two bits and a byte into a statistics buffer; no DTC |
-| `0x594` | BMS | 0\|16 and 16\|16 × 10 power limits (73.7 / 98.0 kW in the trace); 34 HV ready; 36 fault; **40\|8 SoC × 0.5 %** |
+| `0x570` | the coolant pump (EWP) | bit 0 pump fault, bit 1 suspends the MCU's speed check, 8\|8 speed / 20; the VCU only logs it (section 32.3) |
+| `0x594` | BMS | **0\|16 × 10 the charge (regen) power limit, 16\|16 × 10 the discharge limit** (73.7 / 98.0 kW in the trace; probable, sections 31.2 and 32.4); 34 HV ready; 36 fault; **40\|8 SoC × 0.5 %** |
 | `0x598` | BMS | flags (19 fault) and 32\|16, probably the remaining energy in Wh (21,325 at 79.5 % on a 28 kWh pack) |
 | `0x5B3` | cluster or head unit, user settings | seven 2-bit settings incl. **the regen default per drive mode**, and **16\|8 the Eco-mode maximum speed** (90-130 km/h, `FE`/`FD` off), echoed in `0x579` 56\|8 |
-| `0x5DF` | via the gateway | 0\|2 unread; 2\|2 forced to 1 by calibration |
-| `0x5F5`-`0x5F9` | climate unit | its power (two fields), fault flags, temperatures; the VCU reads `0x5F8` bytes 5-7 as signed bytes, not uhi22's 0.5 × raw − 40 |
+| `0x5DF` | via the gateway | 0\|2 unread; 2\|2 forced to 1 by calibration and read only by the dead coasting guide (the OBC reads bits 6-13 instead) |
+| `0x5F5`-`0x5F9` | climate unit | its power (two fields, `0x5F5` 14\|10 and `0x5F6` 54\|10, in 10 W, both in the auxiliary load), fault flags, temperatures, and in `0x5F7` its pump (0\|8 × 30) and fan (56\|8 × 10) requests for the MCU; the VCU reads `0x5F8` bytes 5-7 as signed bytes, not uhi22's 0.5 × raw − 40 |
 
 The bit probe in `fields_rx.txt` sets one bit at a time with every other state zero, so it misses
 fields that a branch guards: `0x5B3` shows one field there and carries eight. **Read the unpack
@@ -2186,7 +2213,8 @@ C before calling a byte unused.**
   16\|7 (varies while driving), 24\|8, 32-36 flags, 37\|2 a gear-related state, 40\|8 signed
   −100..100, 48\|8, 58\|4 a state, 62\|2 counter. Section 27.6 has the probable names.
 - **`0x58F`** (CCP-CAN) carries the `0x590` buffer; byte 5 is the DC-link voltage / 2 (2102
-  `B17`).
+  `B17`). The MCU unpacks its byte 6 and never reads it: it takes the LDC's cooling requests from
+  P-CAN `0x590` (section 32.3).
 - **`0x6FC`** is disabled (`0x2D612` = 0) and its buffer is never written; **`0x060`/`0x061`** are
   registered and never sent. Do not look for them on a bus.
 
@@ -2201,6 +2229,10 @@ is reached from the DSPI B state machine (section 28.3).
 
 ### 22.5 Traps when reading frames
 
+- **The VCU and the MCU number their FlexCAN controllers the other way round.** On the VCU,
+  controller A is P-CAN and C is CCP-CAN; on the MCU, A is CCP-CAN and C is P-CAN (verified in
+  both slot tables). Read "A" or "C" in one findings document as that chip's controller, never as
+  the other chip's.
 - **"H-CAN" is Hyundai's label, "CCP-CAN" is uhi22's.** The wiring manual draws a second CAN
   pair labelled H-CAN on the EPCU connector (E15-S pins 11 and 12), next to P-CAN, and DTC U1001
   reads "High speed CAN communication bus (H-CAN)". The firmware sets U1001 from the FlexCAN C
@@ -2469,8 +2501,9 @@ acts as an N press from P. They answer NRC `0x78` and end after 400 cycles (prob
   `0x202` byte 3 and `0x579` 56\|8 and **does not enforce it**: no limiter reads `53AF` (verified
   by xref). Enforcement, if any, is outside the VCU (inferred). The VCU's own top speed is the
   motoring envelope (section 19.2).
-- Not found: the brake-accelerator override, the regen blending with the service brakes, a
-  limp-home mode keyed on a flag, the pedal plausibility arithmetic and cruise inputs.
+- Not found: the brake-accelerator override, the regen blending with the service brakes through
+  `0x2A2`, a limp-home mode keyed on a flag, the pedal plausibility arithmetic and cruise inputs.
+  The MCU side of the torque path (its ±295 Nm cap, slew and derates) is in section 32.4.
 
 ### 27.4 The 12 V battery sensor (LIN) and the `0x549` frame
 
@@ -2525,10 +2558,10 @@ acts as an N press from P. They answer NRC `0x78` and end after 400 cycles (prob
   the SCU-side outputs on the wiring manual (back-up lamp relay control, IPS control). Which is
   which is open. **DIO 28** follows "ignition input on". "Channel `0x17`" has no direct caller
   in the listing; it is reachable only through the IOControl index (`30 10 07`).
-- **Cooling:** the VCU has no fan PWM and no pump line. The wiring manual puts the fan PWM on
-  EPCU pin 56 and the pump on CAN. The chain is probably: the LDC code asks for cooling in
-  `0x590` bytes 3 and 5, the MCU receives it on CCP-CAN `0x58F`, merges it with its own
-  temperatures and drives the fan and the pump (inferred; the MCU image is not available).
+- **Cooling:** the VCU has no fan PWM and no pump line. The LDC code asks for cooling in `0x590`
+  bytes 3 and 5. The MCU reads them from P-CAN `0x590` (not CCP-CAN `0x58F`), merges them with
+  its own, the OBC's and the climate unit's requests, drives the fan PWM on its eMIOS channel 11
+  and commands the pump in `0x523` byte 6 (section 32.3, verified from the MCU image).
 - **Climate power limiter** (`0x1C0618`): the climate unit's two power-limit fields (`0x5F5`
   bits 8-13, `0x5F6` bits 48-53, × 200 W), the BMS SoC and the BMS power limit produce the
   allowed climate power in `0x592` byte 1 (≈ 50 W per count), the "limit active" flag in
@@ -2556,7 +2589,7 @@ the Battery-Emulator Ioniq-28 code give names for the range fields.
 | 45 | **EV-ready** (state 4) |
 | 46, 47 | rolling counter 1, 2, 3, 0 |
 | 48 | low-SoC stop latch (state 9) |
-| 49-54 | constant 30 (calibration) |
+| 49-54 | the MCU's torque full scale, 10 Nm/bit: cal `0x2CA1A` × 0.1 if `0x2CAA6`, else 30 (= 300 Nm, the 100 % of every torque percent on `0x232`, `0x2C1` and `0x291`; section 32.2) |
 | 55 | forced 0 (calibration) |
 | 56-62 | pedal % after the cruise function (`FUN_001CDED0`) |
 
@@ -2598,7 +2631,11 @@ The IGPM's use of bits 20-23 is not established.
 level, power down, shift lever, service and ready lamps). Probable names from the Kona DBC: byte 1
 the allowed climate power (27.5), 16\|7 drive power, 24\|8 climate consumption, bit 34 the cruise
 reaction, 48\|8 a movement-related value, bit 3 the service-lamp request (any lamp-class DTC),
-bit 56 the LDC-off request, bits 62-63 a rolling counter. Many flags are still unnamed.
+bit 56 the LDC-off request, bits 62-63 a rolling counter. Many flags are still unnamed. The code
+does not fit the DBC's "drive power" for 16\|7: `FUN_001EFEF4` divides the HV battery power
+(`0x595` current × voltage, section 31.2) by the vehicle speed into 16\|7, and 48\|8 is the
+inverse, so they are probably a consumption figure and a distance-per-energy figure. Their
+scales are not established.
 
 ### 27.7 The climate request chart
 
@@ -2705,17 +2742,22 @@ check `canair validate all` for references to the old names):
 
 ### 27.10 Still open after pass 5
 
+This was the open list at the end of pass 5. Pass 6 closed some items; section 33 is the current
+list. What pass 6 closed is marked here.
+
 - Whether the BMS keys on `0x200` bits 44/40-41, and whether the IGPM reads `0x57B` bits 20-23.
 - The charge-control state machine's states, the pin behind `0x40005882`, and the sources of
   `0x4A4B` and `0x4983`.
 - The brake-accelerator override, the regen blending, the pedal plausibility arithmetic, the
-  cruise-control inputs and any limp mode other than power states 8-10 and `6199`.
+  cruise-control inputs and any limp mode other than power states 8-10 and `6199`. (Regen
+  blending: narrowed to the `0x2A2` path, section 31.3. MCU-side derates: section 32.4.)
 - The senders of `0x462`, `0x4FE`, `0x570`, `0x5DF` and `0x418`-`0x41C`; the unnamed `0x592`
-  flags; which of the climate unit's two power fields is the compressor.
+  flags; which of the climate unit's two power fields is the compressor. (`0x570`: the coolant
+  pump, section 32.3. `0x462`, `0x5DF` and `0x418`-`0x41C` change no VCU output, section 31.)
 - The DSPI B chip's content, the P16xx key/immobilizer module (not analysed), the LIN ids' parity,
   and the meaning of the sensor's flags A and B and of `0x12` byte 5.
 - The unnamed units: `FUN_00196B5C`, the 20 ms task, the 100 ms CCP task, and the unmapped code
-  ranges of section 16.
+  ranges of section 16. (Range `1D9000`-`1E63FF`: closed in section 31.)
 
 ## 28. Fifth pass: switched-off features, test paths and the image's strings
 
@@ -2890,3 +2932,172 @@ interrupted charge, and a 12 V top-up or scheduled climate run.
 - **The lamp.** The wiring manual lists a "Charge Lamp" as a P-CAN node on the `IG3 2` fuse
   (`references/manuals/Ioniq_2017_US/.cache/text/etm/0056.txt` and `0102.txt`). Its CAN ID and the
   frames it listens to are not known.
+
+## 31. Sixth pass: the code range `0x1D9000`-`0x1E63FF`
+
+Pass 6 mapped the largest range that section 16 left unmapped. The working report is
+`analysis/reports/N_range_1D9000.md` beside the image; it has the function table and every
+calibration value. Static only, checked against uhi22's P-CAN logs and this car's stored BMS
+`2105` replies. Tags are as before.
+
+### 31.1 What the range holds
+
+55 functions, `0x1D8E68`-`0x1E63D4`; 20 of them are 1-D and 2-D table-lookup helpers. Only these
+values leave the range and change anything (verified, from the reader/writer table):
+
+- the traction-control output `0x40005AEC` (`FUN_001D9D68`, pass 4; section 31.5);
+- the **auxiliary load** `0x40005BFE` and the **HV battery power** `0x40005C00` (31.2);
+- the filtered motor speed `0x40005BF0` and the motor mechanical power `0x40005BEC`
+  (`FUN_001DE80C`, 1 ms): rpm from `0x2C1` through a speed-dependent first-order filter, and
+  rpm × 2π/60 × the `0x2C1` torque. They feed the five torque shapers of the 1 ms chain and the
+  `0x592` builders;
+- the standby defaults (`FUN_001D8E68`, once at start-up, probably when the EEPROM image is not
+  valid): 145 standby cells from calibration `0x22310`-`0x225E7`, among them the schedule, the
+  21F2 efficiency history and the saved gear (P).
+
+No output of the range reaches the 2101, 2102 or 21F2 producers, so the stored UDS captures
+cannot test it (verified). Two blocks compute values that nothing reads: a steady-speed detector
+(`FUN_001DEB20`, a 9 s mean speed with hysteresis, output `0x40005C04`), and the grade and `0x462`
+figure of 31.3.
+
+### 31.2 The auxiliary load and the `0x594` limits
+
+- **Auxiliary load** (`FUN_001DEAB8`, 10 ms) = `0x5F5` 14\|10 + `0x5F6` 54\|10 (the climate unit's
+  two power fields) + `0x590` byte 6 × 10 (the LDC's HV input power, read back from the VCU's own
+  transmit buffer), in 10 W, each add saturating (verified).
+- The motoring limit (`FUN_001CB3AC`) **subtracts** it from `0x594` bits 16-31, capped by an SoC
+  table (`FUN_001B70D4`). The regen limits (`FUN_001CBA24`) **add** it to `0x594` bits 0-15
+  (`FUN_001B7110`; 0 while `0x594` is timed out, so no regen without the BMS frame). Driving, the
+  battery feeds the motor and the auxiliaries; regenerating, the motor feeds both. So **`0x594`
+  bits 0-15 are the charge (regen) power limit and bits 16-31 the discharge limit** (verified
+  arithmetic, probable names). The MCU side agrees (section 32.4). uhi22's trace (73.7 against
+  98.0 kW at 79 % SoC) and this car's `2105` replies (charge power below 98 kW only above 80 %
+  SoC) fit, but do not prove it.
+- **HV battery power** (`FUN_001DEB08`) = `0x595` 32\|16 current × 48\|16 voltage >> 12, about
+  41 W per count, positive on discharge. Its only reader feeds `0x592` 16\|7 and 48\|8 (section
+  27.6).
+- The VCU adds both climate power fields with the same weight, so this code cannot tell which one
+  is the compressor.
+
+### 31.3 `0x462` has no effect
+
+`FUN_001E5150` filters a grade estimate (`0x220` acceleration against a model) and `0x462` 16\|12
+into `0x40005D3C`. Its only consumer, in the regen-torque function `FUN_001C6E30`, combines it
+with `0x462` 3\|11 into `0x400069AE`, and uses that only while `0x40005FCF` = 2. Nothing writes
+`0x40005FCF` (no direct or small-data store; `.data` value 0), and nothing else reads
+`0x400069AE` (verified, from the listing and the reader/writer table). So both `0x462` fields end
+at a gate that never opens (probable at run time: an indexed store cannot be excluded). `0x462`
+is constant in both uhi22 logs. The regen blending that remains open is the `0x2A2` path in
+`FUN_001C6E30`.
+
+### 31.4 A map-based coasting guide, switched off
+
+The largest block (about 5,500 decompiled lines) reads the head unit's map horizon `0x419`-`0x41C`,
+keeps two sets of four upcoming events, counts down the distance to each from the distance
+driven, gives each a target speed and the mean road gradient up to it, and looks up the
+coast-down distance per regen level (75 × 11 tables by speed and gradient; at about 93 km/h on a
+flat road 3,070 / 765 / 415 / 328 for levels 0-3, probably metres). Hyundai's hybrids call this
+feature the Coasting Guide (probable identity; the image has no string for it).
+
+- **The decision half never runs.** `FUN_001D9E90` and its five callees have no caller: no
+  branch targets it, no address pair builds it, and the word `0x001D9E90` occurs nowhere in the
+  image (verified). Calibration `0x2D577` = 1 would also hold its enable at 0.
+- **Its only frame output stays 0.** `FUN_001DA308` (dead) would copy two 2-bit `0x51B` cluster
+  settings (22\|2 and 44\|2) into `0x40005AF0`/`0x40005AEE`. A live function packs them into
+  `0x109` byte 1 bits 4-7 and writes them back to standby RAM every 10 ms, so they read 0 and the
+  stored settings are overwritten with 0 (verified). uhi22's trace agrees: `0x109` byte 1 is
+  `0x01` in all 6,086 frames.
+- `0x5DF` bits 2-3 and `0x418`-`0x41C` are read only by this feature, so they change no VCU output
+  (verified).
+
+### 31.5 Traction control, re-read
+
+Pass 4 holds, with one refinement: the MSR branch runs only while `TCS_REQ` is also set, and its
+output is gear sign × (`TQI_MSR` − gear sign × command), clamped (verified arithmetic). That is a
+difference, not a maximum, so "MSR raises the regen side" is the probable intent but not
+established.
+
+## 32. Sixth pass: the VCU against the MCU image
+
+The MCU's flash image (`MCU_FIRMWARE_FINDINGS.md`) gives the other end of every frame between the
+two chips. Pass 6 decoded the MCU's own receive descriptors and compared each field with the
+VCU's pack and unpack. The working report is `analysis/reports/M_mcu_crosscheck.md`; the MCU's
+Ghidra project and decompile sit in `references/firmware/mcu/` (local only). Static only.
+
+### 32.1 Result
+
+**Every field that both images use agrees in start bit, length, sign and scale** (verified).
+The MCU receives `0x232` on CCP-CAN and `0x200`, `0x201`, `0x202`, `0x57B` and `0x590` on P-CAN.
+It has mailboxes for `0x203` and for CCP-CAN copies of `0x200`-`0x203`, but never unpacks them,
+and it unpacks `0x58F` byte 6 and never reads it. It does not receive `0x109`. **It checks none of
+the VCU's rolling counters or XOR checksums** (verified), so they serve other P-CAN listeners or
+nobody. None of `0x462`, `0x4FE`, `0x5DF`, `0x414` or `0x418`-`0x41C` is in the MCU's slot table,
+so the MCU image cannot name their senders.
+
+### 32.2 What the MCU's use names on the VCU side
+
+| field | name from the MCU's use | tag |
+|---|---|---|
+| `0x200` 49\|6 | the torque full scale, × 10 Nm (300 Nm): the MCU multiplies every torque percent by it | verified |
+| `0x232` 0\|12 | torque percent, 2048 = 100 % of that full scale; on a `0x232` timeout or CCP-CAN fault the MCU takes `0x202` 8\|12 instead | verified |
+| `0x202` bit 1 | the inverter-enable / HV-up request (2101 `B11:6`): it gates the MCU's inverter state machine and its own fan and pump demand | probable |
+| `0x202` bit 7 | the TCS request flag, an input of the MCU's active-damping term | verified |
+| `0x57B` bit 31 | makes the MCU ignore the loss of the chassis frames, the counterpart of the VCU's plug masking (22.1) | verified |
+| `0x590` 24\|8, 40\|8 | the LDC's fan and pump requests, × 20 | verified |
+| `0x2C1`/`0x291` 0\|12 | the MCU's limited, slewed torque reference (`0x291` with the damping term), not a measured torque | verified |
+| `0x2C1`/`0x291` 32\|8 | the MCU's filtered derate factor, % × 2.55, 100 % = no derate | verified |
+| `0x2C1`/`0x291` 40\|8, 48\|8 | the MCU's motoring and regen limits, % of 300 Nm × 2.55 | verified |
+| `0x523` bit 2 | set when the inverter state machine reaches its run state: the VCU's "MCU ready" | verified |
+| `0x523` bit 9 | the MCU's fault-shutdown latch (after faults `0xE`/`0x16`, or an external fault in `0x594`, `0x57F` or `0x5F5`) | verified |
+| `0x523` bit 60 | the MCU's pump self-check is sampling; the VCU then holds the LDC at 13.8 V | probable (purpose) |
+| `0x524` 16\|8 | vehicle speed in km/h from motor rpm with a 0.309 m radius (1.94 m circumference against the VCU's 2.0 m) | verified |
+
+### 32.3 Cooling: the MCU drives the pump and the fan
+
+- **Pump.** The MCU takes the highest of the LDC's request (`0x590` byte 5 × 20), its own, the
+  OBC's (`0x57F` byte 6 × 20) and the climate unit's (`0x5F7` byte 0 × 30), caps it at 4,999 and
+  sends it / 20 in **`0x523` byte 6** (verified). That the pump reads this byte is inferred: the
+  OBC reads it too.
+- **`0x570` is the pump's reply** (probable, from the MCU's use and DTCs): bit 0 a pump fault
+  (P0C73, MCU fault 5.17), bit 1 suspends the MCU's speed check, 8\|8 the speed / 20 (rpm
+  probable). Fault 5.18 is a speed more than 800 below a command of at least 1,000 for 200
+  calls. The VCU only logs `0x570`.
+- **Fan.** The same pattern with `0x590` byte 3, `0x57F` byte 3 and `0x5F7` byte 7; the MCU maps
+  the result through a nine-point curve whose breakpoints equal the VCU's LDC fan table, and
+  writes its own PWM output (eMIOS channel 11). Which EPCU pin that is was not traced; the wiring
+  manual's fan PWM on pin 56 fits (inferred).
+
+### 32.4 The torque path on the MCU side
+
+The MCU scales the selected command by the `0x200` full scale, adds its damping term, and limits
+each direction to the smallest of a speed table, a start-up ceiling of **±295 Nm** (calibration
+`0x12E88`/`0x12E78`; the same as the VCU's Sport envelope), a power limit over speed, HV-side caps
+and a derate factor (the minimum of a 16-entry fault-reaction table with a temperature derate). It
+then slews the result by 8 Nm per step (calibration `0x100DC`). Regen has no logic of its own: it
+is the negative side of the same chain (verified). MCU derates reach the VCU only as lower limits
+in `0x2C1` bytes 4-6, which the VCU takes the minimum with (section 27.3).
+
+### 32.5 Not established
+
+- That the pump, and not another node, reads `0x523` byte 6; `0x570` bit 1; the pump-speed unit.
+- `0x201` bit 3 (one condition that blocks the MCU's pump self-check; a dynamometer mode is a
+  guess), `0x598` bits 17-18 and the MCU's inverter state 9.
+- The MCU's own fan, pump and torque-speed tables were not decoded.
+
+## 33. Still open after pass 6
+
+- Whether the BMS keys on `0x200` bits 44/40-41, and whether the IGPM reads `0x57B` bits 20-23.
+- The charge-control state machine's states, the pin behind `0x40005882`, and the sources of
+  `0x4A4B` (`FUN_001A7AB4`) and `0x4983` (written by `FUN_00196B5C`).
+- The regen blending through `0x2A2` (`FUN_001C6E30`), the brake-accelerator override, the pedal
+  plausibility arithmetic, the cruise-control inputs, and the MSR intent (31.5).
+- The senders of `0x462`, `0x4FE`, `0x5DF` and `0x418`-`0x41C` (none of them changes a VCU
+  output except `0x4FE`'s loss toward U0146); the unnamed `0x592` flags and the scales of its
+  16\|7 and 48\|8; which of the climate unit's two power fields is the compressor; which `0x51B`
+  setting belongs to the coasting guide.
+- The DSPI B chip's content, the P16xx key/immobilizer module (not analysed), the LIN ids' parity,
+  and the meaning of the sensor's flags A and B and of `0x12` byte 5.
+- The unnamed units: `FUN_00196B5C`, the 20 ms task, the 100 ms CCP task, and the unmapped ranges
+  `181630`-`182560` and `20EE00`-`210FFF`.
+- Needs hardware: whether the clock's alarm powers the EPCU (17.5), and the schedules in SRAM
+  through CCP-CAN on a bench EPCU (12.4).
