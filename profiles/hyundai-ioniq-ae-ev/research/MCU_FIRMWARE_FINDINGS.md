@@ -107,6 +107,16 @@ sections:
       position-sensor offset; it is added to the never-send list (section 8). Applied to mcu.yaml
       as unverified signals.
     target: profiles/hyundai-ioniq-ae-ev/ecus/mcu.yaml
+  - section: "14"
+    status: integrated
+    date: 2026-11-18
+    note: >-
+      Cross-check against the VCU image: every shared field agrees. The 0x232 receive path and its
+      fallback to 0x202, the ±295 Nm cap and 8 Nm slew, 0x2C1/0x291 bytes 0-1 as the limited
+      torque reference (not measured), byte 4 the derate factor and bytes 5/6 the motoring and
+      regen limits, no counter or checksum check. signals/ has the 0x291 limits renamed to
+      MCU_MOTORING_TORQUE_LIMIT_291 and MCU_REGEN_TORQUE_LIMIT_291, and the torque notes fixed.
+    target: profiles/hyundai-ioniq-ae-ev/signals/powertrain.yaml
 relations:
   expands_on:
     - path: profiles/hyundai-ioniq-ae-ev/ecus/mcu.yaml
@@ -118,7 +128,8 @@ relations:
       note: >-
         The VCU's firmware: the same boot code, the same KWP2000 server design and the same
         checksum routine. Its sections 14-15 and 22 were the template; section 19.3 and 22.2 give
-        the VCU's side of the 0x232, 0x2C1 and 0x291 frames.
+        the VCU's side of the 0x232, 0x2C1 and 0x291 frames, and section 32 checks every frame
+        between the two chips against this image.
     - path: profiles/hyundai-ioniq-ae-ev/research/OBC_FIRMWARE_FINDINGS.md
       note: The OBC's firmware, and the model for the "never send" section (§8).
     - path: profiles/hyundai-ioniq-ae-ev/signals/powertrain.yaml
@@ -931,15 +942,16 @@ means the byte is `source·k`.
 
 | bytes | form | source | meaning |
 |---|---|---|---|
-| 0-1 | signed 12-bit | `0x40016658` × 20.48 | torque as a percent of the maximum, 2048 = 100 % (300 Nm: 0.146484375 Nm per count, the scale in `signals/powertrain.yaml`) |
+| 0-1 | signed 12-bit | `0x40016658` × 20.48 | the limited, slewed torque reference with the damping term, as a percent of the maximum, 2048 = 100 % (300 Nm: 0.146484375 Nm per count, the scale in `signals/powertrain.yaml`); not a measured torque (§14.2) |
 | 2-3 | s16 | `0x40016650` | motor speed in rpm (the 2102 value) |
-| 4 | u8 | `0x40016660` × 2.55 | a percent (the VCU's "derate input"); 0xFE in the trace |
-| 5, 6 | u8 | `0x40016668`, `0x40016670` × 2.55 | percent available torque limits; 0xFA in the trace |
+| 4 | u8 | `0x40016660` × 2.55 | the filtered derate factor of the present torque direction, %, 100 = no derate (§14.2); 0xFE in the trace |
+| 5, 6 | u8 | `0x40016668`, `0x40016670` × 2.55 | the motoring limit (byte 5) and the regen limit (byte 6), percent of 300 Nm (§14.2); 0xFA in the trace |
 | 7 | u8 | `0x40011CC4` × 0.05 | the highest cooling (probably fan) request ÷ 20 (§12.3); 0 in the trace |
 
-**`0x2C1`** (1 ms, CCP-CAN): bytes 0-1 take `0x400166A8` (the measured torque percent, `0x40011D20`
-divided by the maximum and multiplied by 100) in place of `0x40016658`; bytes 2-6 are the same as
-`0x291`'s. A missing `0x2C1` sets U1005 in the VCU.
+**`0x2C1`** (1 ms, CCP-CAN): bytes 0-1 take `0x400166A8` (the torque reference without the
+damping term, `0x40011D20` divided by the maximum and multiplied by 100) in place of
+`0x40016658`; bytes 2-6 are the same as `0x291`'s, and byte 7 is 0. A missing `0x2C1` sets U1005
+in the VCU.
 
 **`0x523`** (10 ms): the inverter's temperatures and status. Bytes 0, 1 and 7 are the status
 bytes of 2101 B09, B10 and B11 (`0x400166B4`, `0x400166B6`, `0x400166B8`). Bytes 2-5 are
@@ -953,7 +965,7 @@ coolant-pump speed request ÷ 20 (§12.3). The uhi22 trace: `0C 38 36 36 2E 2B 0
 `signals/powertrain.yaml`; the trace has `75 01` = 373 V). Byte 2 is `0x40015A0C` (u8), byte 3
 `0x40015A10` × 128: together with byte 2 they look like an integer part and a fraction, which fits
 the profile's `VEHICLE_SPEED` (bits 23-8, big-endian, 1/256 km/h) (probable; the sources were not
-traced). Bytes 4-5 are a signed 12-bit torque percent ×20.48 (`0x400166A8`, the measured torque);
+traced). Bytes 4-5 are a signed 12-bit torque percent ×20.48 (`0x400166A8`, the `0x2C1` torque);
 byte 6 is the motor speed ÷100 as a signed byte, clipped at ±127; byte 7 is the mechanical motor
 power in kW (§12.3).
 
@@ -1293,17 +1305,17 @@ The descriptor at `0x40010ECC`, which the first pass could not place, is a recei
 `FUN_00126104` copies the 20 P-CAN receive buffers into an array at `0x40017738`, and the routine
 at `0x15483C` unpacks it with the descriptor groups listed at `0x400113F4` (20 groups of byte
 position, bit length, type, destination, factor and offset; verified). The CCP-CAN frames
-(`0x232`, `0x200`-`0x203` and `0x58F` on CAN A) are read elsewhere and were not traced.
+(`0x232`, `0x200`-`0x203` and `0x58F` on CAN A) are read elsewhere (§14.1).
 
 | frame | sender | bytes the MCU reads | use (where traced) |
 |---|---|---|---|
 | `0x594` | BMS | byte 4 flags, byte 5 ×0.5 (SoC %), bytes 6, 7 flags | SoC in the freeze frame |
 | `0x595` | BMS | byte 1 flags | |
 | `0x598` | BMS | byte 2 flags | |
-| `0x57F` | OBC | byte 1 (bit 0 → 2101 B11 bit 0), byte 3 ×20, byte 5, byte 6 ×20 | bytes 3 and 6 are cooling requests (fan chain and pump chain); the profile's `OBC_POWER_B3`/`_B6` are therefore probably the OBC's fan and pump requests, not powers |
+| `0x57F` | OBC | byte 1 (bit 0 → 2101 B11 bit 0), byte 3 ×20, byte 5, byte 6 ×20 | bytes 3 and 6 are cooling requests (fan chain and pump chain); the profile names them `OBC_FAN_REQUEST` and `OBC_PUMP_REQUEST` |
 | `0x570` | coolant pump (EWP) | byte 0 flags (bit 0 → 2101 B17), byte 1 ×20 speed | 2101 B18:B19, P0C73 |
-| `0x5F5` | not identified | byte 5 | |
-| `0x5F7` | not identified | byte 0 ×30, byte 5 ×0.5 − 40 (a temperature), byte 7 ×10 | bytes 0 and 7 are pump and fan requests |
+| `0x5F5` | climate unit (the VCU's reading, VCU doc §22.2) | byte 5 | bit 42: one of the external-fault inputs (§14.3) |
+| `0x5F7` | climate unit (as `0x5F5`) | byte 0 ×30, byte 5 ×0.5 − 40 (a temperature), byte 7 ×10 | bytes 0 and 7 are pump and fan requests |
 | `0x590` | VCU | bytes 0, 1 flags, byte 3 ×20, byte 5 ×20 | the VCU's fan and pump requests |
 | `0x153` | ESC (`TCS11`) | byte 1 | |
 | `0x010` | airbag (`ACU13`) | byte 0 | crash flag |
@@ -1366,10 +1378,11 @@ that storage state (`00`: all). The freeze-frame layout of `12` was not decoded.
 ### 12.7 Still open after this pass
 
 - The meaning of the inverter's main states 3 to 10 (§13.1).
-- Which interlock loop is which; the sender of `0x5F5`/`0x5F7`.
+- Which interlock loop is which. (The sender of `0x5F5`/`0x5F7`: the climate unit, by the VCU's
+  reading, §14.3.)
 - The freeze-frame layout of `12`; the conditions of 32 of the 44 DTCs.
 - The CCP-CAN receive path: how the MCU uses `0x232` and what it does, beyond raising U1004,
-  when `0x232` stops (the safety items).
+  when `0x232` stops (the safety items). (Closed in §14.1.)
 - The `0x5DE` byte 7 flags and the alternate `0x77x` frame set.
 
 ## 13. Fourth pass (2026-11-18): the status bits, and what IOControl 04, 05 and 08 do
@@ -1440,3 +1453,72 @@ New unverified bit signals on 2101: `MCU_RUN_STATE` (B09:2), `MCU_POWERUP_CHECKS
 `MCU_PUMP_TEST_ACTIVE` (B11:3); on 2102 `MCU_INTERLOCK_OPEN_COUNT` (B63:B65). The status-bits
 research entry is closed. The IOControl findings are in §8; `mcu.yaml` has no IOControl
 entries for this ECU.
+
+## 14. Cross-check against the VCU image (2026-11-18)
+
+Every frame between the MCU and the VCU was compared field by field against the VCU's own pack
+and unpack (VCU doc §32; working report
+`references/firmware/vcu-36601-0E250-EAEEO5L-NS7-D060/analysis/reports/M_mcu_crosscheck.md`).
+Every field that both images use has the same start bit, length, sign and scale (verified). The
+two chips number their controllers the other way round: here A is CCP-CAN and C is P-CAN, on the
+VCU A is P-CAN.
+
+### 14.1 The CCP-CAN receive path and the torque command
+
+- **`0x232`** has its own path: the mailbox buffer `0x40015198` is copied to `0x400154F2`
+  (`FUN_0012624C`), and `FUN_001263C4` unpacks bits 0-11 as signed × 100/2048 into `0x40016630`,
+  a torque percent (verified).
+- **Selection** (`FUN_00157598`): the MCU uses `0x40016630` unless the `0x232` timeout flag
+  (`FUN_00133FFC(0,7)`) is set or the CCP-CAN status (`FUN_00133FE4(0)`) reads 2, probably
+  bus-off. Then it takes the VCU's P-CAN copy, `0x202` bits 8-19 (`0x4001662C`) (verified). So a
+  lost `0x232` does not stop the torque command while `0x202` arrives.
+- **Scale** (`FUN_00158390`): Nm = % / 100 × `0x400167F8`, which is `0x200` bits 49-54 × 10 Nm
+  (30 = 300 Nm), so the VCU sets the full scale at run time. The command is 0 unless the model
+  state `0x40016A28` is 1, and the test modes 5-8 replace it with calibrated values (verified).
+- **Never unpacked:** the CCP-CAN copies of `0x200`-`0x203` (`0x40015168`-`0x40015180`) and
+  P-CAN `0x203` (`0x40015158`); the VCU sends none of them. `0x58F` byte 6 goes to `0x400165EA`
+  and nothing reads it: the LDC's cooling requests come from P-CAN `0x590` (verified).
+- **No integrity check:** no descriptor reads the VCU's rolling counters (`0x200` bits 46-47,
+  `0x202` bits 5-6) or the XOR checksums in `0x201`/`0x202` byte 7 (verified).
+
+### 14.2 The torque path and what `0x2C1`/`0x291` carry
+
+`FUN_00156938`, `FUN_001569B8` and `FUN_00156B78` limit each direction to the smallest of a speed
+table (`FUN_00129674`), a start-up ceiling of **±295 Nm** (calibration `0x12E88`/`0x12E78`, the
+same as the VCU's Sport envelope), a power limit divided by speed, HV-side caps and a derate
+factor (the minimum over a 16-entry fault-reaction table that includes a linear temperature
+derate). The result is slewed by **8 Nm per call** (calibration `0x100DC`) into `0x40011D20`
+(and, with the damping term, `0x40016778`); these are their only writers (verified). Regen has no
+logic of its own: it is the negative side of the same chain.
+
+So the `0x2C1` and `0x524` torque is the **limited, slewed torque reference**, and the `0x291`
+torque the same with the damping term. No estimate from the phase currents feeds them. Byte 4 is
+the filtered derate factor of the present direction, byte 5 the motoring limit and byte 6 the
+regen limit (verified). When either limit reaches 100 %, `FUN_00156B78` sets both to 100 %; with
+the 295 Nm cap they read 250 (98 %), uhi22's trace value. MCU derates reach the VCU only through
+these bytes.
+
+### 14.3 The other inputs, as named by the VCU
+
+| frame | bits the MCU reads | name from the VCU's side | tag |
+|---|---|---|---|
+| `0x200` | 40, 41 | the VCU's key-on input; each rising edge adds 1 to `0x40001E45` in the EEPROM image | verified (use: key-cycle count, probable) |
+| `0x200` | 48 | the VCU's low-SoC stop latch (power state 9) → `0x4001664A`, read by `FUN_0014D4A8`, which has no direct caller | verified |
+| `0x201` | 3 | the VCU's `0x4000585C` (`FUN_001D2800`); blocks the pump self-check. A dynamometer mode is a guess | inferred |
+| `0x202` | 7 | the VCU's TCS request flag, an input of the damping term | verified |
+| `0x594` | 55 | takes the crash path (`FUN_00154134`): probably the BMS's emergency HV-off | probable |
+| `0x594`, `0x57F`, `0x5F5` | 58, 43, 42 | external-fault inputs: after a calibrated count `FUN_001385CC` raises fault 0xF and sends the interlock machine of §13.1 to its shut-down state 4 | verified |
+| `0x595` | 8 | `0x40016548`: holds the shut-down state and the post-crash state, and gates inverter state 4 → 5; probably an HV-present flag | inferred |
+| `0x598` | 17, 18 | with `0x202` bit 1 clear, both set move the inverter from state 1 to 9 (`FUN_00159208`) | verified (meaning not traced) |
+
+`0x462`, `0x4FE`, `0x5DF`, `0x414` and `0x418`-`0x41C` are not in the slot table, so this image
+says nothing about their senders.
+
+### 14.4 Not established
+
+- That the pump, and not another node, reads `0x523` byte 6 (the OBC reads it too); `0x570` bit 1.
+- The MCU's own fan and pump request tables (`FUN_0012B880`, `FUN_0012B468`), its torque-speed
+  table (`FUN_00129674`) and the source of its kW power limit.
+- Which EPCU pin eMIOS channel 11 drives (the wiring manual's fan PWM on pin 56 fits).
+- Whether a CCP download changes `0x4000D17A` (the CCP-CAN copies of `0x291`/`0x523`/`0x524`,
+  probably never sent) or the 10 Nm factor `0x40011CC0` at run time.

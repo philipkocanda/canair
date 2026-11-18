@@ -125,8 +125,8 @@ sections:
     date: 2026-11-18
     note: >-
       The drivetrain frames (0x109, 0x10C, 0x200-0x202, 0x291) are in signals/powertrain.yaml and
-      the 2101 bits named in sections 7.1 and 19.4 in vcu.yaml. Section 32 renames the 0x291
-      limits (motoring/regen) and the 0x200 49|6 full scale; those renames are not applied yet.
+      the 2101 bits named in sections 7.1 and 19.4 in vcu.yaml, with the section 32 names (the
+      0x291 motoring and regen limits, the 0x200 49|6 full scale).
     target: profiles/hyundai-ioniq-ae-ev/signals/
   - section: "27"
     status: integrated
@@ -137,23 +137,26 @@ sections:
       definitions, the 21F2 byte map and the LDC-current result are in vcu.yaml and signals/.
     target: profiles/hyundai-ioniq-ae-ev/ecus/vcu.yaml
   - section: "31"
-    status: open
+    status: integrated
     date: 2026-11-18
     note: >-
       Pass 6, the range 0x1D9000-0x1E63FF: the auxiliary load and HV power estimates, 0x594 bits
       0-15 = charge (regen) and 16-31 = discharge limit (probable), 0x462 and the 0x419-0x41C
       horizon inert (a coasting guide whose decision half is never called), 0x109 12|4 always 0.
-      signals/ should take the 0x594 renames and the 0x109 field.
+      In signals/: BMS_CHARGE_POWER_LIMIT_594, BMS_DISCHARGE_POWER_LIMIT_594,
+      VCU_COAST_SETTINGS_109 and the 0x5F5/0x5F6 climate power fields, all unverified.
     target: profiles/hyundai-ioniq-ae-ev/signals/
   - section: "32"
-    status: open
+    status: integrated
     date: 2026-11-18
     note: >-
       Pass 6, the VCU against the MCU image: every shared field agrees; the MCU drives the pump
       (0x523 byte 6) and the fan; 0x570 is the pump; the 0x2C1/0x291 torque is a limited
       reference, byte 4 the derate factor, bytes 5/6 the motoring/regen limits; 0x200 49|6 is the
-      torque full scale; 0x202 bit 1 the inverter-enable request. signals/ should take the
-      renames and the 0x570/0x5F7/0x523 fields; MCU_FIRMWARE_FINDINGS.md the MCU-side corrections.
+      torque full scale; 0x202 bit 1 the inverter-enable request. In signals/ (unverified): the
+      0x291 motoring and regen limits, the 0x524/0x291 torque notes, VCU_TORQUE_FULL_SCALE_200,
+      VCU_INVERTER_ENABLE_REQUEST_202, four 0x523 bits, the EWP_570 frame, the 0x5F7 pump and fan
+      requests and the 0x57F OBC_FAN_REQUEST/OBC_PUMP_REQUEST; the MCU side is MCU doc section 14.
     target: profiles/hyundai-ioniq-ae-ev/signals/
   - section: "29"
     status: integrated
@@ -2193,7 +2196,7 @@ The RX timeout per frame is section 22.1. `0x587` (the telematics unit) and `0x5
 | `0x4FE` | via the gateway | received, never read; its loss counts toward U0146 |
 | `0x507` | ESC, `TCS15` | TCS lamps, for the range estimate |
 | `0x51B` | cluster, `CLU16` | Aux. Battery Saver+ (46\|2), 39\|1 (forces it on), 22\|2 and 44\|2 |
-| `0x523` | **MCU** (not opendbc's gateway frame) | bit 0 fault, **bit 2 the inverter run state ("MCU ready")**, bit 8 keeps the LDC off, bit 9 the MCU's fault-shutdown latch, temperatures in bytes 2-5 (raw − 40 °C; byte 5 the motor), **48\|8 the MCU's pump speed request / 20** (the VCU only logs it), bit 60 the pump self-check (the LDC holds 13.8 V), section 32.2 |
+| `0x523` | **MCU** (not opendbc's gateway frame) | bit 0 fault, **bit 2 the inverter run state ("MCU ready")**, bit 8 keeps the LDC off, bit 9 the MCU's confirmed HV interlock fault, temperatures in bytes 2-5 (raw − 40 °C; byte 5 the motor), **48\|8 the MCU's pump speed request / 20** (the VCU only logs it), bit 60 the pump self-check (the LDC holds 13.8 V), section 32.2 |
 | `0x553` | gateway, `CGW2` | rear doors; 2\|4 = 2 opens the unplugged remote-climate path |
 | `0x570` | the coolant pump (EWP) | bit 0 pump fault, bit 1 suspends the MCU's speed check, 8\|8 speed / 20; the VCU only logs it (section 32.3) |
 | `0x594` | BMS | **0\|16 × 10 the charge (regen) power limit, 16\|16 × 10 the discharge limit** (73.7 / 98.0 kW in the trace; probable, sections 31.2 and 32.4); 34 HV ready; 36 fault; **40\|8 SoC × 0.5 %** |
@@ -3048,7 +3051,7 @@ so the MCU image cannot name their senders.
 | `0x2C1`/`0x291` 32\|8 | the MCU's filtered derate factor, % × 2.55, 100 % = no derate | verified |
 | `0x2C1`/`0x291` 40\|8, 48\|8 | the MCU's motoring and regen limits, % of 300 Nm × 2.55 | verified |
 | `0x523` bit 2 | set when the inverter state machine reaches its run state: the VCU's "MCU ready" | verified |
-| `0x523` bit 9 | the MCU's fault-shutdown latch (after faults `0xE`/`0x16`, or an external fault in `0x594`, `0x57F` or `0x5F5`) | verified |
+| `0x523` bit 9 | set when the MCU confirms an HV interlock fault (P0A0D, `FUN_00138054`); the VCU goes to power state 8 | verified |
 | `0x523` bit 60 | the MCU's pump self-check is sampling; the VCU then holds the LDC at 13.8 V | probable (purpose) |
 | `0x524` 16\|8 | vehicle speed in km/h from motor rpm with a 0.309 m radius (1.94 m circumference against the VCU's 2.0 m) | verified |
 

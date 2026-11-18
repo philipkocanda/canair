@@ -85,7 +85,7 @@ messages:
         unit: '%'
         verified: false
         source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
-        notes: Measured motor torque as a percent of the current maximum, 2048 = 100 % (0x400166A8, the same value as CCP-CAN 0x2C1 bytes 0-1). -1 count at rest in the trace.
+        notes: The MCU's limited, slewed torque reference (not a measured torque) as a percent of the 0x200 full scale, 2048 = 100 % (0x400166A8, the same value as CCP-CAN 0x2C1 bytes 0-1). The VCU falls back to bits 35-43 when the CCP-CAN link fails. -1 count at rest in the trace.
       MCU_RPM_524:
         start_bit: 48
         length: 8
@@ -909,26 +909,6 @@ messages:
         verified: false
         source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
         notes: The OBC temperature of 2101 OBC_TEMP; 255 (155 °C) on a temperature-sensor fault.
-      OBC_POWER_B3:
-        start_bit: 24
-        length: 8
-        byte_order: little
-        scale: 20.0
-        min: 0.0
-        max: 5100.0
-        verified: false
-        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
-        notes: "A value the OBC sets from an OBC_TEMP threshold and table. MCU firmware: the MCU reads this byte x 20 as a cooling request and takes the highest of it, the VCU's fan request (0x590 byte 3) and others, so it is probably the OBC's fan request, not a power (MCU_FIRMWARE_FINDINGS.md section 12.4)."
-      OBC_POWER_B6:
-        start_bit: 48
-        length: 8
-        byte_order: little
-        scale: 20.0
-        min: 0.0
-        max: 5100.0
-        verified: false
-        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
-        notes: "A second value set from a temperature table. MCU firmware: the MCU reads it x 20 as a coolant-pump request, maxed with the VCU's pump request (0x590 byte 5), so it is probably the OBC's pump request, not a power (MCU_FIRMWARE_FINDINGS.md section 12.4)."
       OBC_STATUS_B4_0:
         start_bit: 32
         length: 1
@@ -962,6 +942,26 @@ messages:
         byte_order: little
         verified: false
         source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08
+      OBC_FAN_REQUEST:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        scale: 20.0
+        min: 0.0
+        max: 5100.0
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08; MCU firmware EAEEHEL-MS2-D000 FUN_0012E1BC and FUN_0012E30C (research/MCU_FIRMWARE_FINDINGS.md section 12.4)
+        notes: "The OBC's fan request (probable): a value it sets from an OBC_TEMP threshold and table. The MCU reads it x 20 and takes the highest of it, the VCU's fan request (0x590 byte 3) and the others."
+      OBC_PUMP_REQUEST:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        scale: 20.0
+        min: 0.0
+        max: 5100.0
+        verified: false
+        source: OBC firmware frame builders (research/OBC_FIRMWARE_FINDINGS.md section 6), 2026-11-08; MCU firmware EAEEHEL-MS2-D000 FUN_0012E1BC and FUN_0012E30C (research/MCU_FIRMWARE_FINDINGS.md section 12.4)
+        notes: "The OBC's coolant-pump request (probable): a second value set from a temperature table. The MCU reads it x 20 and takes the highest of it, the VCU's pump request (0x590 byte 5) and the others."
   '0x597':
     name: BMS_597
     tx_ecu: BMS
@@ -1066,6 +1066,15 @@ messages:
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 27.6)
         notes: Probably the distance to empty, clamp(range figure minus consumption figure, 0, 300) km. The meaning is inferred from the Kona DBC and the Battery-Emulator Ioniq code.
+      VCU_TORQUE_FULL_SCALE_200:
+        start_bit: 49
+        length: 6
+        byte_order: little
+        scale: 10.0
+        unit: Nm
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 pack FUN_001F3F18; MCU firmware EAEEHEL-MS2-D000 receive table and FUN_00158390 (research/VCU_FIRMWARE_FINDINGS.md section 32.2, MCU_FIRMWARE_FINDINGS.md section 14.1)
+        notes: 'The torque full scale the MCU multiplies every torque percent by (0x232, 0x2C1, 0x291, 0x524): 30 x 10 = 300 Nm on this calibration.'
   '0x220':
     name: ESP12
     tx_ecu: ESC
@@ -1445,6 +1454,13 @@ messages:
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 19.3)
         notes: Motor torque command before traction control limits it, same scale as VCU_TORQUE_COMMAND.
+      VCU_INVERTER_ENABLE_REQUEST_202:
+        start_bit: 1
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (0x40004B12); MCU firmware EAEEHEL-MS2-D000 inverter state machine FUN_00159964 (research/VCU_FIRMWARE_FINDINGS.md section 32.2, MCU_FIRMWARE_FINDINGS.md section 13.1)
+        notes: The VCU's request to enable the inverter (2101 B11:6), set by the power-state chart from state 2. The MCU enters its run state only with it and the BMS HV-ready bit, and it gates the MCU's own fan and pump demand.
   '0x581':
     name: OBC_581
     tx_ecu: OBC
@@ -1627,7 +1643,14 @@ messages:
         unit: '%'
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 19.3)
-        notes: "Motoring torque limit in percent of 300 Nm (about 0.39 % per bit): the BMS power limit less the auxiliary load, the MCU's available torque and the temperature derates."
+        notes: "Motoring torque limit in percent of 300 Nm (about 0.39 % per bit): the BMS discharge limit (0x594 bits 16-31) less the auxiliary load, divided through motor speed, then the minimum with the MCU's motoring limit (0x2C1 byte 5) and the temperature derates."
+      VCU_COAST_SETTINGS_109:
+        start_bit: 12
+        length: 4
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (FUN_001DA308, pack_0x109; research/VCU_FIRMWARE_FINDINGS.md section 31.4); uhi22 Ioniq28 P-CAN tap
+        notes: 'Two 2-bit echoes of 0x51B cluster settings (22|2 and 44|2) for the map-based coasting guide. Always 0 on this image: the function that sets them is never called. 0 in all 6086 frames of the trace.'
   '0x10C':
     name: SBW_10C
     length: 8
@@ -1652,8 +1675,8 @@ messages:
         scale: 0.146484375
         unit: Nm
         verified: false
-        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 19.3 and 22.2)
-        notes: Actual motor torque, the same layout as CCP-CAN 0x2C1. The VCU falls back to this frame when the CCP-CAN link fails.
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C and limiter FUN_00156B78 (research/MCU_FIRMWARE_FINDINGS.md sections 7.3 and 14.2); VCU firmware EAEEO5L-NS7-D060 unpack FUN_001B03B4; checked against the uhi22 Ioniq28 P-CAN tap
+        notes: The MCU's limited, slewed torque reference with its damping term (0x40016778), not a measured torque; the same layout as CCP-CAN 0x2C1, which carries it without the damping term. The VCU falls back to this frame when the CCP-CAN link fails.
       MCU_RPM_291:
         start_bit: 16
         length: 16
@@ -1672,30 +1695,8 @@ messages:
         max: 100.0
         unit: '%'
         verified: false
-        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
-        notes: A percent (0x40016660, x 2.55); the VCU reads it as a derate input. 0xFE (99.6 %) in the trace.
-      MCU_TORQUE_LIMIT_A_291:
-        start_bit: 40
-        length: 8
-        byte_order: little
-        scale: 0.392157
-        min: 0.0
-        max: 100.0
-        unit: '%'
-        verified: false
-        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
-        notes: Available torque limit in percent (0x40016668, x 2.55). 0xFA in the trace. The VCU scales it by 800/255.
-      MCU_TORQUE_LIMIT_B_291:
-        start_bit: 48
-        length: 8
-        byte_order: little
-        scale: 0.392157
-        min: 0.0
-        max: 100.0
-        unit: '%'
-        verified: false
-        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
-        notes: Second available torque limit in percent (0x40016670, x 2.55). 0xFA in the trace.
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C and limiter FUN_00156B78 (research/MCU_FIRMWARE_FINDINGS.md sections 7.3 and 14.2); VCU firmware EAEEO5L-NS7-D060 unpack FUN_001B03B4; checked against the uhi22 Ioniq28 P-CAN tap
+        notes: "The MCU's filtered derate factor for the present torque direction (0x40016660, x 2.55): 100 % means no derate. The minimum of its fault-reaction table, including a temperature derate. 0xFE (99.6 %) in the trace."
       MCU_FAN_SPEED_REQUEST_291:
         start_bit: 56
         length: 8
@@ -1706,29 +1707,33 @@ messages:
         verified: false
         source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md sections 7.3 and 12); checked against the uhi22 Ioniq28 P-CAN tap
         notes: The highest of the cooling requests 0x590 byte 3 (VCU), 0x57F byte 3 (OBC), 0x5F7 byte 7 and the MCU's own temperature-based requests (0x400117FC), divided by 20; probably the radiator-fan request (the VCU calls 0x590 byte 3 its fan request). The MCU also turns it into the PWM duty of MCU 2101 B20:B21. 0 in the trace.
+      MCU_MOTORING_TORQUE_LIMIT_291:
+        start_bit: 40
+        length: 8
+        byte_order: little
+        scale: 0.392157
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C and limiter FUN_00156B78 (research/MCU_FIRMWARE_FINDINGS.md sections 7.3 and 14.2); VCU firmware EAEEO5L-NS7-D060 unpack FUN_001B03B4; checked against the uhi22 Ioniq28 P-CAN tap
+        notes: The MCU's motoring (positive) torque limit in percent of 300 Nm (0x40016668, x 2.55). The VCU takes the minimum with it for its motoring limit (FUN_001CB38C). 0xFA (98 %, the 295 Nm cap) in the trace.
+      MCU_REGEN_TORQUE_LIMIT_291:
+        start_bit: 48
+        length: 8
+        byte_order: little
+        scale: 0.392157
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C and limiter FUN_00156B78 (research/MCU_FIRMWARE_FINDINGS.md sections 7.3 and 14.2); VCU firmware EAEEO5L-NS7-D060 unpack FUN_001B03B4; checked against the uhi22 Ioniq28 P-CAN tap
+        notes: The MCU's regen (negative) torque limit in percent of 300 Nm, as a magnitude (0x40016670, x 2.55). The VCU takes the minimum with it for its regen limit (FUN_001CBA24). 0xFA in the trace.
   '0x594':
     name: BMS_594
     tx_ecu: BMS
     length: 8
     signals:
-      BMS_POWER_LIMIT_A_594:
-        start_bit: 0
-        length: 16
-        byte_order: little
-        scale: 10.0
-        unit: W
-        verified: false
-        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 22.2); uhi22 Ioniq28 P-CAN tap
-        notes: First BMS power limit (73.7 kW in the trace). Which of the two limits is charge and which discharge is not known.
-      BMS_POWER_LIMIT_B_594:
-        start_bit: 16
-        length: 16
-        byte_order: little
-        scale: 10.0
-        unit: W
-        verified: false
-        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 22.2); uhi22 Ioniq28 P-CAN tap
-        notes: Second BMS power limit (98.0 kW in the trace).
       BMS_HV_READY_594:
         start_bit: 34
         length: 1
@@ -1746,6 +1751,24 @@ messages:
         verified: false
         source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md section 22.2)
         notes: HV state of charge in 0.5 % steps. The VCU shows it in the freeze frame and uses it for the low-SoC stop (2.4 %) and the top-up block (20 %).
+      BMS_CHARGE_POWER_LIMIT_594:
+        start_bit: 0
+        length: 16
+        byte_order: little
+        scale: 10.0
+        unit: W
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 22.2, 31.2 and 32); uhi22 Ioniq28 P-CAN tap
+        notes: 'BMS charge (regen) power limit (probable): the VCU adds the auxiliary load to it and turns it into the regen torque limit (FUN_001B7110, FUN_001CBA24); 0 while the frame is timed out. 73.7 kW at 79 % SoC in the trace.'
+      BMS_DISCHARGE_POWER_LIMIT_594:
+        start_bit: 16
+        length: 16
+        byte_order: little
+        scale: 10.0
+        unit: W
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 (research/VCU_FIRMWARE_FINDINGS.md sections 22.2, 31.2 and 32); uhi22 Ioniq28 P-CAN tap
+        notes: 'BMS discharge power limit (probable): the VCU caps it with an SoC table, subtracts the auxiliary load and turns it into the motoring torque limit (FUN_001B70D4, FUN_001CB3AC). 98.0 kW in the trace.'
   '0x598':
     name: BMS_598
     tx_ecu: BMS
@@ -1985,6 +2008,34 @@ messages:
         verified: false
         source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md sections 7.3 and 12); checked against the uhi22 Ioniq28 P-CAN tap
         notes: "Coolant-pump speed request divided by 20 (0x400159F0): the highest of the VCU's 0x590 byte 5, the OBC's 0x57F byte 6, 0x5F7 byte 0 and the MCU's own request, capped. The MCU's P0C73 check compares it with the pump's reported speed (0x570 byte 1). The uhi22 DBC calls it the EPCU cooling-pump byte. 0 in the trace."
+      MCU_RUN_STATE_523:
+        start_bit: 2
+        length: 1
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md sections 7.3, 11.3 and 13.1); VCU firmware EAEEO5L-NS7-D060 unpack FUN_001AFD20 (research/VCU_FIRMWARE_FINDINGS.md section 32.2)
+        notes: The inverter is in its run state (MCU 2101 B09:2, MCU_RUN_STATE). The VCU reads it as 'MCU ready' and needs it for READY.
+      MCU_HV_INTERLOCK_FAULT_523:
+        start_bit: 9
+        length: 1
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md sections 7.3, 11.3 and 13.1); VCU firmware EAEEO5L-NS7-D060 unpack FUN_001AFD20 (research/VCU_FIRMWARE_FINDINGS.md section 32.2)
+        notes: The MCU has confirmed an HV interlock fault (P0A0D; MCU 2101 B10:1, MCU_HV_INTERLOCK_FAULT). The VCU then goes to power state 8.
+      MCU_PUMP_CHECK_ACTIVE_523:
+        start_bit: 60
+        length: 1
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md sections 7.3, 11.3 and 13.1); VCU firmware EAEEO5L-NS7-D060 unpack FUN_001AFD20 (research/VCU_FIRMWARE_FINDINGS.md section 32.2)
+        notes: "The MCU's standstill check of the coolant pump is sampling its speed (MCU 2101 B11:4). The VCU holds the LDC output at 13.8 V while it is set (probable purpose: a steady 12 V during the check)."
+      MCU_PUMP_CHECK_FAILED_523:
+        start_bit: 61
+        length: 1
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md sections 7.3, 11.3 and 13.1); VCU firmware EAEEO5L-NS7-D060 unpack FUN_001AFD20 (research/VCU_FIRMWARE_FINDINGS.md section 32.2)
+        notes: 'The pump standstill check failed: the mean speed stayed below 2450 rpm (MCU fault 5.20, no DTC; MCU 2101 B11:5).'
   '0x2A1':
     name: MCU_2A1
     tx_ecu: MCU
@@ -2186,3 +2237,87 @@ messages:
         verified: false
         source: MCU firmware EAEEHEL-MS2-D000 frame builder FUN_00154D5C (research/MCU_FIRMWARE_FINDINGS.md section 7.3); checked against the uhi22 Ioniq28 P-CAN tap
         notes: Modelled power-module temperature (MCU 2102 B21).
+  '0x570':
+    name: EWP_570
+    tx_ecu: EWP
+    signals:
+      EWP_FAULT:
+        start_bit: 0
+        length: 1
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 receive table and FUN_0012E44C/FUN_0012E69C (research/MCU_FIRMWARE_FINDINGS.md sections 12.1 and 12.4); VCU firmware EAEEO5L-NS7-D060 FUN_001D342C (research/VCU_FIRMWARE_FINDINGS.md section 32.3)
+        notes: 'Coolant-pump fault flag (probable): at 1 the MCU forces its pump command to 0 and raises fault 5.17 (P0C73). Copied to MCU 2101 B17 (MCU_EWP_STATUS_BIT).'
+      EWP_STATUS_B0_1:
+        start_bit: 1
+        length: 1
+        byte_order: little
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 receive table and FUN_0012E44C/FUN_0012E69C (research/MCU_FIRMWARE_FINDINGS.md sections 12.1 and 12.4); VCU firmware EAEEO5L-NS7-D060 FUN_001D342C (research/VCU_FIRMWARE_FINDINGS.md section 32.3)
+        notes: At 1 the MCU suspends its pump-speed check (no DTC). Meaning not established.
+      EWP_SPEED:
+        start_bit: 8
+        length: 8
+        byte_order: little
+        scale: 20.0
+        min: 0.0
+        max: 5100.0
+        unit: rpm
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 receive table and FUN_0012E44C/FUN_0012E69C (research/MCU_FIRMWARE_FINDINGS.md sections 12.1 and 12.4); VCU firmware EAEEO5L-NS7-D060 FUN_001D342C (research/VCU_FIRMWARE_FINDINGS.md section 32.3)
+        notes: The pump's reported speed / 20 (rpm probable). Copied to MCU 2101 B18:B19 (MCU_EWP_SPEED). The MCU raises fault 5.18 (P0C73) when it stays 800 below a command of at least 1000 for 200 calls. The VCU only logs it.
+  '0x5F5':
+    name: CLIMATE_5F5
+    signals:
+      CLIMATE_POWER_A_5F5:
+        start_bit: 14
+        length: 10
+        byte_order: little
+        scale: 10.0
+        unit: W
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 unpack and FUN_001DEAB8 (research/VCU_FIRMWARE_FINDINGS.md sections 22.2 and 31.2)
+        notes: One of the climate unit's two power draws (the VCU's reading of the sender). The VCU adds it and CLIMATE_POWER_B_5F6 to the LDC's HV input power as the auxiliary load of its torque limits. Which of the two is the compressor is not established.
+      CLIMATE_FAULT_5F5:
+        start_bit: 42
+        length: 1
+        byte_order: little
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 unpack and FUN_001DEAB8 (research/VCU_FIRMWARE_FINDINGS.md sections 22.2 and 31.2); MCU firmware EAEEHEL-MS2-D000 FUN_001384BC (research/MCU_FIRMWARE_FINDINGS.md section 14.3)
+        notes: 'An external fault input: the VCU goes to power state 8, and the MCU, after a calibrated count, raises fault 0xF and shuts down.'
+  '0x5F6':
+    name: CLIMATE_5F6
+    signals:
+      CLIMATE_POWER_B_5F6:
+        start_bit: 54
+        length: 10
+        byte_order: little
+        scale: 10.0
+        unit: W
+        verified: false
+        source: VCU firmware EAEEO5L-NS7-D060 unpack and FUN_001DEAB8 (research/VCU_FIRMWARE_FINDINGS.md sections 22.2 and 31.2)
+        notes: The climate unit's second power draw (see CLIMATE_POWER_A_5F5); part of the VCU's auxiliary load.
+  '0x5F7':
+    name: CLIMATE_5F7
+    signals:
+      CLIMATE_PUMP_REQUEST_5F7:
+        start_bit: 0
+        length: 8
+        byte_order: little
+        scale: 30.0
+        min: 0.0
+        max: 7650.0
+        unit: rpm
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 receive table, FUN_0012E1BC and FUN_0012E30C (research/MCU_FIRMWARE_FINDINGS.md sections 12.1 and 12.4); VCU firmware EAEEO5L-NS7-D060 unpack (research/VCU_FIRMWARE_FINDINGS.md section 32.3)
+        notes: The climate unit's coolant-pump request (rpm probable). The MCU takes the highest of it, the VCU's, the OBC's and its own and sends the result in 0x523 byte 6. The VCU unpacks it and does not read it.
+      CLIMATE_FAN_REQUEST_5F7:
+        start_bit: 56
+        length: 8
+        byte_order: little
+        scale: 10.0
+        min: 0.0
+        max: 2550.0
+        verified: false
+        source: MCU firmware EAEEHEL-MS2-D000 receive table, FUN_0012E1BC and FUN_0012E30C (research/MCU_FIRMWARE_FINDINGS.md sections 12.1 and 12.4); VCU firmware EAEEO5L-NS7-D060 unpack (research/VCU_FIRMWARE_FINDINGS.md section 32.3)
+        notes: The climate unit's fan request, in the units of the MCU's fan chain (see MCU_FAN_SPEED_REQUEST_291). The MCU takes the highest of the cooling requests and drives the fan PWM itself.

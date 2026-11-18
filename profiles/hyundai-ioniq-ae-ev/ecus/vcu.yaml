@@ -176,7 +176,9 @@ VCU:
             this car. In the JejuSoul US Ioniq logs it reads 1 with B11:3 at 0 at power-off (B11 =
             0xD0 after a drive, 0xD2 after an AC charge), so it is a separate signal: the firmware
             sets it in power state 2, HV up and start-ready, and VCU_POWER_STATE 2 appears there
-            too. Disabled so it does not ship a duplicate.
+            too. It is also 0x202 bit 1, the request the MCU waits for before it enables the
+            inverter (research/VCU_FIRMWARE_FINDINGS.md section 32.2). Disabled so it does not ship
+            a duplicate.
           source: canair bitfield analysis 2026-08-06; decode --find-mirrors --bits, n=6365 unanimous
           ship: false
         VEHICLE_STATE_LDC_ENABLED:
