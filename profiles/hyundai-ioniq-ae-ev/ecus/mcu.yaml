@@ -253,6 +253,19 @@ MCU:
           notes: >-
             The IOControl pump test (30 05 07, session 90) is running: the pump request is 3720 rpm.
             0 in the captures.
+        MCU_2101_B11_BIT0:
+          expression: B11:0
+          min: "0"
+          max: "1"
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 11.3)
+          verified: false
+          notes: >-
+            Bit 0 of status byte 0x400166B8 (also 0x523 byte 7): set while the OBC's 0x57F bit 8
+            (OBC_STATUS_B1_0) is set, or while the pump standstill check (B11:4) has not finished
+            (FUN_0012ECE8). The only active bit of B11: 1 in every charging and 12 V-top-up capture,
+            0 in READY (B11 reads 0 or 1 only). B11:3 is the IOControl pump test, B11:4/B11:5 the
+            standstill check, bits 1, 2, 6 and 7 have no writer.
+          ship: false
     2102:
       response_frames: 9
       status: active
