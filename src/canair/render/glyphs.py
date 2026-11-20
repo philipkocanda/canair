@@ -1,4 +1,4 @@
-"""The glyphs canair prints, one meaning each (the table in the cli-tui-standards skill).
+"""The glyphs canair prints, one meaning each (`cli-tui-standards/cli-colour-glyphs.md`).
 
 Use these names instead of retyping the character, so a glyph cannot drift into a second
 meaning or a second code point (``✗`` and ``✖``, ``…`` and ``...``).

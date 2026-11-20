@@ -1,6 +1,6 @@
 """How ``esc``, ``q`` and ``?`` behave on each kind of screen, and what the apps flash.
 
-One table of behaviour (the cli-tui-standards skill's "Keys" section):
+One table of behaviour (``cli-tui-standards/tui-keys-modals.md``, "Keys"):
 
 - ``esc`` backs out one level and never quits; at a top level it does nothing.
 - ``q`` quits at a top level and closes a read-only overlay; in a text field it is text.

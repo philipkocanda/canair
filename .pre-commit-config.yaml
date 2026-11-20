@@ -126,8 +126,9 @@ repos:
   #
   # The type list is a shared vocabulary — it must stay in step with
   # `release-please-config.json`'s `changelog-sections` and the commit-message
-  # rules in `.claude/skills/contributing-code/SKILL.md`. It is spelled out
-  # rather than left to the hook's defaults so a `rev` bump cannot move it.
+  # rules in `.claude/skills/contributing-code/docs-commits-release.md`. It is
+  # spelled out rather than left to the hook's defaults so a `rev` bump cannot
+  # move it.
   #
   # Deliberately NOT `--strict` (that rejects merge commits, which this repo
   # uses) and NOT `--force-scope` (repo-wide changes have no meaningful scope).

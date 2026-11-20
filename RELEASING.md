@@ -14,7 +14,7 @@ canair follows [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`.
 Which one you get is **derived from commit subjects**, not chosen: `feat:` → minor,
 any other type → patch, and `!` (or a `BREAKING CHANGE:` footer) → major. So the
 SemVer meanings above are a rule about *how to type your commits* — see the commit
-convention in `CONTRIBUTING.md` and `.claude/skills/contributing-code/SKILL.md`.
+convention in `CONTRIBUTING.md` and `.claude/skills/contributing-code/docs-commits-release.md`.
 
 The version is single-sourced from `pyproject.toml` (`[project].version`) and
 surfaced at runtime as `canair.__version__` (read via `importlib.metadata`).
@@ -51,8 +51,8 @@ never affects version ordering — and a release shows no suffix at all.
    changelog is written for the reader — themed, explaining *what changed and why
    it matters*, with no internal scaffolding (no "Stage N", no private branch
    names) and plan docs referenced by name. The rules are in
-   `.claude/skills/contributing-code/SKILL.md` → "Cutting a release". Edit
-   `CHANGELOG.md` **on the release PR's branch** (pull it first: the AutoPID
+   `.claude/skills/contributing-code/docs-commits-release.md` → "Cutting a release".
+   Edit `CHANGELOG.md` **on the release PR's branch** (pull it first: the AutoPID
    regeneration may have added a commit).
 
 4. **Merge the PR.** release-please then tags `vX.Y.Z` and publishes the GitHub
