@@ -1113,16 +1113,42 @@ IGPM:
       updated: "2026-10-30"
       result: >-
         BC44 verified 2026-11-06 with the car parked and AC-plugged (AC_CHARGER_CONNECTED 1, OBC
+
         standby, not charging, VCU_POWER_STATE 6 whenever the VCU answered), no key or fob in the
+
         car: it clicks and lights the red 'plug connected' dash lamp. The VCU did not answer before
+
         the ON. One pipeline (session IGPM --wake, iocontrol BC44, sleep 3, then queries):
+
         IG3_RELAY_OUTPUT 1, VCU_IG3_ON 1, and VCU, BMS, OBC, MCU, AAF and HVAC all answered, so the
+
         relay alone wakes the IG3-fed ECUs and the VCU. The rail holds after release: 75 s after a
+
         BC44 OFF a pipeline without the ON still read VCU_IG3_ON 1 with answers from all of them and
+
         IG3_RELAY_OUTPUT 0. About 110 s after the OFF (monitor @charging, then the same pipeline
+
         without the ON) VCU_IG3_ON read 0 and BMS, OBC, MCU, AAF and HVAC gave NO DATA, while the
-        VCU still answered in its run-on after IG3 falls. Not tested: unplugged, car asleep without
-        the plug, how soon each ECU answers (only 3 s tried), what holds the rail, and BC1B.
+
+        VCU still answered in its run-on after IG3 falls. Unplugged confirmed 2026-11-20 (car OFF,
+
+        AC_CHARGER_CONNECTED 0, charge port unlocked): IOControl BC44 ON (2FBC4403) at 12:45:32 with
+
+        the car off closed IG3 (IGPM IG3_RELAY_OUTPUT 0 -> 1 within about 6 s) and the silent
+
+        IG3-fed ECUs (VCU, BMS, AAF, HVAC) began answering at 12:45:37; the release (2FBC4400) at
+
+        12:46:15 dropped IG3_RELAY_OUTPUT to 0 by 12:46:16.6, with the VCU still answering in its
+
+        run-on at 12:46:27. So the relay alone closes IG3 with no cable attached. Still untested:
+        the
+
+        fully-asleep case (car OFF is not SLEEP), how soon each ECU answers (only about 5 s tried),
+
+        what holds the rail, and BC1B. Charge-door lamp BC43 returned NRC 0x22
+        (conditionsNotCorrect)
+
+        twice with the car PLUGGED on 2026-11-14 23:14.
       notes: >-
         The IGPM's power-switch controller drives a Main relay in the engine-bay PCB block that
         feeds the IG3 rail (EPCU, OBC, BMS, A/C control module, PTC heater, blower relay), and a
