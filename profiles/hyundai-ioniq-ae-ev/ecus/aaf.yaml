@@ -270,3 +270,29 @@ AAF:
         000000-0FFFFF in 64 KiB steps, and 2324 with a 4-byte address. The AAF answers 1A, 21 and 10
         (NRC 0x12 for 21FF, NRC 0x22 for 1003, positive for 1081) but is silent on 22, 3E and 23, so
         silence there does not show whether 23 exists. Not tried: any other address.
+    - type: decode
+      target: 2181 B27 thermal-mode label, B14/B26 constants, B28/B29 self-mirror
+      status: pending
+      priority: P3
+      vehicle_states: [CHARGING, READY, "OFF"]
+      created: "2026-11-20"
+      updated: "2026-11-20"
+      result: >-
+        AAF_2181_B27's '7: charging' label is too narrow: 7 marks the charge-side powered with the
+        ignition OFF, not charging specifically.
+      notes: >-
+        Per-state (canair decode AAF:2181 --param AAF_2181_B27 --stats --group-by state, whole
+        corpus): [CHARGING,OFF,PARKED] 983 rows all 7; [PLUGGED,PARKED,IG3] 57 all 7;
+        [CHARGING,PARKED] 2371/2480 = 7; but [CHARGING,ON,PARKED] 268/270 = 6 and
+        [PLUGGED,ON,PARKED,IG3] 22 all 6. The recovered 2026-11-15 AC-charging session reads 7
+        throughout, and the 2026-11-20 OFF capture with IG3 forced on via IOControl BC44 (unplugged,
+        not charging) also reads 7. So 7 tracks 'charge-side/IG3 powered, key off', not charging.
+        Value 1 (seen with the heat pump) has no enum entry. B14 and B26 are constant in every
+        capture (0 and 19). B28 == B29 in every row (self-mirror, 110-155) and rises with coolant
+        temperature.
+      sources:
+        - canair decode/correlate over the 2026-11-15 and 2026-11-20 captures, 2026-11-20
+      what_to_test:
+        - "B27: does 7 ever appear with the ignition ON? (suspected no)"
+        - "B27 raw 1: what the heat-pump-only case means"
+        - "B28==B29: a redundant temperature; find its scaling against a known module/coolant temp"
