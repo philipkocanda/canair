@@ -324,10 +324,26 @@ class TestScanLog:
 
 
 def _patch_load_ecus(monkeypatch, fake) -> None:
-    """Replace the registry for every module that bound ``load_ecus`` for itself."""
-    for module in ("registry", "names", "protocol"):
+    """Replace the registry at the scan's consumers, not its shared source.
+
+    On Python 3.15 a lazy import first used while the source is patched can retain the fake
+    after monkeypatch restores the source, leaking it into unrelated tests.
+    """
+    for module in ("names", "protocol"):
         monkeypatch.setattr(f"canair.ecus.{module}.load_ecus", fake)
     monkeypatch.setattr("canair.live.dtc.sweep.load_ecus", fake)
+
+
+def test_scan_registry_fake_does_not_escape_its_consumers(monkeypatch):
+    from canair.dtc.refs import EcuRefs
+    from canair.ecus import registry
+
+    original = registry.load_ecus
+    with monkeypatch.context() as patch:
+        _patch_load_ecus(patch, lambda *_, **__: {0x7A0: {"name": "BCM"}})
+        assert registry.load_ecus is original
+        assert EcuRefs.current(profile=active()).label("0x7EC") == "BMS (0x7E4)"
+    assert EcuRefs.current(profile=active()).label("0x7EC") == "BMS (0x7E4)"
 
 
 class TestScanAll:
