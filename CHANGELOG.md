@@ -15,6 +15,58 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [6.0.0](https://github.com/philipkocanda/canair/compare/v5.5.0...v6.0.0) (2026-11-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* **routines:** one-shot routines now exit 1 on an NRC, timeout, or unusable response instead of reporting success. Failure diagnostics go to stderr; JSON continues to include the complete result.
+
+### Added
+
+* **hyundai-ioniq-ae-ev:** declare the MCU 2101 B11:0 charge-side bit ([7e96eef](https://github.com/philipkocanda/canair/commit/7e96eeff3ceb8f875c0557f3578e667b38c91e82))
+* **routines:** support option records and report failures ([8c015c6](https://github.com/philipkocanda/canair/commit/8c015c618342a649bfbe8e873e53b487e7ac5266))
+
+
+### Fixed
+
+* **safety:** name the MCU in the KWP routine refusals ([fd8206a](https://github.com/philipkocanda/canair/commit/fd8206a03381281add902ed9a198735698ef7c32))
+* **validation:** handle empty PIDs and inherited verification ([fc651a6](https://github.com/philipkocanda/canair/commit/fc651a66061528c533647aeb61469457da09c230))
+
+
+### Documentation
+
+* **hyundai-ioniq-ae-ev:** add the MCU's P-CAN frames from its firmware ([5179be9](https://github.com/philipkocanda/canair/commit/5179be9fcb89706933f594426823b0059692dde3))
+* **hyundai-ioniq-ae-ev:** apply the VCU-MCU cross-check to signals and the MCU findings ([ce0487e](https://github.com/philipkocanda/canair/commit/ce0487e8c11829a7e053f78b3be362815f5f782b))
+* **hyundai-ioniq-ae-ev:** decode the MCU 2101 status bits and the interlock counter ([8d09c71](https://github.com/philipkocanda/canair/commit/8d09c7151c94d2aa2d9f1e0c0b17c57bb2f6f355))
+* **hyundai-ioniq-ae-ev:** fix MCU frame scales and add its pump, fan, power and resolver bytes ([8cabd3e](https://github.com/philipkocanda/canair/commit/8cabd3e5c39dc08773ed75bb839dda351d113127))
+* **hyundai-ioniq-ae-ev:** identify the IGPM's MCU and wake transceiver from a bench unit ([a15cd33](https://github.com/philipkocanda/canair/commit/a15cd33cce0289f13baa733ff48a7164947b0210))
+* **hyundai-ioniq-ae-ev:** link the VCU firmware findings to the MCU's ([8653316](https://github.com/philipkocanda/canair/commit/865331637d0e3f037d73ecb199c0a2657d0d196e))
+* **hyundai-ioniq-ae-ev:** log the AAF 2181 B27 label and B28/B29 findings ([d56d74f](https://github.com/philipkocanda/canair/commit/d56d74f86036702a57b40d1e4a8c8ea3ecbf9469))
+* **hyundai-ioniq-ae-ev:** MCU firmware fifth pass, main states and IOControl 01, 02 ([5752401](https://github.com/philipkocanda/canair/commit/57524014b763cee026513ea6c192a0158d53f41a))
+* **hyundai-ioniq-ae-ev:** MCU firmware findings, diagnostic server and the 0x21 records ([de827c9](https://github.com/philipkocanda/canair/commit/de827c981621a49591e5da89d085b94f956748c4))
+* **hyundai-ioniq-ae-ev:** MCU firmware findings, DTCs, CAN frames and never-send list ([be819d0](https://github.com/philipkocanda/canair/commit/be819d0d4432027b510f437358ef6504ccedc9ed))
+* **hyundai-ioniq-ae-ev:** MCU firmware findings, fix table sizes and the P0A78 condition ([8451b89](https://github.com/philipkocanda/canair/commit/8451b89ca346aa4fbe598c0fe1f60281ab31da51))
+* **hyundai-ioniq-ae-ev:** MCU firmware findings, image layout and the 0x23 reach ([b216caa](https://github.com/philipkocanda/canair/commit/b216caa737f622217ff7c219ae4343d211ace5bb))
+* **hyundai-ioniq-ae-ev:** MCU firmware findings, list what went into mcu.yaml ([935cff7](https://github.com/philipkocanda/canair/commit/935cff7757289c883630cf8b875335cb77674025))
+* **hyundai-ioniq-ae-ev:** MCU firmware findings, say what is kept locally ([b65ca8d](https://github.com/philipkocanda/canair/commit/b65ca8d3f185a0fe17a87ac73eb550a14cc1ad4c))
+* **hyundai-ioniq-ae-ev:** MCU firmware fourth pass, status bits and IOControl 04, 05, 08 ([6a5063f](https://github.com/philipkocanda/canair/commit/6a5063fce2a5e9627d31923f54035beccf566158))
+* **hyundai-ioniq-ae-ev:** MCU firmware second pass, EEPROM, temperatures, status bits, mode 01 ([7929824](https://github.com/philipkocanda/canair/commit/7929824f5073c5112b200038959e06aa931b6d84))
+* **hyundai-ioniq-ae-ev:** MCU firmware third pass, receive table, timeouts and loose bytes ([135708d](https://github.com/philipkocanda/canair/commit/135708d953c476ce04b82e4565260fcda6d0be9e))
+* **hyundai-ioniq-ae-ev:** MCU signals and research entries from the firmware read ([0987cf3](https://github.com/philipkocanda/canair/commit/0987cf3d9ffacd2b18fc2389e7c5abac848e63b6))
+* **hyundai-ioniq-ae-ev:** name the MCU enable bits after its main states ([b0e247f](https://github.com/philipkocanda/canair/commit/b0e247f6994ae50de19bbc4680cc30ce090b12cb))
+* **hyundai-ioniq-ae-ev:** name the MCU's interlock, pump, fan and resolver signals ([6fd758c](https://github.com/philipkocanda/canair/commit/6fd758cb91f328a16eb9d9d9fb8c2feb5d88eb6d))
+* **hyundai-ioniq-ae-ev:** record capture research leads ([feb2d12](https://github.com/philipkocanda/canair/commit/feb2d121b276591766d0ff24e6d2a37734caf12a))
+* **hyundai-ioniq-ae-ev:** record the unplugged BC44 (IG3 relay) result ([5a200a5](https://github.com/philipkocanda/canair/commit/5a200a584a9a51a71ea6e1e272164d429b617267))
+* **hyundai-ioniq-ae-ev:** rename MCU temperatures and add the learned angle correction ([914028b](https://github.com/philipkocanda/canair/commit/914028b1a7468656558c2298ad3cee4106956460))
+* **hyundai-ioniq-ae-ev:** rewrap a paragraph in the MCU findings ([a924e6f](https://github.com/philipkocanda/canair/commit/a924e6fba61422ca33198edb918380cd5b6c0fd0))
+* **hyundai-ioniq-ae-ev:** sixth VCU firmware pass, range 1D9000 and the MCU cross-check ([8db660a](https://github.com/philipkocanda/canair/commit/8db660a3fb66775da07d0e21671898e845dc30d6))
+* **hyundai-ioniq-ae-ev:** the MCU flash image passes its checksum ([014ad54](https://github.com/philipkocanda/canair/commit/014ad541e7dd9b5bf85bd53352a9e1cafca93fdb))
+* **hyundai-ioniq-ae-ev:** update a stale MCU research check to the new signal name ([7d5fa9e](https://github.com/philipkocanda/canair/commit/7d5fa9ec05952f179d4f6bf1cabaf90a4b464c26))
+* map local references repository ([962212d](https://github.com/philipkocanda/canair/commit/962212db6a7437554d5c16830f57cd61fca96e14))
+* **skills:** split large skills into short routers plus topic files ([57da0c8](https://github.com/philipkocanda/canair/commit/57da0c83bfe7a2925fb9200ad70fc2f962add39c))
+* **style:** restyle tables and drop link underlines ([540f954](https://github.com/philipkocanda/canair/commit/540f95463b826678738c965539f8c585dd921392))
+
 ## [5.5.0](https://github.com/philipkocanda/canair/compare/v5.4.0...v5.5.0) (2026-11-12)
 
 
