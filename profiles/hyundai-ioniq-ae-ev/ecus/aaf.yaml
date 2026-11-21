@@ -296,3 +296,25 @@ AAF:
         - "B27: does 7 ever appear with the ignition ON? (suspected no)"
         - "B27 raw 1: what the heat-pump-only case means"
         - "B28==B29: a redundant temperature; find its scaling against a known module/coolant temp"
+    - type: decode
+      target: 2181 B21 temperature mirror candidate
+      status: captured
+      priority: P3
+      vehicle_states: [IG3]
+      created: "2026-11-21"
+      updated: "2026-11-21"
+      result: >-
+        B21-40 tracks the 2180 compressor-temperature candidate, but the sensor identity is
+        unverified.
+      notes: >-
+        Across 5,150 pairs joined within 5 s, 4,739 agree exactly and the other 411 differ by 1 °C.
+        Some historical keep:changes rows are forward-filled, so the pairs are not independent. On
+        2026-11-15 only 65 of 103 pairs agree exactly, although all are within 1 °C; the 2026-11-20
+        capture has two aligned pairs. The 2181 candidate spans -3 to 66 °C across 7,133 captures.
+        The 2180 COMPRESSOR_TEMP definition is unverified; distinct nearby sensors, quantization or
+        poll timing could explain the differences.
+      sources:
+        - canair align and decode over the capture corpus, 2026-11-21
+      what_to_test:
+        - Compare 2180 and 2181 in cold and warm conditions with close polling.
+        - Check compressor temperature with a thermometer or scan tool.

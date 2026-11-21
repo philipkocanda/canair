@@ -871,6 +871,50 @@ HVAC:
         probably that buffer overrunning; keep max_block at 128 or below.
       sources:
         - canair read HVAC:23/... --save, labels 'HVAC 0x23 high-byte probe' and 'HVAC 0x23 address-bit probe', 2026-11-08
+    - type: decode
+      target: 2201A0 B33 varying unmapped value
+      status: captured
+      priority: P3
+      vehicle_states: [READY]
+      created: "2026-11-21"
+      updated: "2026-11-21"
+      result: B33 varies, but no tested within-session match identifies it.
+      notes: >-
+        B33 spans 0-107 across 4,538 captures. It reads 1-5 in 555 captures on 2026-11-15 and 0 or 2
+        in the eight 2026-11-20 captures. The latter contain one unannotated pulse, so they do not
+        identify its cause. Across the history, a same-PID comparison with session baselines
+        removed, no forward fill and exact timestamps gives at most |r|=0.168 against the known
+        actuator targets and |r|=0.107 against blower speed. The stronger whole-corpus correlation
+        is confounded by session baselines; B33 is not established as an actuator, temperature or
+        flag.
+      sources:
+        - canair decode and correlate over the capture corpus, 2026-11-21
+      what_to_test:
+        - Vary fan, heating, vent mode and set point separately; record timed notes.
+        - Compare B33 with other HVAC signals in each repeated episode.
+    - type: decode
+      target: 2201A0 B66-B68 signed word candidate
+      status: captured
+      priority: P3
+      vehicle_states: [IG3]
+      created: "2026-11-21"
+      updated: "2026-11-21"
+      result: B66-B68 may contain a signed little-endian value; width and meaning are unverified.
+      notes: >-
+        bix places B65-B68 in one frame after the B64 PCI byte; B65 is 0 in all 4,538 captures. On
+        2026-11-15, B68 is 0x00 when B67:7 is 0 or 0xFF when it is 1 in 539 of 555 rows; the 16
+        exceptions include 0x01, 0xFE and 0x60. All eight 2026-11-20 rows follow that pattern. The
+        trial (S68<<16)|(B67<<8)|B66 reads 13, 1000, 0, -11536, -11468, 16, 0 and 865 in those eight
+        rows. They all fall between the IG3 on and release requests, so they do not show a
+        before-and-after response. Large swings, outliers and link interruptions leave both data
+        integrity and the field interpretation uncertain; B65 could instead be the low byte of a
+        32-bit value.
+      sources:
+        - canair bix and decode over the capture corpus, 2026-11-21
+      what_to_test:
+        - Check the tail bytes across independent sessions with clean links.
+        - Compare 24-bit and 32-bit values during timed climate changes.
+        - Find a physical reference before naming or shipping the value.
   # Meanings, causes, thresholds and fail-safes are from the Ioniq Electric 2017 service manual,
   # Air Conditioning System chapter. The manual checks every code only with the ignition on.
   # "Listed as" gives the manual's code with its failure-type byte (B1285-77). The key is the
