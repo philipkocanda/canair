@@ -29,7 +29,7 @@ from canair.safety.blocklist import SafetyBlocked, check_command_safety
 from canair.transport.stats import client_transport
 from canair.uds.echo import request_echo
 from canair.uds.protocol import KWP, DiagProtocol
-from canair.uds.services import ROUTINE_CONTROL, identifier_width
+from canair.uds.services import ROUTINE_CONTROL, SECURITY_ACCESS, identifier_width
 
 from ...captures.build import build_scan_session, suggest_scan_label
 from ...captures.oneshot import save_session_journaled
@@ -46,7 +46,9 @@ def scan_request(service: int, pid_val: int, append_bytes: str = "") -> str:
 
 
 def check_range_scan(service: int, protocol: DiagProtocol, ecu: str) -> None:
-    """Raise :class:`SafetyBlocked` for RoutineControl to a KWP2000 ECU, where it starts one."""
+    """Refuse SecurityAccess sweeps and KWP2000 RoutineControl, which starts routines."""
+    if service == SECURITY_ACCESS:
+        raise SafetyBlocked("SecurityAccess cannot be scanned; select one level with unlock")
     if service == ROUTINE_CONTROL and protocol == KWP:
         raise SafetyBlocked(
             f"{ecu} speaks KWP2000, where 0x31 is StartRoutineByLocalIdentifier: every request "

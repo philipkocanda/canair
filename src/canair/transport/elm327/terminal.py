@@ -49,12 +49,12 @@ from canair.transport.elm327.addressing import (
     elm_id,
     target_in,
 )
-from canair.transport.elm327.channel import Channel
+from canair.transport.elm327.channel import Channel, suppress_security_trace
 from canair.transport.elm327.commands import RESET_COMMANDS, canonical
 from canair.transport.elm327.eeprom import init_commands
 from canair.transport.elm327.frame_count import CountKey, FrameCountCache, count_key
 from canair.transport.elm327.functional import elm_functional_exchange
-from canair.transport.elm327.pipe import ResponsePipe
+from canair.transport.elm327.pipe import ResponsePipe, reset_detail, stale_detail
 from canair.transport.elm327.session import short_ecu_wait
 from canair.transport.errors import CANNOT_INJECT_FRAME, AdapterRefusedError, TransportUnsupported
 from canair.transport.functional import DEFAULT_WINDOW_S, FunctionalResult, functional_request_bytes
@@ -63,8 +63,9 @@ from canair.transport.stats import TransportStats
 from canair.transport.timeouts import busy_retry_delay, pending_deadline
 from canair.transport.timing import TimingRecorder
 from canair.uds.addressing import AddressBook
-from canair.uds.parse import compact, parse_uds_response
+from canair.uds.parse import parse_uds_response
 from canair.uds.response import CAT_DECODE, CAT_STALE, UdsResponse
+from canair.uds.security import is_security_request, withhold_uncertain_response
 from canair.uds.services import TESTER_PRESENT_REQUEST
 
 # Response classes that prove the pipe is carrying something other than this
@@ -165,6 +166,7 @@ class Elm327Terminal:
         self.host: str | None = getattr(channel, "host", None)
         self.timeout = timeout
         self.verbose = verbose
+        self._security_seen = False
         self.unsafe = unsafe
         # Each ECU's session protocol + the profile's quirk allowances
         # (canair.safety.blocklist.SessionPolicy); set by whoever builds the terminal from a
@@ -330,6 +332,9 @@ class Elm327Terminal:
         if timeout is None:
             timeout = self.timeout
 
+        if is_security_request(cmd):
+            self._security_seen = True
+            suppress_security_trace(self._channel)
         await enforce_command_safety(cmd, self.unsafe, self.session_policy, self._cur_header)
 
         # Already inside a transaction on this task: the lock is held, and
@@ -490,14 +495,15 @@ class Elm327Terminal:
         for block in read.stale:
             self.diag.record(
                 CAT_STALE,
-                detail=f"discarded a late reply to an earlier command: {compact(block)[:40]!r}",
+                detail=stale_detail(block, security_seen=self._security_seen),
             )
 
         raw = read.block.replace("\r\n", "\n").replace("\r", "\n")
         raw = re.sub(r"[\x00-\x09\x0b-\x1f]", "", raw)
 
         result = raw.strip()
-        log_response(cmd, result)
+        if not self._security_seen:
+            log_response(cmd, result)
         cu = canonical(cmd)
         if not self._resyncing and not cu.startswith(_BANNER_COMMANDS):
             self._check_for_reset(cmd, result)
@@ -513,7 +519,12 @@ class Elm327Terminal:
         if read.clean and cu.startswith(_LINK_PROBE_CMDS):
             self.link.observe(elapsed)
         # Record RTT for real UDS requests only (skip AT setup + 3E00 keepalives).
-        if self._cur_header is not None and cu != TESTER_PRESENT_REQUEST and cu[:2] != "AT":
+        if (
+            self._cur_header is not None
+            and cu != TESTER_PRESENT_REQUEST
+            and cu[:2] != "AT"
+            and not is_security_request(cu)
+        ):
             self.timings.record(f"0x{self._cur_header:03X}", cu, elapsed)
         return result
 
@@ -621,9 +632,7 @@ class Elm327Terminal:
             self._reinit_pending = True
         log_event(
             "bus",
-            f"adapter answered {cmd} with its start-up banner {compact(result)[:24]!r}; "
-            "if it reset itself its settings are back to defaults, so the init is sent "
-            "again and the addressing restated",
+            reset_detail(cmd, result, security_seen=self._security_seen),
             transport=self.diag.transport,
         )
 
@@ -705,28 +714,7 @@ class Elm327Terminal:
         expected_echo: bytes | None = None,
         retries: int = 0,
     ) -> UdsResponse:
-        """Send a UDS request and parse the response.
-
-        Args:
-            service_pid: UDS request hex string (e.g., "2101", "22C00B")
-            timeout: channel-level timeout in seconds (see send_command docstring)
-            expected_sid: If set, the parser validates the response echoes this SID
-                (catches stale frames from previous requests).
-            expected_echo: Variable-width identifier echo (see
-                ``parse_uds_response``); validates the 1-byte service-21 PID or
-                2-byte service-22 DID a positive response must repeat.
-            retries: Re-send on a *non-answer* (timeout / NO DATA / transport
-                error) up to this many extra times. A definitive negative
-                response (NRC) or a positive response is returned immediately —
-                only silence is retried. The Ioniq's first request after idle
-                often times out (see profile note); one retry recovers it.
-                A reply that fails echo/SID validation is retried too, but only
-                after the pipe has been realigned (see :meth:`_resync`) — a plain
-                re-send into an offset pipe just draws the next stale reply.
-
-        Returns:
-            Parsed response dict from parse_uds_response()
-        """
+        """Send and validate an exchange, with the retry contract on ``Terminal.send_uds``."""
         if timeout is None:
             # Per-ECU budget for the current header, else the client default.
             timeout = self.ecu_timeouts.get(self._cur_header, self.timeout)
@@ -738,7 +726,12 @@ class Elm327Terminal:
         # was forgotten that sends nothing.
         header = self._cur_header
         protocol = self.session_policy.protocol(header)
-        counting = self._frame_counts.attempt(count_key(header, service_pid, protocol))
+        sensitive = is_security_request(service_pid)
+        counting = (
+            None
+            if sensitive
+            else self._frame_counts.attempt(count_key(header, service_pid, protocol))
+        )
         # One transaction for the whole retry sequence: a keepalive slipping in
         # between attempts would re-point the header and invalidate the retry.
         async with self.transaction():
@@ -746,7 +739,7 @@ class Elm327Terminal:
                 if self._addressed is not None:
                     tx_id, target = self._addressed
                     await self.set_header(tx_id, target=target)
-                command = counting.command(service_pid)
+                command = service_pid if counting is None else counting.command(service_pid)
                 raw = await self.send_command(command, timeout=timeout)
                 resp = parse_uds_response(
                     raw,
@@ -755,15 +748,17 @@ class Elm327Terminal:
                     protocol=protocol,
                     request=command,
                 )
+                recorded = resp if not self._security_seen else {**resp, "error": "redacted"}
                 self.diag.record_response(
-                    resp,
+                    recorded,
                     ecu=(f"0x{header:03X}" if header is not None else None),
-                    pid=service_pid,
+                    pid=None if self._security_seen else service_pid,
                     tx_id=header,
                 )
 
-                verdict = counting.verdict(resp)
-                if verdict.retry_plain:
+                verdict = counting.verdict(resp) if counting is not None else None
+                if verdict is not None and verdict.retry_plain:
+                    assert counting is not None
                     # `_resync` is idempotent and skips when already realigning, so
                     # a drop mid-recovery cannot recurse. The retry is not funded
                     # from `retries`, so the optimization can cost latency but
@@ -772,46 +767,39 @@ class Elm327Terminal:
                         await self._resync(f"{resp.get('error_kind')} response to {command}")
                     if self.verbose:
                         origin = "profile" if counting.was_seeded else "learned"
+                        note = "response withheld" if self._security_seen else verdict.note
                         print(
-                            f"  [count] {command}: {verdict.note} ({origin})",
+                            f"  [count] {command}: {note} ({origin})",
                             file=sys.stderr,
                         )
                     continue
 
                 if resp.get("error_kind") in _RESYNC_ON:
-                    # Two different proofs that the pipe holds something that is
-                    # not this request's answer:
-                    #
-                    # - `stale`: validation caught an *older request's* reply, so a
-                    #   newer one is still queued. Leaving the offset in place is
-                    #   the original bug — every later reply arrives
-                    #   prompt-terminated, so the dirty-pipe flag never trips
-                    #   again and the session never recovers.
-                    # - `decode`: the adapter sent bytes that are not a UDS
-                    #   response at all — a connect banner or line noise.
-                    #   Prompt accounting cannot catch this one, because a banner
-                    #   carries its own prompt and so looks like a paid debt; only
-                    #   its content gives it away.
-                    #
-                    # Realign unconditionally, even when not retrying: the caller
-                    # may never send another request on this PID.
-                    #
-                    # `no_data` deliberately does *not* qualify. An ECU that simply
-                    # did not answer is the normal case during a scan, and draining
-                    # on every miss would cost a probe round trip per unmapped PID.
-                    await self._resync(f"{resp.get('error_kind')} response to {service_pid}")
+                    # Stale/undecodable replies can leave the pipe offset, even when no retry
+                    # follows. Silence is different: see docs/development/link-health.md.
+                    reason = "sensitive response" if self._security_seen else service_pid
+                    await self._resync(f"{resp.get('error_kind')} response to {reason}")
 
-                if (delay := busy_retry_delay(resp, service_pid, protocol, busy)) is not None:
+                delay = None if sensitive else busy_retry_delay(resp, service_pid, protocol, busy)
+                if delay is not None:
                     busy += 1
                     await asyncio.sleep(delay)
                     continue
-                if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
-                    return resp
+                if sensitive or resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
+                    return (
+                        withhold_uncertain_response(resp)
+                        if self._security_seen and not sensitive
+                        else resp
+                    )
                 attempt += 1
                 if self.verbose:
+                    error = (
+                        "response withheld"
+                        if self._security_seen
+                        else resp.get("error", "no response")
+                    )
                     print(
-                        f"  [retry] {service_pid}: {resp.get('error', 'no response')}"
-                        f" — retry {attempt}/{retries}",
+                        f"  [retry] {service_pid}: {error} — retry {attempt}/{retries}",
                         file=sys.stderr,
                     )
 

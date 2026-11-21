@@ -30,11 +30,14 @@ from canair.cli.live import (
 )
 from canair.cli.live.handlers import elm_only, multi, reads
 from canair.cli.profile_context import active
+from canair.core.prompt import PromptUnavailable, confirm
 from canair.ecus.ecu_groups import GroupError
+from canair.ecus.pids import build_ecu_index
 from canair.live.read.multi import parse_sub_commands
 from canair.privacy.sensitive import set_reveal
-from canair.query.steps import query_ecu_error
+from canair.query.steps import query_ecu_error, resolve_tx_id
 from canair.render import messages
+from canair.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
 
 NAME = "read"
 ALIASES = ["query"]
@@ -57,6 +60,8 @@ examples:
   canair read @driving CLU:220B             A group plus an extra selector
   canair read "skm-wake acc" "query IGPM:BC03,BC06"
   canair read --param SOC_BMS SOC_DISP      Read named signals
+  canair read --security-provider /path/to/provider "session ECU --mode 03" \\
+    "unlock ECU --level 01" "query ECU:2101"
 
 `canair query` is a kept alias. For a live, continuously-refreshing view use
 `canair monitor` instead.
@@ -74,6 +79,14 @@ examples:
     parser.add_argument("--session", action="store_true", help="Enter extended session (10 03)")
     add_wake_arg(parser)
     parser.add_argument("--repl", action="store_true", help="Drop into REPL after the pipeline")
+    security = parser.add_mutually_exclusive_group()
+    security.add_argument(
+        "--security-provider", metavar="PATH", help="Trusted executable to calculate a security key"
+    )
+    security.add_argument(
+        "--security-key-file", metavar="PATH", help="File containing a fixed binary security key"
+    )
+    parser.add_argument("--yes", action="store_true", help="Confirm a SecurityAccess unlock")
     parser.add_argument("--save", action="store_true", help="Save results to captures/")
     parser.add_argument(
         "--label",
@@ -135,16 +148,64 @@ def run(args) -> int:
             messages.error(str(e))
             return 2
 
-        # Reject typo'd/unknown ECU names in query steps before connecting, so a
-        # mistake like "query ESC ECS" fails loudly instead of silently polling
-        # only the valid ECU(s).
+        # Validate selectors and session ordering before asking for consent or connecting.
         query_steps = [c for c in commands if c["type"] == "query"]
+        unlocks = [c for c in commands if c["type"] == "unlock"]
+        pids_data = load_pids(profile=active()) if query_steps or unlocks else {}
         if query_steps:
-            ecu_err = query_ecu_error(query_steps, load_pids(profile=active()), profile=active())
+            ecu_err = query_ecu_error(query_steps, pids_data, profile=active())
             if ecu_err:
                 messages.error(ecu_err)
                 return 2
             report_merged_selectors(query_steps)
+
+        if unlocks:
+            # deferred: the provider is used only by an explicitly requested unlock.
+            from canair.live.read.security_provider import (
+                ProviderError,
+                check_key_file,
+                check_provider,
+            )
+
+            index = build_ecu_index(pids_data)
+            sessions: set[int] = set()
+            for command in commands:
+                if command["type"] not in ("session", "unlock"):
+                    continue
+                tx = resolve_tx_id(command["target"], index, profile=active())
+                if tx is None or tx in (FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID):
+                    messages.error("SecurityAccess needs a valid physical ECU target")
+                    return 2
+                if command["type"] == "session":
+                    sessions.add(tx)
+                elif tx not in sessions:
+                    messages.error("unlock needs a preceding session step for the same ECU")
+                    return 2
+
+            if not (args.security_provider or args.security_key_file):
+                messages.error("unlock needs --security-provider or --security-key-file")
+                return 2
+            if args.security_provider:
+                try:
+                    check_provider(args.security_provider)
+                except ProviderError as e:
+                    messages.error(str(e))
+                    return 2
+            else:
+                try:
+                    check_key_file(args.security_key_file)
+                except ProviderError as e:
+                    messages.error(str(e))
+                    return 2
+            try:
+                targets = ", ".join(f"{c['target']} level {c['level']:02X}" for c in unlocks)
+                if not confirm(f"Open SecurityAccess on {targets}?", yes=args.yes, danger=True):
+                    return 1
+                args.security_confirmed = True
+            except PromptUnavailable as e:
+                messages.error(str(e))
+                return 2
+
         operation = LiveOperation(
             multi.handle_multi, records=any(c["type"] in ("query", "raw") for c in commands)
         )

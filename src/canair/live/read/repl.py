@@ -21,6 +21,7 @@ from canair.render import messages
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.session_manager import SessionManager
 from canair.uds.parse import parse_uds_response
+from canair.uds.security import is_security_request, is_security_response
 
 from ..elm.skm_wakeup import SKM_SESSION_MODE, SKM_TX_ID, mode_skm_wakeup
 from .exec import _exec_raw, exec_query
@@ -53,6 +54,7 @@ class ReplCommands:
     verbose: bool
     include_static: bool
     profile: Profile
+    security_seen: bool = False
     # The ECU a typed ATSH named: a bare request goes there, whatever a keepalive set since.
     last_tx_id: int | None = None
 
@@ -70,6 +72,7 @@ class ReplCommands:
             await self._query(cmd.split()[1:])
         elif cmd_lower.startswith("raw "):
             spec = cmd.split(None, 1)[1].lstrip("!")
+            self.security_seen |= is_security_request(spec.split(":", 1)[-1])
             await _exec_raw(self.sm, spec, hold=False, verbose=self.verbose, profile=self.profile)
         else:
             await self._send(cmd)
@@ -134,8 +137,12 @@ class ReplCommands:
         except Exception as e:
             messages.error(str(e))
             return
-        print(raw)
         response = parse_uds_response(raw, request=cmd)
+        self.security_seen |= is_security_request(cmd)
+        withheld = self.security_seen and not response.get("ok") and response.get("nrc") is None
+        withheld |= is_security_request(cmd) or is_security_response(response.get("bytes") or b"")
+        shown = response.get("hex", "[reply withheld]") if self.security_seen else raw
+        print("  SecurityAccess response withheld" if withheld else shown)
         if response.get("nrc") is not None:
             print(f"  [NRC] 0x{response['nrc']:02X} ({response.get('nrc_desc', 'unknown')})")
 
@@ -153,7 +160,9 @@ async def _multi_repl(
 
     Extends the standard REPL with session keepalives and multi-ECU commands.
     """
-    commands = ReplCommands(sm, ecu_index, pids_data, verbose, include_static, profile)
+    commands = ReplCommands(
+        sm, ecu_index, pids_data, verbose, include_static, profile, security_seen=sm.security_seen
+    )
     sm.start_background_keepalive()
 
     sessions = ", ".join(f"0x{tx:03X}" for tx in sm.active_sessions)

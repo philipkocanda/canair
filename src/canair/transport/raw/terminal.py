@@ -66,6 +66,7 @@ from canair.uds.frame_counts import FrameCountLedger, count_key, frames_for_payl
 from canair.uds.nrc import is_negative_response, is_response_pending
 from canair.uds.parse import parse_uds_response
 from canair.uds.response import CAT_DROP, UdsResponse
+from canair.uds.security import is_security_request, withhold_uncertain_response
 from canair.uds.services import TESTER_PRESENT_REQUEST
 
 logging.getLogger("isotp").setLevel(logging.ERROR)
@@ -170,6 +171,7 @@ class RawTerminal:
         self._rx_faults = ReceptionFaults()
         self._broken: str | None = None
         self._cur: int | None = None
+        self._security_seen = False
         # The ECU a request goes to is `_cur`, set by `set_header`: shared state, the
         # same as an ELM327 header. One lock guards it and the exchange, so another task
         # can neither re-point a request nor read from the same stack mid-exchange.
@@ -225,6 +227,8 @@ class RawTerminal:
             except ValueError:
                 return parse_uds_response("?")
             protocol = self.session_policy.protocol(tx)
+            sensitive = is_security_request(service_pid)
+            self._security_seen |= sensitive
             if timeout is None and positive_response_suppressed(service_pid, protocol):
                 # Only an NRC can come back, within P2: no need to wait out a reply budget.
                 timeout = SUPPRESSED_NRC_WAIT_S + (self.link.budget or 0.0)
@@ -232,7 +236,8 @@ class RawTerminal:
             while True:
                 resp_bytes = await self._exchange(tx, req, timeout)
                 raw = "NO DATA" if resp_bytes is None else resp_bytes.hex().upper()
-                log_response(service_pid, raw)
+                if not self._security_seen:
+                    log_response(service_pid, raw)
                 resp = parse_uds_response(
                     raw,
                     expected_sid=expected_sid,
@@ -250,24 +255,28 @@ class RawTerminal:
                     # always 1. The true figure is what the ISO-TP layer put on the bus,
                     # which the payload length fixes.
                     resp["isotp_frame_count"] = frames_for_payload(len(resp_bytes))
-                    if resp.get("ok"):
+                    if resp.get("ok") and not sensitive:
                         self.frame_counts.observe(
                             count_key(tx, service_pid, protocol), resp["isotp_frame_count"]
                         )
                 self.diag.record_response(
-                    resp,
+                    {**resp, "error": "redacted"} if self._security_seen else resp,
                     ecu=(f"0x{tx:03X}" if tx is not None else None),
-                    pid=service_pid,
+                    pid=None if self._security_seen else service_pid,
                     tx_id=tx,
                 )
-                delay = busy_retry_delay(resp, service_pid, protocol, busy)
+                delay = None if sensitive else busy_retry_delay(resp, service_pid, protocol, busy)
                 if delay is not None:
                     busy += 1
                     await asyncio.sleep(delay)
                     continue
                 # Retry only a non-answer (NO DATA / timeout); any other NRC is definitive.
-                if resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
-                    return resp
+                if sensitive or resp.get("ok") or resp.get("nrc") is not None or attempt >= retries:
+                    return (
+                        withhold_uncertain_response(resp)
+                        if self._security_seen and not sensitive
+                        else resp
+                    )
                 attempt += 1
 
     async def send_command(self, cmd: str, timeout: float | None = None) -> str:
@@ -275,6 +284,7 @@ class RawTerminal:
         async with self.transaction():
             tx = self._cur
             await enforce_command_safety(cmd, self.unsafe, self.session_policy, tx)
+            self._security_seen |= is_security_request(cmd)
             c = cmd.strip()
             if c.upper().startswith("AT"):
                 return "OK"
@@ -431,7 +441,7 @@ class RawTerminal:
             elapsed = time.monotonic() - t0
             self.cmd_time += elapsed
             # Record RTT for real UDS requests only (skip 3E00 keepalives).
-            if req.hex().upper() != TESTER_PRESENT_REQUEST:
+            if req.hex().upper() != TESTER_PRESENT_REQUEST and not is_security_request(req):
                 self.timings.record(f"0x{tx_id:03X}", req.hex().upper(), elapsed)
 
 

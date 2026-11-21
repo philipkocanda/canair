@@ -38,6 +38,7 @@ from canair.transport import keepalive
 from canair.transport.protocol import Terminal
 from canair.transport.session_table import SessionTable
 from canair.uds.echo import request_echo
+from canair.uds.protocol import KWP
 from canair.uds.requests import session_request
 from canair.uds.services import (
     DEFAULT_SESSION_REQUEST,
@@ -45,7 +46,12 @@ from canair.uds.services import (
     TESTER_PRESENT,
     TESTER_PRESENT_REQUEST,
 )
-from canair.uds.subfunctions import SessionType, format_session_type, parse_session_type
+from canair.uds.subfunctions import (
+    KwpSessionType,
+    SessionType,
+    format_session_type,
+    parse_session_type,
+)
 
 #: The session :meth:`SessionManager.open_session` enters unless told otherwise.
 DEFAULT_SESSION_MODE = SessionType.EXTENDED_DIAGNOSTIC_SESSION
@@ -104,6 +110,8 @@ class SessionManager:
         # Why the background keepalive stopped on its own: the link failed under it.
         # Nothing awaits that task, so the error is kept here for the caller to act on.
         self.link_error: ConnectionError | None = None
+        self.security_seen = False
+        self.security_targets: set[int] = set()
 
     # -- state ---------------------------------------------------------------
     @property
@@ -337,7 +345,7 @@ class SessionManager:
                 self.table.forget(tx_id)
 
     # -- keeping alive ---------------------------------------------------------
-    async def send_keepalive(self, tx_id: int):
+    async def send_keepalive(self, tx_id: int, *, sensitive: bool = False) -> bool:
         """Send TesterPresent (3E00) to a specific ECU.
 
         Validated (by service, and on a UDS ECU by its ``00`` echo) and transactional on
@@ -368,8 +376,11 @@ class SessionManager:
         # never answers with a 3E00 on every poll cycle.
         self.table.mark_active(tx_id)
         if self.verbose:
-            state = "ok" if resp.get("ok") else resp.get("error", "failed")
+            state = (
+                "ok" if resp.get("ok") else ("failed" if sensitive else resp.get("error", "failed"))
+            )
             _status(f"  [session] 3E00 -> 0x{tx_id:03X}: {state}")
+        return bool(resp.get("ok"))
 
     async def keepalive_stale(self, threshold: float = KEEPALIVE_IDLE_S):
         """Send keepalives to all sessions that haven't been refreshed recently.
@@ -451,22 +462,30 @@ class SessionManager:
 
     # -- closing ---------------------------------------------------------------
     async def close_session(self, tx_id: int):
-        """Return an ECU to default session (1001)."""
+        """Return an ECU to default; security-enabled KWP uses its standard session."""
         if not self.table.has(tx_id):
             return
+        security = tx_id in self.security_targets
+        request = DEFAULT_SESSION_REQUEST
+        if security and self.terminal.session_policy.protocol(tx_id) == KWP:
+            request = session_request(KwpSessionType.STANDARD_DIAGNOSTIC_SESSION)
+        closed = False
         try:
             async with self.terminal.transaction():
                 await self.terminal.set_header(tx_id)
-                await self.terminal.send_uds(
-                    DEFAULT_SESSION_REQUEST,
-                    timeout=2.0,
-                    expected_sid=DIAGNOSTIC_SESSION_CONTROL,
-                )
+                result = await self._send_checked(tx_id, request, DIAGNOSTIC_SESSION_CONTROL, 2.0)
+                closed = bool(result.get("ok"))
         except Exception:
             pass
         self.table.forget(tx_id)
+        self.security_targets.discard(tx_id)
+        if security and not closed:
+            messages.warning(
+                "security session close was not confirmed; ECU access may remain active"
+            )
         if self.verbose:
-            _status(f"  [session] 0x{tx_id:03X}: closed (returned to default session)")
+            status = "closed" if closed else "close not confirmed"
+            _status(f"  [session] 0x{tx_id:03X}: {status}")
 
     async def close_all(self):
         """Close all active sessions."""

@@ -58,6 +58,11 @@ def test_mode_scan_itself_sends_no_routine_control_to_kwp2000():
     assert term.sent == []
 
 
+def test_security_access_cannot_be_swept_even_with_yes():
+    with pytest.raises(SafetyBlocked, match="SecurityAccess cannot be scanned"):
+        _confirm(_terminal(UDS), 0x27, (0x01, 0x03), yes=True)
+
+
 def test_an_actuating_scan_asks_and_a_decline_says_no(monkeypatch, capsys):
     monkeypatch.setattr("sys.stdin", _Stdin("n\n", tty=True))
     assert _confirm(_terminal(UDS), 0x31, (0xF000, 0xF0FF)) is False

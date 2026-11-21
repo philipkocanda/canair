@@ -16,6 +16,8 @@ from canair.ecus.names import build_canonical_name_index, canonical_ecu_name_saf
 from canair.ecus.pids import build_ecu_index
 from canair.profile.model import Profile
 from canair.query import looks_like_pid, parse_query
+from canair.uds.security import is_security_request
+from canair.uds.services import SECURITY_ACCESS
 
 _RAW_SPEC = re.compile(r"^([0-9A-Fa-f]{3})[:\s]([0-9A-Fa-f]+)$")
 
@@ -30,9 +32,14 @@ def parse_raw_spec(spec: str) -> tuple[int, str]:
     """
     match = _RAW_SPEC.match(spec)
     if not match:
+        candidate = re.match(r"^[0-9A-Fa-f]{3}[:\s](.*)$", spec)
+        if candidate and is_security_request(candidate.group(1)):
+            raise ValueError("invalid SecurityAccess raw request")
         raise ValueError(f"invalid raw request {spec!r} (expected TX:REQUEST, e.g. 770:22BC03)")
     request = match.group(2).upper()
     if len(request) % 2:
+        if is_security_request(request):
+            raise ValueError("SecurityAccess request has an odd number of hex digits")
         raise ValueError(
             f"raw request {request} has an odd number of hex digits (a request is whole "
             "bytes; an ELM327 reads a trailing nibble as a response-frame count)"
@@ -276,12 +283,25 @@ def parse_sub_commands(args: list[str], *, profile: Profile) -> list[dict]:
             target = parts[1]
             commands.append({"type": "session", "target": target, "wake": wake, "mode": mode})
 
+        elif verb == "unlock":
+            if len(parts) != 4 or parts[2] != "--level":
+                raise ValueError("unlock requires: unlock ECU --level HEX")
+            try:
+                level = int(parts[3], 16)
+            except ValueError:
+                raise ValueError("unlock level must be a hexadecimal byte") from None
+            if not 1 <= level <= 0xFD or not level & 1:
+                raise ValueError("unlock level must be an odd hexadecimal byte from 01 to FD")
+            commands.append({"type": "unlock", "target": parts[1], "level": level})
+
         elif verb == "query":
             if len(parts) < 2:
                 raise ValueError(
                     "'query' requires a selection: query IGPM:BC03,BC06  or  query VCU:2101 BMS:2101"
                 )
             for ecu, pids in query_selectors(parts[1:]):
+                if any(pid.upper().startswith(f"{SECURITY_ACCESS:02X}/") for pid in pids):
+                    raise ValueError("SecurityAccess is not a signal query; use an unlock step")
                 commands.append({"type": "query", "ecu": ecu, "pids": pids})
 
         elif verb == "raw":
@@ -322,10 +342,12 @@ def parse_sub_commands(args: list[str], *, profile: Profile) -> list[dict]:
         else:
             raise ValueError(
                 f"Unknown sub-command: {verb!r}. "
-                f"Available: skm-wake, session, query, raw, scan, sleep, "
+                f"Available: skm-wake, session, unlock, query, raw, scan, sleep, "
                 f"iocontrol, repl"
             )
 
+    if sum(command["type"] == "unlock" for command in commands) > 1:
+        raise ValueError("a pipeline may contain only one SecurityAccess unlock")
     return normalize_query_steps(commands, profile=profile)
 
 

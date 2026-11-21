@@ -5,7 +5,9 @@ import time
 
 import pytest
 
+from canair.safety.blocklist import SessionPolicy
 from canair.transport.session_manager import SessionManager
+from canair.uds.protocol import KWP
 from tests.support.fakes import FakeTerminal, nrc
 from tests.support.fakes import ok as _ok
 
@@ -127,6 +129,29 @@ class TestSessionMode:
         assert sm.session_mode(0x770) == 0x81
         await sm.close_session(0x770)
         assert sm.session_mode(0x770) is None
+
+
+class TestSecuritySessionClose:
+    @pytest.mark.asyncio
+    async def test_kwp_security_session_returns_to_standard_mode(self):
+        terminal = FakeTerminal({"1081": _ok("5081")})
+        terminal.session_policy = SessionPolicy(protocols={0x720: KWP})
+        sm = SessionManager(terminal)
+        sm.track(0x720, 0x90)
+        sm.security_targets.add(0x720)
+        await sm.close_session(0x720)
+        assert terminal.sent == ["1081"]
+        assert not sm.has_session(0x720)
+
+    @pytest.mark.asyncio
+    async def test_security_close_refusal_warns_that_access_may_remain(self, capsys):
+        terminal = FakeTerminal({"1081": nrc(0x12)})
+        terminal.session_policy = SessionPolicy(protocols={0x720: KWP})
+        sm = SessionManager(terminal)
+        sm.track(0x720, 0x90)
+        sm.security_targets.add(0x720)
+        await sm.close_session(0x720)
+        assert "access may remain active" in capsys.readouterr().err
 
 
 # --- keepalive ---

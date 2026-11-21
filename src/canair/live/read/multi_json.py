@@ -16,6 +16,7 @@ from canair.expression.results import ResultEntry
 from canair.privacy.sensitive import MASK, request_hidden
 from canair.profile.model import Profile
 from canair.uds.response import UdsResponse
+from canair.uds.security import is_security_request
 
 
 def _ecu_name(ecu_label: str) -> str:
@@ -69,10 +70,14 @@ def raw_document(
     shown = MASK if request_hidden(tx_id, request, profile=profile) else response.get("hex")
     doc: dict[str, Any] = {
         "ecu": f"0x{tx_id:03X}",
-        "pid": request,
+        "pid": MASK if is_security_request(request) else request,
         "raw": shown if response.get("ok") else None,
         "params": [],
     }
     if not response.get("ok"):
-        doc["error"] = response.get("error") or response.get("nrc_desc") or "no reply"
+        doc["error"] = (
+            "sensitive request failed"
+            if is_security_request(request)
+            else response.get("error") or response.get("nrc_desc") or "no reply"
+        )
     return doc

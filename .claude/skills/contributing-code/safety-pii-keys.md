@@ -33,9 +33,10 @@ jurisdictions and dangerous.** It gates the services that reflash or reprogram a
 it is exactly what manufacturers restrict to authorized dealers and licensed repairers.
 
 **canair deliberately ships no key-cracking / seed→key solver.** One existed and was removed; do not
-re-add it, nor a per-marque algorithm bank, a seed:key pair identifier, or a `security` pipeline
-step. canair stays *aware* of `0x27` at the protocol level (service table, `securityAccessDenied`
-NRC classification, response pretty-printing) but never attempts to break it.
+re-add it, nor a per-marque algorithm bank or a seed:key pair identifier. An explicitly selected,
+user-supplied external provider may supply a response for one SecurityAccess exchange: it runs
+only by user request, with confirmation and without disclosing or storing the exchange. The design
+and safeguards are in `plans/2026-11-21-external-security-access.md`.
 
 **Forbidden everywhere (code, data, captures, docs, tests, commit messages, history):** keys,
 seed→key pairs, recorded successful-unlock exchanges; seed→key transforms, PINs, passwords,
@@ -43,7 +44,6 @@ certificates, manufacturer secrets; solvers/brute-forcers in any form; and anyth
 reader reconstruct the above, including a "worked example" or a realistic fixture built from a real
 ECU's seed/key.
 
-**Practices:** tests use invented seeds/keys only, and only to cover protocol *awareness*, never a
-solver. If a user needs a capability requiring security access, **do not source, derive, or share
-the key** — direct them to an authorized dealer or licensed repairer. Key material already in the
-tree is a **security incident**: flag it (history purge, key rotation), don't delete-and-move-on.
+**Practices:** tests use invented seeds and responses only, with an inert provider that is not a
+solver. Do not source, derive, embed or share an ECU key in the public tree. Key material already
+in the tree is a **security incident**: flag it (history purge, key rotation), don't delete-and-move-on.

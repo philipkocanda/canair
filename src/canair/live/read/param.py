@@ -10,6 +10,7 @@ from canair.render import messages
 from canair.render.signal_table import print_decoded_params
 from canair.transport.session_manager import SessionManager
 from canair.uds.echo import request_echo
+from canair.uds.security import is_security_request
 
 from ...transport.protocol import Terminal
 from .exec_read import timed_exchange
@@ -59,6 +60,10 @@ async def mode_param(
                 messages.hint(f"did you mean: {', '.join(matches[:5])}")
             continue
         info = param_index[key]
+        if is_security_request(info["pid"]):
+            unknown = True
+            messages.error("SecurityAccess cannot be read as a signal")
+            continue
         group_key = (info["tx_id"], info["pid"])
         if group_key not in groups:
             groups[group_key] = []

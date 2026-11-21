@@ -156,6 +156,8 @@ ones you use most.
 
 Related commands: `discover` (which ECUs answer), `io` and `routines` (actuators and routines),
 `raw` and `repl` (low-level access). See [safety](https://philipkocanda.github.io/canair/concepts/safety/).
+For SecurityAccess with a user-supplied key, see
+[SecurityAccess](https://philipkocanda.github.io/canair/concepts/security-access/).
 
 **Analysis** (offline, never touches the car)
 

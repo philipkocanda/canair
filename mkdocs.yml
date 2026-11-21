@@ -133,6 +133,7 @@ nav:
           - Vehicle states: concepts/vehicle-states.md
           - Capture file format: concepts/capture-format.md
           - Safety: concepts/safety.md
+          - SecurityAccess: concepts/security-access.md
       - Talking to the car:
           - ECU protocols & PID prefixes: concepts/ecu-protocols.md
           - Query mini-language: concepts/query-mini-language.md

@@ -36,6 +36,7 @@ from typing import Final, Literal
 from canair.safety.blocklist import check_command_safety
 from canair.uds.protocol import KWP, UDS, DiagProtocol
 from canair.uds.requests import io_control_request
+from canair.uds.security import is_seed_request
 from canair.uds.services import (
     DIAGNOSTIC_SESSION_CONTROL,
     INPUT_OUTPUT_CONTROL_BY_IDENTIFIER,
@@ -81,7 +82,7 @@ ACTUATE: Final[RequestClass] = "actuate"
 _UDS_RETURN_CONTROL = IoControlParameter.RETURN_CONTROL_TO_ECU
 
 # Services that only read, or only move the diagnostic session, on every protocol:
-# the OBD-II read modes, DTC and data reads, SecurityAccess and TesterPresent. Session
+# the OBD-II read modes, DTC and data reads, and TesterPresent. Session
 # control is judged by its session type (_session_class). 0x04 (OBD-II clear) and 0x14 (clear diagnostic information) are
 # deliberately absent: clearing DTCs changes ECU state.
 _READ_SERVICES: Final = frozenset(
@@ -101,7 +102,6 @@ _READ_SERVICES: Final = frozenset(
         KWP_READ_DATA_BY_LOCAL_IDENTIFIER,
         READ_DATA_BY_IDENTIFIER,
         READ_MEMORY_BY_ADDRESS,
-        SECURITY_ACCESS,
         TESTER_PRESENT,
     }
 )
@@ -205,6 +205,8 @@ def classify(
     sid = data[0]
     if normalize_request(data) in {normalize_request(r) for r in releases}:
         return RELEASE
+    if sid == SECURITY_ACCESS:
+        return READ if is_seed_request(data, protocol) else ACTUATE
     if sid in _READ_SERVICES:
         return READ
     if sid == DIAGNOSTIC_SESSION_CONTROL:

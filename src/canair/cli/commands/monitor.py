@@ -239,6 +239,10 @@ def run(args) -> int:
         messages.error(str(e))
         return 2
 
+    if any(c["type"] == "unlock" for c in commands):
+        messages.error("SecurityAccess is supported in read pipelines, not monitor")
+        return 2
+
     query_steps = [c for c in commands if c["type"] == "query"]
     if not query_steps:
         messages.error("monitor requires at least one 'query' step")

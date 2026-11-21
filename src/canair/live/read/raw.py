@@ -12,7 +12,9 @@ from canair.render import messages
 from canair.render.formatting import format_raw_with_bnn, print_hexdump, print_json_result
 from canair.transport.stats import client_transport
 from canair.uds.describe import SUPPRESSED_NOTE, decode_uds_response
+from canair.uds.echo import request_echo
 from canair.uds.response import UdsResponse
+from canair.uds.security import is_security_request
 
 from ...captures.build import build_raw_session, suggest_raw_label
 from ...captures.oneshot import save_session_journaled
@@ -57,7 +59,8 @@ async def mode_raw(
     if hold or wake:
         session = True
 
-    print(f"\n  TX: 0x{tx_id:03X}  Request: {service_pid}", file=sys.stderr if as_json else None)
+    shown = MASK if is_security_request(service_pid) else service_pid
+    print(f"\n  TX: 0x{tx_id:03X}  Request: {shown}", file=sys.stderr if as_json else None)
 
     save_result = functools.partial(
         _save_raw,
@@ -74,17 +77,32 @@ async def mode_raw(
     await terminal.set_header(tx_id)
 
     async with held_session(terminal, tx_id, profile=profile, enabled=session, wake=wake) as held:
-        response = await terminal.send_uds(service_pid, retries=1)
-        hidden = response["ok"] and request_hidden(tx_id, service_pid, profile=profile)
+        echo = request_echo(service_pid, terminal.session_policy.protocol(tx_id))
+        async with terminal.transaction():
+            await terminal.set_header(tx_id)
+            response = await terminal.send_uds(
+                service_pid,
+                retries=1,
+                expected_sid=echo[0] if echo else int(service_pid[:2], 16),
+                expected_echo=echo[1] if echo else b"",
+            )
+        hidden = request_hidden(tx_id, service_pid, profile=profile)
 
         if as_json:
-            print_json_result(masked_response(response) if hidden else response)
+            rendered = masked_response(response) if hidden else response
+            if is_security_request(service_pid) and rendered.get("error"):
+                rendered["error"] = "sensitive request failed"
+            print_json_result(rendered)
             if not hold:
                 if save:
                     save_result(response)
                 return
         elif not response["ok"]:
-            error = response.get("error") or response.get("nrc_desc", "unknown error")
+            error = (
+                "sensitive request failed"
+                if is_security_request(service_pid)
+                else response.get("error") or response.get("nrc_desc", "unknown error")
+            )
             if response.get("nrc") is not None:
                 print(f"  NRC: 0x{response['nrc']:02X} -- {response['nrc_desc']}")
                 print(f"  Service: 0x{response.get('nrc_service', 0):02X}")
@@ -101,7 +119,7 @@ async def mode_raw(
                     messages.note("nothing to save: the ECU sent no reply")
                 return
         elif hidden:
-            print(f"  Response: {MASK}  (sensitive — read --reveal to show)")
+            print(f"  Response: {MASK}  (sensitive)")
         else:
             decode = decode_uds_response(response["bytes"])
             if decode:
@@ -139,6 +157,10 @@ def _save_raw(
     profile: Profile,
 ) -> None:
     """Prompt (or use provided metadata) and save a raw request result to captures."""
+
+    if is_security_request(request):
+        messages.note("SecurityAccess exchange is never saved")
+        return
 
     ecu = ecu_name(tx_id, profile=profile)
     suggested = suggest_raw_label(ecu, request)

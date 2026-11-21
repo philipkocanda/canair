@@ -90,7 +90,14 @@ class Terminal(Protocol):
         expected_sid: int | None = ...,
         expected_echo: bytes | None = ...,
         retries: int = ...,
-    ) -> UdsResponse: ...
+    ) -> UdsResponse:
+        """Send hex and validate the expected request SID and identifier/subfunction echo.
+
+        ``retries`` permits that many resends after a non-answer; negative and positive replies
+        settle immediately. An ELM327 realigns the pipe before retrying an invalid echo. A
+        SecurityAccess exchange is never retried or frame-count optimized.
+        """
+        ...
 
     async def send_command(self, cmd: str, timeout: float | None = ...) -> str: ...
 

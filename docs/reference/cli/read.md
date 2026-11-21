@@ -6,8 +6,9 @@
 
 ```
 usage: canair read [-h] [--param NAME [NAME ...]] [--session] [--wake]
-                   [--repl] [--save] [--label TEXT] [--state TEXT]
-                   [--notes TEXT] [--reveal] [--include-static]
+                   [--repl] [--security-provider PATH |
+                   --security-key-file PATH] [--yes] [--save] [--label TEXT]
+                   [--state TEXT] [--notes TEXT] [--reveal] [--include-static]
                    [--wican WICAN]
                    [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                    [--no-fallback] [--wait] [--elm-timeout MS]
@@ -29,6 +30,11 @@ options:
   --wake                Wake ECUs from deep sleep first (the ECU's wake:
                         ritual, else 10 01)
   --repl                Drop into REPL after the pipeline
+  --security-provider PATH
+                        Trusted executable to calculate a security key
+  --security-key-file PATH
+                        File containing a fixed binary security key
+  --yes                 Confirm a SecurityAccess unlock
   --save                Save results to captures/
   --label TEXT          Session label for --save (asked for when omitted; with
                         no terminal the session is saved under a generated
@@ -95,6 +101,8 @@ examples:
   canair read @driving CLU:220B             A group plus an extra selector
   canair read "skm-wake acc" "query IGPM:BC03,BC06"
   canair read --param SOC_BMS SOC_DISP      Read named signals
+  canair read --security-provider /path/to/provider "session ECU --mode 03" \
+    "unlock ECU --level 01" "query ECU:2101"
 
 `canair query` is a kept alias. For a live, continuously-refreshing view use
 `canair monitor` instead.

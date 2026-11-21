@@ -22,6 +22,25 @@ from canair.uds.nrc import NRC_RESPONSE_PENDING
 from canair.uds.parse import compact
 from canair.uds.services import NEGATIVE_RESPONSE_SID
 
+
+def stale_detail(block: str, *, security_seen: bool) -> str:
+    """Describe an orphan without exposing a possibly delayed SecurityAccess reply."""
+    if security_seen:
+        return "discarded a late reply"
+    return f"discarded a late reply to an earlier command: {compact(block)[:40]!r}"
+
+
+def reset_detail(cmd: str, result: str, *, security_seen: bool) -> str:
+    """Describe a reset without persisting a secret request or delayed response."""
+    request = "[redacted]" if security_seen else cmd
+    banner = "[redacted]" if security_seen else repr(compact(result)[:24])
+    return (
+        f"adapter answered {request} with its start-up banner {banner}; "
+        "if it reset itself its settings are back to defaults, so the init is sent "
+        "again and the addressing restated"
+    )
+
+
 # UDS ResponsePending negative response: `7F <sid> 78` ("request received,
 # response pending"). Matched against one whitespace-stripped ELM327 line, so it
 # works with `ATS1` (spaces on) and `ATS0` alike. Requiring the whole line to be the

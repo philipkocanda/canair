@@ -10,8 +10,8 @@ import pytest
 from canair.captures.journal import CaptureJournal
 from canair.cli.profile_context import active
 from canair.live.actuate.iocontrol_execute import run_iocontrol_step
+from canair.live.read.journal import finalize_journal as _finalize_journal
 from canair.live.read.multi import (
-    _finalize_journal,
     exec_query,
     merged_selector_notes,
     normalize_query_steps,
@@ -19,6 +19,7 @@ from canair.live.read.multi import (
     resolve_tx_id,
     selector_text,
 )
+from canair.safety.blocklist import SessionPolicy
 from canair.transport.isotp_params import ISOTP_MAX_REQUEST_BYTES
 
 # --- resolve_tx_id ---
@@ -238,6 +239,18 @@ class TestParseSubCommands:
         result = parse_sub_commands(["repl"], profile=active())
         assert result[0] == {"type": "repl"}
 
+    def test_unlock_requires_an_odd_level(self):
+        assert parse_sub_commands(["unlock IGPM --level 01"], profile=active()) == [
+            {"type": "unlock", "target": "IGPM", "level": 1}
+        ]
+        for invalid in ("unlock IGPM", "unlock IGPM --level 02", "unlock IGPM --level FF"):
+            with pytest.raises(ValueError):
+                parse_sub_commands([invalid], profile=active())
+        with pytest.raises(ValueError, match="only one"):
+            parse_sub_commands(
+                ["unlock IGPM --level 01", "unlock IGPM --level 03"], profile=active()
+            )
+
     def test_unknown_command(self):
         with pytest.raises(ValueError, match="Unknown sub-command"):
             parse_sub_commands(["bogus"], profile=active())
@@ -352,7 +365,7 @@ class TestFinalizeJournal:
 
     def test_deliberate_skip_discards(self, tmp_path):
         j = self._journal(tmp_path)
-        with patch("canair.live.read.multi.resolve_metadata", return_value=None):
+        with patch("canair.live.read.journal.resolve_metadata", return_value=None):
             _finalize_journal(j, 1, None, None, None)
         assert not j.path.exists()
         assert list(tmp_path.glob("*.json")) == []
@@ -394,6 +407,7 @@ class _RawStepTerminal:
 
         self.replies = replies
         self.diag = TransportStats(transport="fake")
+        self.session_policy = SessionPolicy()
 
     async def set_header(self, tx_id):
         pass

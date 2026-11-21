@@ -41,8 +41,6 @@ import json
 import sys
 
 from canair.captures.journal import CaptureJournal
-from canair.captures.metadata import resolve_metadata
-from canair.captures.types import Quality
 from canair.ecus.pids import build_ecu_index
 from canair.expression.results import ResultEntry
 from canair.profile.model import Profile
@@ -54,10 +52,12 @@ from canair.query.steps import (
     resolve_tx_id,
     selector_text,
 )
+from canair.render import messages
 from canair.render.signal_table import print_ecu_results
 from canair.safety.quirks import SKM_WAKEUP, has_quirk
 from canair.transport.session_manager import SessionManager
 from canair.transport.stats import client_transport
+from canair.uds.security import SecurityAccessError, is_security_request
 
 from ...captures.build import non_answer_text
 from ...states.predicates import StatePredicateError
@@ -81,6 +81,7 @@ from .exec import (
     exec_session,
     exec_skm_wake,
 )
+from .journal import finalize_journal
 from .multi_json import query_documents, raw_document
 from .repl import _multi_repl
 
@@ -88,7 +89,6 @@ __all__ = [
     "BatchState",
     "_exec_raw",
     "_exec_scan",
-    "_finalize_journal",
     "_multi_repl",
     "_read_batch",
     "_read_single",
@@ -109,57 +109,6 @@ __all__ = [
 ]
 
 
-def _finalize_journal(
-    journal,
-    count: int,
-    label: str | None,
-    vehicle_states=None,
-    notes: str | None = None,
-    prompt: bool = True,
-    suggested_state: str | None = None,
-    quality: Quality | None = None,
-    non_answers: int = 0,
-) -> None:
-    """Resolve metadata (optionally prompting) and reconcile the write-ahead journal.
-
-    ``journal`` is a :class:`~canair.captures.journal.CaptureJournal` (or None).
-    Only a deliberate skip (an empty label with no suggestion) discards the journal; a prompt
-    nobody can answer saves under the suggested label. When ``prompt``
-    is False (e.g. an interrupted pipeline) the journal is reconciled with the
-    metadata already on it — no stdin interaction. ``suggested_state`` pre-fills
-    the interactive state prompt (auto-suggested from decoded PID values).
-    ``quality`` (the transport exchange/error footprint) is stamped onto the
-    session before reconcile. ``count`` is the payloads journaled and
-    ``non_answers`` the refusals (NRC or no reply); either alone is worth saving.
-    """
-
-    if journal is None:
-        return
-    if count == 0 and non_answers == 0:
-        print("\n  --save: no payloads captured — nothing to save.", file=sys.stderr)
-        journal.discard()
-        return
-
-    refused = f" and {non_answers} non-answer(s)" if non_answers else ""
-    print(f"\n  --save: {count} payload(s){refused} captured.", file=sys.stderr)
-    if prompt:
-        meta = resolve_metadata(
-            label,
-            vehicle_states,
-            notes,
-            suggested_label="Multi query session",
-            last_state=suggested_state,
-        )
-        if meta is None:
-            journal.discard()
-            return
-        lbl, states, nt = meta
-        journal.update_meta(lbl, states, nt)
-    if quality is not None:
-        journal.update_meta(quality=quality)
-    journal.reconcile()
-
-
 async def mode_multi(
     terminal: Terminal,
     sub_commands: list[str],
@@ -172,6 +121,9 @@ async def mode_multi(
     notes: str | None = None,
     include_static: bool = False,
     as_json: bool = False,
+    security_provider: str | None = None,
+    security_key_file: str | None = None,
+    security_confirmed: bool = False,
     *,
     profile: Profile,
 ):
@@ -203,6 +155,9 @@ async def mode_multi(
             vehicle_states=vehicle_states,
             notes=notes,
             include_static=include_static,
+            security_provider=security_provider,
+            security_key_file=security_key_file,
+            security_confirmed=security_confirmed,
             profile=profile,
         )
     results: list[dict] = []
@@ -219,6 +174,9 @@ async def mode_multi(
             notes=notes,
             include_static=include_static,
             json_results=results,
+            security_provider=security_provider,
+            security_key_file=security_key_file,
+            security_confirmed=security_confirmed,
             profile=profile,
         )
     print(json.dumps({"results": results}, indent=2))
@@ -236,6 +194,9 @@ async def _run_pipeline(
     notes: str | None = None,
     include_static: bool = False,
     json_results: list[dict] | None = None,
+    security_provider: str | None = None,
+    security_key_file: str | None = None,
+    security_confirmed: bool = False,
     *,
     profile: Profile,
 ):
@@ -323,7 +284,7 @@ async def _run_pipeline(
 
             elif cmd_type == "session":
                 print(f"\n{step} Session on {cmd['target']}…")
-                await exec_session(
+                outcome = await exec_session(
                     sm,
                     cmd["target"],
                     cmd["wake"],
@@ -331,9 +292,40 @@ async def _run_pipeline(
                     cmd.get("mode", "03"),
                     profile=profile,
                 )
+                if any(c["type"] == "unlock" for c in commands) and (not outcome or not outcome.ok):
+                    raise SecurityAccessError("diagnostic session was not accepted")
+
+            elif cmd_type == "unlock":
+                if not security_confirmed:
+                    raise SecurityAccessError("SecurityAccess requires explicit confirmation")
+                # deferred: provider/subprocess support is not needed to build every CLI parser.
+                from .security import unlock
+
+                target = cmd["target"]
+                tx_id = resolve_tx_id(target, ecu_index, profile=profile)
+                if tx_id is None:
+                    raise SecurityAccessError("unknown ECU for SecurityAccess")
+                print(f"\n{step} SecurityAccess on {target}…")
+                status = await unlock(
+                    sm,
+                    ecu=target,
+                    tx_id=tx_id,
+                    level=cmd["level"],
+                    provider=security_provider,
+                    key_file=security_key_file,
+                )
+                print(f"  SecurityAccess {status}")
+                if json_results is not None:
+                    json_results.append({"ecu": target, "security_access": status})
 
             elif cmd_type == "query":
-                pids_str = " ".join(cmd["pids"]) if cmd["pids"] else "all"
+                pids_str = (
+                    " ".join(
+                        "[redacted]" if is_security_request(pid) else pid for pid in cmd["pids"]
+                    )
+                    if cmd["pids"]
+                    else "all"
+                )
                 print(f"\n{step} Query {cmd['ecu']} ({pids_str})…")
                 if save or json_results is not None:
                     result = await exec_query(
@@ -372,11 +364,14 @@ async def _run_pipeline(
                     )
 
             elif cmd_type == "raw":
-                print(f"\n{step} Raw {cmd['spec']}…")
+                spec = cmd["spec"]
+                request = spec.split(":", 1)[-1]
+                shown = "SecurityAccess (redacted)" if is_security_request(request) else spec
+                print(f"\n{step} Raw {shown}…")
                 raw_result = await _exec_raw(sm, cmd["spec"], cmd["hold"], verbose, profile=profile)
                 if json_results is not None and raw_result:
                     json_results.append(raw_document(*raw_result, profile=profile))
-                if save and raw_result:
+                if save and raw_result and not is_security_request(raw_result[1]):
                     tx_id, req, resp = raw_result
                     ecu_ref = _rx_addr_for_tx(tx_id, profile=profile)
                     cap_date, cap_time = _capture_stamp(None)
@@ -445,7 +440,7 @@ async def _run_pipeline(
 
         # Save collected payloads before any REPL handoff
         if save:
-            _finalize_journal(
+            finalize_journal(
                 journal,
                 len(collected),
                 label,
@@ -467,11 +462,14 @@ async def _run_pipeline(
                 sm, ecu_index, pids_data, verbose, include_static=include_static, profile=profile
             )
 
+    except SecurityAccessError as e:
+        messages.error(str(e))
+        raise SystemExit(1) from None
     except KeyboardInterrupt:
         print("\n  Interrupted.")
         # Reconcile whatever was captured before the interrupt (no prompt).
         if save and journal is not None:
-            _finalize_journal(
+            finalize_journal(
                 journal,
                 len(collected),
                 label,

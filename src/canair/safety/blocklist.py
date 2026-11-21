@@ -47,6 +47,7 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Final
 
 from canair.core.prompt import typed_confirm
+from canair.safety.guarded import GUARDED_SERVICES, check_guarded_service
 from canair.safety.quirks import allowed_session_modes
 from canair.safety.reset import reset_granted
 from canair.safety.routines import (
@@ -56,26 +57,19 @@ from canair.safety.routines import (
 )
 from canair.uds.addressing import FUNCTIONAL_11BIT_ID, FUNCTIONAL_29BIT_ID
 from canair.uds.protocol import KWP, UDS, UNKNOWN, DiagProtocol, classify_protocol
+from canair.uds.security import is_security_request, is_seed_request
 from canair.uds.services import (
-    ACCESS_TIMING_PARAMETER,
-    CONTROL_DTC_SETTING,
     DIAGNOSTIC_SESSION_CONTROL,
     KWP_START_ROUTINE_BY_LOCAL_IDENTIFIER,
-    READ_DATA_BY_PERIODIC_IDENTIFIER,
-    RESPONSE_ON_EVENT,
     ROUTINE_CONTROL,
+    SECURITY_ACCESS,
     TESTER_PRESENT_REQUEST,
-    service_name,
 )
 from canair.uds.subfunctions import (
     OEM_SESSION_TYPES,
     SUPPRESS_POSITIVE_RESPONSE,
-    DtcSettingType,
     KwpSessionType,
-    PeriodicTransmissionMode,
-    ResponseOnEventType,
     SessionType,
-    TimingParameterAccessType,
 )
 
 # Services that write ECU memory, reflash firmware, reset an ECU, silence its
@@ -106,51 +100,6 @@ BLOCKED_UDS_SERVICES = {
     0x99: (
         "manufacturer-specific service (the Hyundai/Kia OBC erases its stored VIN on it, in any "
         "session)"
-    ),
-}
-
-
-@dataclass(frozen=True)
-class GuardedService:
-    """A service refused unless the byte after its SID is one that only reads or undoes it.
-
-    ``mask`` selects the bits of that byte that name the request: bit 7 of a sub-function
-    is the suppress-positive-response bit, which does not change what the request does.
-    """
-
-    effect: str
-    allowed: frozenset[int]
-    mask: int = 0x7F
-
-
-GUARDED_SERVICES: Final[Mapping[int, GuardedService]] = {
-    READ_DATA_BY_PERIODIC_IDENTIFIER: GuardedService(
-        "the ECU sends replies on its own until told to stop, which can desync the link",
-        frozenset({PeriodicTransmissionMode.STOP_SENDING}),
-        mask=0xFF,  # a transmissionMode, not a sub-function: it has no suppress bit
-    ),
-    ACCESS_TIMING_PARAMETER: GuardedService(
-        "changes the ECU's timing parameters",
-        frozenset(
-            {
-                TimingParameterAccessType.READ_EXTENDED_TIMING_PARAMETER_SET,
-                TimingParameterAccessType.READ_CURRENTLY_ACTIVE_TIMING_PARAMETERS,
-            }
-        ),
-    ),
-    CONTROL_DTC_SETTING: GuardedService(
-        "the ECU stops recording DTCs until DTC setting is on again or the session ends",
-        frozenset({DtcSettingType.ON}),
-    ),
-    # Bit 6 is storageState, so the mask keeps it: a stored event is another request.
-    RESPONSE_ON_EVENT: GuardedService(
-        "the ECU sends unrequested replies whenever an event fires, which can desync the link",
-        frozenset(
-            {
-                ResponseOnEventType.STOP_RESPONSE_ON_EVENT,
-                ResponseOnEventType.REPORT_ACTIVATED_EVENTS,
-            }
-        ),
     ),
 }
 
@@ -319,6 +268,7 @@ class SessionPolicy:
     protocols: Mapping[int, DiagProtocol] = field(default_factory=dict)
     allowed: Mapping[DiagProtocol, frozenset[int]] = field(default_factory=dict)
     grants: frozenset[tuple[int, str]] = frozenset()
+    security_grant: tuple[int, str] | None = field(default=None, repr=False)
 
     @classmethod
     def from_profile(cls, pids_data: Mapping[str, Any] | None) -> SessionPolicy:
@@ -361,6 +311,13 @@ class SessionPolicy:
         """Whether ``request`` to ``tx_id`` is one of this policy's exact grants."""
         return tx_id is not None and (tx_id, request) in self.grants
 
+    def granting_security(self, tx_id: int, request: str) -> SessionPolicy:
+        """Permit one confirmed provider's exact key request, scoped by the caller."""
+        return replace(self, security_grant=(tx_id, _compact_hex(request)))
+
+    def is_security_granted(self, request: str, tx_id: int | None) -> bool:
+        return tx_id is not None and self.security_grant == (tx_id, request)
+
     def safe_modes(self, tx_id: int | None, candidates: Collection[str]) -> list[str]:
         """The 2-hex-digit ``candidates`` this policy permits on ``tx_id``."""
         return [m for m in candidates if self.check(int(m, 16), tx_id) is None]
@@ -398,6 +355,8 @@ def functional_block(
         return None
     active = policy or _NO_POLICY
     request = _compact_hex(cmd)
+    if is_security_request(request):
+        return "BLOCKED: SecurityAccess cannot be sent to a functional address"
     if request.startswith("AT") or active.registered(tx_id):
         return None
     if active.is_granted(request, tx_id):
@@ -426,6 +385,8 @@ def check_command_safety(
         return None
 
     if not _is_hex(hex_only):
+        if is_security_request(hex_only):
+            return "BLOCKED: malformed SecurityAccess request"
         return (
             f"BLOCKED: {cmd.strip()!r} is neither hex bytes nor an AT command, so the "
             "blocklist cannot judge what it sends; re-run with --unsafe if you are certain "
@@ -441,6 +402,14 @@ def check_command_safety(
 
     service_byte = int(hex_only[:2], 16)
     active = policy or _NO_POLICY
+
+    if service_byte == SECURITY_ACCESS:
+        # The only key submission granted is the exact request from a confirmed provider flow.
+        # Never include the request in a refusal: it can contain secret key material.
+        request = hex_only[:-1] if len(hex_only) % 2 else hex_only
+        if not is_seed_request(bytes.fromhex(request), active.protocol(tx_id)):
+            if not active.is_security_granted(request, tx_id):
+                return "BLOCKED: SecurityAccess key submission requires the confirmed provider flow"
 
     if service_byte in BLOCKED_UDS_SERVICES and not reset_granted(hex_only, active, tx_id):
         return f"BLOCKED: UDS service 0x{service_byte:02X} -- {BLOCKED_UDS_SERVICES[service_byte]}"
@@ -471,23 +440,6 @@ def check_command_safety(
     return None
 
 
-def check_guarded_service(sid: int, sub: int | None) -> str | None:
-    """Why ``{sid} {sub}`` is refused for a service of :data:`GUARDED_SERVICES`, or None.
-
-    ``sub`` is the byte after the SID, None when the request stops at the SID: the
-    guard cannot tell what such a request does, so it is refused.
-    """
-    guard = GUARDED_SERVICES[sid]
-    if sub is not None and (sub & guard.mask) in guard.allowed:
-        return None
-    name = service_name(sid) or f"service 0x{sid:02X}"
-    which = f"0x{sub:02X}" if sub is not None else "with no sub-function"
-    return (
-        f"BLOCKED: {name} {which} -- {guard.effect}; re-run with --unsafe if you are "
-        "certain it is safe"
-    )
-
-
 def safety_system_block(
     cmd: str, policy: SessionPolicy | None = None, tx_id: int | None = None
 ) -> str | None:
@@ -508,6 +460,16 @@ def unliftable_block(
     cmd: str, policy: SessionPolicy | None = None, tx_id: int | None = None
 ) -> str | None:
     """Why ``cmd`` to ``tx_id`` is refused with or without ``--unsafe``, or None."""
+    if is_security_request(cmd):
+        active = policy or _NO_POLICY
+        text = _compact_hex(cmd)
+        text = text[:-1] if len(text) % 2 else text
+        try:
+            seed = is_seed_request(bytes.fromhex(text), active.protocol(tx_id))
+        except ValueError:
+            seed = False
+        if not seed and not active.is_security_granted(text, tx_id):
+            return "BLOCKED: SecurityAccess key submission requires the confirmed provider flow"
     return functional_block(cmd, policy, tx_id) or safety_system_block(cmd, policy, tx_id)
 
 

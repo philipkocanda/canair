@@ -40,6 +40,7 @@ from canair.profile.model import Profile, ProfileError, profile_for_path
 from canair.uds.addressing import resolve_ecu_address
 from canair.uds.byteindex import extract_byte_indices, wican_to_elm_idx
 from canair.uds.memory import MEMORY_SIGNAL_MAX_BYTES, exceeds_signal_cap
+from canair.uds.security import is_security_request, is_security_response
 
 MASK = "*****"
 # One masked byte in a partly masked payload hex: two characters, like a hex byte.
@@ -232,6 +233,16 @@ def withhold(rows: Iterable[Mapping[str, Any]], sset: SensitiveSet) -> list[Any]
     """``rows`` minus every reply to a sensitive PID or an oversized memory read, counted."""
     kept: list[Any] = []
     for row in rows:
+        payload = row.get("payload")
+        try:
+            security_reply = isinstance(payload, str) and is_security_response(
+                bytes.fromhex(payload)
+            )
+        except ValueError:
+            security_reply = False
+        if is_security_request(str(row.get("pid", ""))) or security_reply:
+            _withheld["SecurityAccess"] += 1
+            continue
         if (sset and sset.has_capture(row)) or _masked_payload(row):
             _withheld[sset.label(row)] += 1
             continue
@@ -277,7 +288,9 @@ def take_withheld_note() -> str:
 
 def request_hidden(tx_id: int, request: Any, *, profile: Profile) -> bool:
     """Should the reply to this raw request be masked on screen right now?"""
-    return masked(profile_set(profile).has_request(tx_id, request))
+    return is_security_request(str(request)) or masked(
+        profile_set(profile).has_request(tx_id, request)
+    )
 
 
 def masked_response(response: Mapping[str, Any]) -> Any:

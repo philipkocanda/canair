@@ -16,11 +16,12 @@ from datetime import datetime
 from canair.core.eventlog import log_event
 from canair.expression.decoding import decode_param_rows
 from canair.expression.results import ResultEntry
-from canair.privacy.sensitive import mask_result
+from canair.privacy.sensitive import MASK, mask_result
 from canair.profile.model import Profile
 from canair.uds.describe import decode_uds_response
 from canair.uds.multi_did import MULTI_DID_MAX_DEFAULT, split_chain
 from canair.uds.response import UdsResponse
+from canair.uds.security import is_security_request
 from canair.uds.services import READ_DATA_BY_IDENTIFIER, positive_response_sid
 from canair.uds.support_map import map_byte_indices
 
@@ -253,6 +254,8 @@ def _decode_pid_result(
     sensitive PID is masked here, before anything renders or records it
     (:func:`canair.privacy.sensitive.mask_result`).
     """
+    if is_security_request(pid_code):
+        return {"pid": "SecurityAccess", "params": [], "raw_hex": MASK, "sensitive": True}
     entry: ResultEntry
     if pid_info:
         entry = {
@@ -283,6 +286,8 @@ def _decode_pid_result(
 def _error_result(
     pid_code: str, unmapped: bool, resp: UdsResponse, acquired_at: float | None
 ) -> ResultEntry:
+    if is_security_request(pid_code):
+        return {"pid": "SecurityAccess", "error": "sensitive request failed", "unmapped": unmapped}
     entry: ResultEntry = {
         "pid": pid_code,
         "error": resp.get("error") or resp.get("nrc_desc", "unknown"),

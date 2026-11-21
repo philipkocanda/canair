@@ -32,6 +32,17 @@ async def test_a_typed_request_goes_to_the_ecu_its_atsh_named():
 
 
 @pytest.mark.asyncio
+async def test_repl_hides_late_security_reply_after_unlock(capsys):
+    term = FakeTerminal(send_command_reply="67011234\n6101ABCD")
+    cmds = _commands(term)
+    cmds.security_seen = True
+    await cmds.handle("2101")
+    output = capsys.readouterr()
+    assert "1234" not in output.out + output.err
+    assert "6101ABCD" in output.out
+
+
+@pytest.mark.asyncio
 async def test_session_opens_and_is_listed(capsys):
     term = FakeTerminal()
     cmds = _commands(term)

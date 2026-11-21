@@ -19,7 +19,7 @@ import asyncio
 import json
 import sys
 import time
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, cast, runtime_checkable
 
 from canair.config.transport import ws_ping_interval
 
@@ -75,6 +75,12 @@ class Channel(Protocol):
     async def drain(self, per_recv_timeout: float = 0.2, max_seconds: float = 1.0) -> None: ...
 
     async def close(self) -> None: ...
+
+
+def suppress_security_trace(channel: Channel) -> None:
+    """Disable wire dumps for this connection after sensitive diagnostic traffic."""
+    if hasattr(channel, "verbose"):
+        cast(Any, channel).verbose = False
 
 
 class WebSocketChannel:

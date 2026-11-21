@@ -12,6 +12,8 @@ This page explains what canair does and does not do.
   or of the device asks for confirmation before it acts. Examples are clearing diagnostic trouble
   codes (DTCs), IOControl actuation, starting routines, config writes and reboots. A flag such as
   `--yes` skips the prompt for scripts.
+- **SecurityAccess is explicit.** An unlock needs confirmation and a user-supplied key source;
+  canair does not ship algorithms or keys. See [SecurityAccess](security-access.md).
 - **Actuators auto-release.** IOControl actions hand control back to the ECU when the session
   ends, so a toggled output does not stay stuck. On a Unified Diagnostic Services (UDS) ECU, the
   release is `returnControlToECU` (`2F {DID} 00`). The service `0x30` of Keyword Protocol 2000

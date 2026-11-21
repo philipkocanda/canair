@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from canair.core import eventlog
+from canair.uds.security import is_security_request
 
 _ecu_loggers: dict[str, logging.Logger] = {}  # ecu_name -> logger
 _active_ecu: str | None = None  # current ECU name (from ATSH header)
@@ -68,7 +69,7 @@ def log_response(cmd: str, response: str):
 
     AT commands and responses without an active ECU are silently skipped.
     """
-    if not _initialized or not _active_ecu or cmd.startswith("AT"):
+    if not _initialized or not _active_ecu or cmd.startswith("AT") or is_security_request(cmd):
         return
     ts = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     resp_oneline = response.replace("\n", " | ")

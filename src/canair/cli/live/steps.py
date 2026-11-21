@@ -15,7 +15,7 @@ from canair.render import messages
 # Leading verbs recognised by the multi mini-language. A positional STEP whose
 # first token is one of these is passed through verbatim; anything else is a
 # bare selector and gets the implicit ``query`` verb prepended.
-STEP_VERBS = ("skm-wake", "session", "query", "raw", "scan", "iocontrol", "sleep", "repl")
+STEP_VERBS = ("skm-wake", "session", "unlock", "query", "raw", "scan", "iocontrol", "sleep", "repl")
 
 
 def to_step(selector: str) -> str:

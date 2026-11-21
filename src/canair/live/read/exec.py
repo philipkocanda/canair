@@ -30,6 +30,8 @@ from canair.transport.session_manager import (
     SessionOutcome,
 )
 from canair.uds.describe import SUPPRESSED_NOTE, decode_uds_response
+from canair.uds.echo import request_echo
+from canair.uds.security import SecurityAccessError, is_security_request
 from canair.uds.subfunctions import format_session_type, parse_session_type
 
 from ...ecus.names import resolve_tx
@@ -129,6 +131,8 @@ def build_query_plan(
                 if not quiet:
                     messages.warning(f"{e}; skipping")
                 continue
+            if is_security_request(request):
+                raise SecurityAccessError("SecurityAccess cannot be used as a signal query")
             if request not in raw_pids:
                 raw_pids.append(request)
         pids_to_query = picked
@@ -142,6 +146,8 @@ def build_query_plan(
         # derived from the PID's status in build_ecu_index.
         pids_to_query = {k: v for k, v in pids_to_query.items() if v.get("swept", True)}
 
+    if any(is_security_request(code) for code in pids_to_query):
+        raise SecurityAccessError("SecurityAccess cannot be used as a signal definition")
     query_plan: list[tuple[str, PidIndexEntry | None, bool]] = [
         (pid_code, pid_info, False) for pid_code, pid_info in pids_to_query.items()
     ]
@@ -318,21 +324,33 @@ async def _exec_raw(sm: SessionManager, spec: str, hold: bool, verbose: bool, *,
         return
 
     await sm.keepalive_stale()
-    print(f"\n  TX: 0x{tx_id:03X}  Request: {service_pid}")
+    sm.security_seen |= is_security_request(service_pid)
+    shown = MASK if is_security_request(service_pid) else service_pid
+    print(f"\n  TX: 0x{tx_id:03X}  Request: {shown}")
     # One transaction, so a background keepalive (the REPL runs one) cannot re-point it.
     async with sm.terminal.transaction():
         await sm.terminal.set_header(tx_id)
-        response = await sm.terminal.send_uds(service_pid)
+        echo = request_echo(service_pid, sm.terminal.session_policy.protocol(tx_id))
+        response = await sm.terminal.send_uds(
+            service_pid,
+            expected_sid=echo[0] if echo else int(service_pid[:2], 16),
+            expected_echo=echo[1] if echo else b"",
+        )
 
     if not response["ok"]:
         if response.get("nrc") is not None:
             print(f"  NRC: 0x{response['nrc']:02X} -- {response['nrc_desc']}")
         else:
-            messages.error(str(response.get("error") or "unknown error"))
+            error = (
+                "sensitive request failed"
+                if is_security_request(service_pid)
+                else (response.get("error") or "unknown error")
+            )
+            messages.error(str(error))
     elif response.get("suppressed"):
         print(f"  {SUPPRESSED_NOTE}")
     elif request_hidden(tx_id, service_pid, profile=profile):
-        print(f"  Response: {MASK}  (sensitive — read --reveal to show)")
+        print(f"  Response: {MASK}  (sensitive)")
     else:
         decode = decode_uds_response(response["bytes"])
         if decode:

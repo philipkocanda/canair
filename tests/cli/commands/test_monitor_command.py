@@ -59,6 +59,15 @@ class TestMonitorRegistered:
 class TestMonitorRunWiring:
     """``run`` turns the surface flags into the steps and the monitor operation."""
 
+    def test_monitor_refuses_unlock_instead_of_silently_ignoring_it(self, monkeypatch, capsys):
+        from canair.cli.commands import monitor
+
+        monkeypatch.setattr(monitor, "expand_step_groups", lambda steps: steps)
+        monkeypatch.setattr(monitor, "run_live", lambda *_: pytest.fail("must not connect"))
+        args = _parse(["monitor", "unlock BMS --level 01", "BMS:2101"])
+        assert monitor.run(args) == 2
+        assert "not monitor" in capsys.readouterr().err
+
     def test_run_builds_the_steps_and_the_monitor_options(self, monkeypatch):
         from canair.cli.commands import monitor
 
@@ -71,8 +80,8 @@ class TestMonitorRunWiring:
 
         # Skip the ECU-name preflight (needs a profile) and the device connect.
         monkeypatch.setattr(monitor, "run_live", fake_run_live)
-        monkeypatch.setattr("canair.query.steps.query_ecu_error", lambda steps, pids, **__: None)
-        monkeypatch.setattr("canair.cli.live.load_pids", lambda *_, **__: {})
+        monkeypatch.setattr(monitor, "query_ecu_error", lambda steps, pids, **__: None)
+        monkeypatch.setattr(monitor, "load_pids", lambda *_, **__: {})
 
         args = _parse(["monitor", "BMS:2101", "--interval", "3"])
         assert monitor.run(args) == 0
@@ -99,8 +108,8 @@ class TestMonitorRunWiring:
         monkeypatch.setattr(monitor, "_pick_steps", lambda args: ["BMS", "VCU:2101"])
         monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
         monkeypatch.setattr("sys.stdout.isatty", lambda: True, raising=False)
-        monkeypatch.setattr("canair.query.steps.query_ecu_error", lambda steps, pids, **__: None)
-        monkeypatch.setattr("canair.cli.live.load_pids", lambda *_, **__: {})
+        monkeypatch.setattr(monitor, "query_ecu_error", lambda steps, pids, **__: None)
+        monkeypatch.setattr(monitor, "load_pids", lambda *_, **__: {})
 
         assert monitor.run(_parse(["monitor"])) == 0
         assert captured["multi"] == ["query BMS", "query VCU:2101"]
@@ -135,8 +144,8 @@ class TestMonitorGroupExpansion:
             return 0
 
         monkeypatch.setattr(monitor, "run_live", fake_run_live)
-        monkeypatch.setattr("canair.query.steps.query_ecu_error", lambda steps, pids, **__: None)
-        monkeypatch.setattr("canair.cli.live.load_pids", lambda *_, **__: {})
+        monkeypatch.setattr(monitor, "query_ecu_error", lambda steps, pids, **__: None)
+        monkeypatch.setattr(monitor, "load_pids", lambda *_, **__: {})
         monkeypatch.setattr(
             "canair.cli.live.steps.load_groups",
             lambda *_, **__: {

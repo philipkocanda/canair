@@ -19,6 +19,7 @@ re-deriving them:
   request echo a reply must repeat.
 * :mod:`~canair.uds.addressing` — which CAN ids an ECU is reached on, per addressing mode.
 * :mod:`~canair.uds.frame_counts` — the ledger of how many CAN frames a response occupies.
+* :mod:`~canair.uds.security` — SecurityAccess request and seed-subfunction classification.
 
 Belongs: protocol facts and decoding of request/response bytes, with no I/O.
 Not here: reading or writing recordings or definitions (``captures/``, ``ecus/``), user config

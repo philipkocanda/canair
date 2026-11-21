@@ -22,8 +22,8 @@ def _stub_live(monkeypatch):
     from canair.cli.commands import read
 
     monkeypatch.setattr(read, "run_live", lambda args, operation: 0)
-    monkeypatch.setattr("canair.query.steps.query_ecu_error", lambda steps, pids, **__: None)
-    monkeypatch.setattr("canair.cli.live.load_pids", lambda *_, **__: {})
+    monkeypatch.setattr(read, "query_ecu_error", lambda steps, pids, **__: None)
+    monkeypatch.setattr(read, "load_pids", lambda *_, **__: {})
 
 
 class TestMonitorHint:
@@ -122,3 +122,54 @@ class TestJsonFlag:
             _parse(["repl", "--json"])
         assert exc.value.code == 2
         assert "--json" in capsys.readouterr().err
+
+
+def test_unlock_rejects_missing_session_before_connect(monkeypatch, tmp_path, capsys):
+    from canair.cli.commands import read
+    from canair.profile.model import Profile
+
+    monkeypatch.setattr(read, "active", lambda: Profile("test", tmp_path))
+    monkeypatch.setattr(read, "expand_step_groups", lambda steps: steps)
+    monkeypatch.setattr(read, "load_pids", lambda **_: {"ecus": {"TEST": {"tx_id": 0x720}}})
+    monkeypatch.setattr(read, "run_live", lambda *_: pytest.fail("must not connect"))
+    args = _parse(
+        ["read", "--security-key-file", str(tmp_path / "key"), "--yes", "unlock TEST --level 01"]
+    )
+    assert read.run(args) == 2
+    assert "preceding session" in capsys.readouterr().err
+
+
+def test_unlock_requires_confirmation_without_yes(monkeypatch, tmp_path, capsys):
+    from canair.cli.commands import read
+    from canair.profile.model import Profile
+
+    key = tmp_path / "key"
+    key.write_bytes(b"\xa1\xb2")
+    key.chmod(0o600)
+    monkeypatch.setattr(read, "active", lambda: Profile("test", tmp_path))
+    monkeypatch.setattr(read, "expand_step_groups", lambda steps: steps)
+    monkeypatch.setattr(read, "load_pids", lambda **_: {"ecus": {"TEST": {"tx_id": 0x720}}})
+    monkeypatch.setattr(read, "run_live", lambda *_: pytest.fail("must not connect"))
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    args = _parse(
+        [
+            "read",
+            "--security-key-file",
+            str(key),
+            "session TEST --mode 03",
+            "unlock TEST --level 01",
+        ]
+    )
+    assert read.run(args) == 2
+    assert "needs confirmation" in capsys.readouterr().err
+
+
+def test_raw_only_pipeline_does_not_need_pid_definitions(monkeypatch, tmp_path):
+    from canair.cli.commands import read
+    from canair.profile.model import Profile
+
+    monkeypatch.setattr(read, "active", lambda: Profile("test", tmp_path))
+    monkeypatch.setattr(read, "expand_step_groups", lambda steps: steps)
+    monkeypatch.setattr(read, "load_pids", lambda **_: pytest.fail("must not load definitions"))
+    monkeypatch.setattr(read, "run_live", lambda *_: 0)
+    assert read.run(_parse(["read", "raw 720:2101"])) == 0

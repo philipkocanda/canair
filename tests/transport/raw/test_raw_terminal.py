@@ -90,6 +90,29 @@ def make_terminal(monkeypatch):
 
 class TestRawTerminalSendUds:
     @pytest.mark.asyncio
+    async def test_security_traffic_is_not_logged_or_learned(self, make_terminal, monkeypatch):
+        from canair.safety.blocklist import SessionPolicy
+        from canair.uds.protocol import UDS
+
+        table = {
+            (0x720, bytes.fromhex("2701")): bytes.fromhex("67011234"),
+            (0x720, bytes.fromhex("2702A1B2")): bytes.fromhex("6702"),
+        }
+        t = make_terminal(table)
+        t.session_policy = SessionPolicy(protocols={0x720: UDS})
+        logged = []
+        monkeypatch.setattr(raw_terminal, "log_response", lambda *a: logged.append(a))
+        await t.set_header(0x720)
+        assert (await t.send_uds("2701", expected_sid=0x27, expected_echo=b"\x01"))["ok"]
+        t.session_policy = t.session_policy.granting_security(0x720, "2702A1B2")
+        assert (await t.send_uds("2702A1B2", expected_sid=0x27, expected_echo=b"\x02"))["ok"]
+        assert not logged
+        assert not t.timings.snapshot()
+        assert "2701" not in str(t.frame_counts)
+        assert "A1B2" not in str(t.frame_counts)
+        await t.close()
+
+    @pytest.mark.asyncio
     async def test_positive_response(self, make_terminal):
         t = make_terminal({(0x770, bytes.fromhex("22BC03")): bytes.fromhex("62BC03FDEE")})
         await t.set_header(0x770)

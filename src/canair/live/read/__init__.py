@@ -8,6 +8,9 @@
 * :mod:`.param` — reading signals by name
 * :mod:`.raw` — ``canair raw``, hex in and hex out
 * :mod:`.raw_ops` — running a live command over the raw ``slcan-tcp`` transport
+* :mod:`.security` / :mod:`.security_provider` — one confirmed SecurityAccess exchange and its
+  trusted external key source
+* :mod:`.journal` — finalizing the pipeline's capture journal
 
 Belongs: executing a step pipeline over a ``Terminal`` and reporting its results.
 Not here: the step grammar (``query/``), the polling monitor (``live/monitor/``), what may be

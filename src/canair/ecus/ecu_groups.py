@@ -40,7 +40,9 @@ GROUP_SIGIL = "@"
 # Mirrors the query-excluded subset of ``canair.cli.live.steps.STEP_VERBS`` (a
 # drift guard test keeps them in sync); kept local so this low-level module never
 # imports the heavy live-command runtime.
-_NON_QUERY_VERBS = frozenset({"skm-wake", "session", "raw", "scan", "iocontrol", "sleep", "repl"})
+_NON_QUERY_VERBS = frozenset(
+    {"skm-wake", "session", "unlock", "raw", "scan", "iocontrol", "sleep", "repl"}
+)
 
 
 class GroupError(ValueError):
