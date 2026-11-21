@@ -203,6 +203,28 @@ class TestWakeValidation:
         assert any("interval_ms" in e for e in errs)
 
 
+class TestEmptyPidValidation:
+    """An undecoded or static PID can be kept without inventing signals."""
+
+    @pytest.mark.parametrize("status", ["active", "draft", "static", "slow", "ignored"])
+    @pytest.mark.parametrize("parameters", ["", "      parameters: {}\n"], ids=["omitted", "empty"])
+    def test_empty_pid_is_valid_without_a_warning(self, tmp_path, status, parameters):
+        path = tmp_path / "e.yaml"
+        path.write_text(
+            "ECU:\n  tx_id: 0x745\n  pids:\n    2101:\n"
+            f"      status: {status}\n      period: 60000\n{parameters}"
+        )
+        errors, warnings, stats = validate_ecu_file(path)
+        assert errors == [] and warnings == []
+        assert stats["pids"] == 1 and stats["params"] == 0
+
+    def test_missing_status_is_still_an_error(self, tmp_path):
+        path = tmp_path / "e.yaml"
+        path.write_text("ECU:\n  tx_id: 0x745\n  pids:\n    2101:\n      period: 60000\n")
+        errors, _, _ = validate_ecu_file(path)
+        assert any("missing required field 'status'" in error for error in errors)
+
+
 class TestPeriodValidation:
     """`period: 0` reads as a deliberate "never", but the firmware substitutes a default."""
 
@@ -218,7 +240,7 @@ class TestPeriodValidation:
     def test_zero_warns(self, tmp_path):
         errs, warns = self._warnings(tmp_path, 0)
         assert errs == []
-        assert any("period 0" in w for w in warns)
+        assert len(warns) == 1 and "period 0" in warns[0]
 
     def test_an_explicit_interval_is_clean(self, tmp_path):
         errs, warns = self._warnings(tmp_path, 60000)

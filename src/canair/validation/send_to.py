@@ -3,8 +3,9 @@
 Checks every signal that sets ``send_to`` across the given ecus/ files: the topic must be
 well-formed (an error), unique across shipped signals — per car: one ECU's definitions on
 disjoint revisions never ship together — (an error, since two signals on one topic
-interleave on a single stream), and set only where it would actually ship (a warning otherwise).
-Mirrors the shipping gate of ``canair.interop.autopid.profile.generate_profile``.
+interleave on a single stream), and set only where its base PID and signal would ship (a warning
+otherwise). PID-level verification defaults apply; the build separately resolves revision-specific
+evidence for the selected car.
 """
 
 from pathlib import Path
@@ -13,6 +14,7 @@ import yaml
 
 from canair.core import yaml_io
 from canair.ecus.pid_status import is_shipped, is_snapshot_only, pid_status
+from canair.ecus.pids import effective_param
 from canair.ecus.shipping import param_ships
 from canair.interop.autopid.send_to import topic_problem
 from canair.uds.memory import is_memory_request
@@ -81,7 +83,7 @@ def send_to_findings(file_paths: list[Path]) -> tuple[list[str], list[str]]:
                             "so it never ships"
                         )
                         continue
-                    if not param.get("verified", False):
+                    if not effective_param(pid_def, param).get("verified", False):
                         # Still checked for uniqueness: --include-unverified ships it.
                         warnings.append(
                             f"{label}: send_to '{topic}' ships only with --include-unverified "

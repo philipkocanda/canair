@@ -14,7 +14,11 @@ def _ecu_file(tmp_path, name, body):
     return path
 
 
-def _bms(tmp_path, *, topic="car/stream/power", status="active", verified="true"):
+def _bms(
+    tmp_path, *, topic="car/stream/power", status="active", verified="true", pid_verified=None
+):
+    pid_default = f"verified: {pid_verified}" if pid_verified is not None else ""
+    signal_verified = f"verified: {verified}" if verified is not None else ""
     return _ecu_file(
         tmp_path,
         "bms.yaml",
@@ -24,10 +28,11 @@ def _bms(tmp_path, *, topic="car/stream/power", status="active", verified="true"
           pids:
             2101:
               status: {status}
+              {pid_default}
               parameters:
                 POWER:
                   expression: "B10"
-                  verified: {verified}
+                  {signal_verified}
                   send_to: "{topic}"
         """,
     )
@@ -52,6 +57,30 @@ class TestSendToFindings:
         errors, warnings = send_to_findings([_bms(tmp_path, verified="false")])
         assert errors == []
         assert "--include-unverified" in warnings[0]
+
+    @pytest.mark.parametrize(
+        ("pid_verified", "signal_verified", "warns"),
+        [
+            (None, None, True),
+            (None, "true", False),
+            (None, "false", True),
+            ("true", None, False),
+            ("true", "true", False),
+            ("true", "false", True),
+            ("false", None, True),
+            ("false", "true", False),
+            ("false", "false", True),
+        ],
+    )
+    def test_topic_verification_inherits_and_respects_overrides(
+        self, tmp_path, pid_verified, signal_verified, warns
+    ):
+        path = _bms(tmp_path, pid_verified=pid_verified, verified=signal_verified)
+        errors, warnings = send_to_findings([path])
+        assert errors == []
+        assert len(warnings) == int(warns)
+        if warns:
+            assert "--include-unverified" in warnings[0]
 
     def test_a_topic_shared_across_files_is_an_error(self, tmp_path):
         other = _ecu_file(

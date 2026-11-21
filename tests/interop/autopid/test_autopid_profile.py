@@ -466,6 +466,29 @@ class TestDiffSeesSendTo:
         assert "No differences" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("status", ["active", "slow"])
+@pytest.mark.parametrize("parameters", [None, {}], ids=["omitted", "empty"])
+@pytest.mark.parametrize("verified_only", [True, False])
+def test_an_empty_live_pid_is_not_shipped(status, parameters, verified_only):
+    data = _data()
+    baseline = generate_profile(data, verified_only=verified_only)
+    pid = {"status": status, "period": 60000}
+    if parameters is not None:
+        pid["parameters"] = parameters
+    data["ecus"]["BMS"]["pids"]["2102"] = pid
+    assert generate_profile(data, verified_only=verified_only) == baseline
+
+
+@pytest.mark.parametrize("parameters", [None, {}], ids=["omitted", "empty"])
+def test_a_profile_with_only_empty_pids_has_no_entries(parameters):
+    data = _data()
+    pid = data["ecus"]["BMS"]["pids"]["2101"]
+    pid.pop("parameters")
+    if parameters is not None:
+        pid["parameters"] = parameters
+    assert generate_profile(data, verified_only=True)["pids"] == []
+
+
 def test_a_memory_pid_never_ships_whatever_its_state():
     """Active, verified and revision-gated: a memory read still stays off the device."""
     data = _data()

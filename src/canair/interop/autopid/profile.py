@@ -255,7 +255,7 @@ def ship_profile(
 
             params: dict[str, dict] = {}
             send_to: dict[str, str] = {}
-            for param_name, param in pid_data["parameters"].items():
+            for param_name, param in (pid_data.get("parameters") or {}).items():
                 if not param_ships(param):
                     continue
                 # The device publishes what it decodes (MQTT, Home Assistant).

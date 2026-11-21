@@ -108,17 +108,14 @@ def _validate_one_pid(
         stats["ignored"] += 1
         return
 
-    _validate_parameters(pid_def, path, ecu_name, pid_str, errors, warnings, stats)
+    _validate_parameters(pid_def, ecu_name, pid_str, errors, warnings, stats)
 
 
-def _validate_parameters(pid_def, path, ecu_name, pid_str, errors, warnings, stats) -> None:
-    """Check a PID's ``parameters:`` block."""
+def _validate_parameters(pid_def, ecu_name, pid_str, errors, warnings, stats) -> None:
+    """Check a PID's signals; a discovered or static PID may have none."""
     params = pid_def.get("parameters", {})
-    if not isinstance(params, dict):
+    if not isinstance(params, dict) or not params:
         return
-
-    if not params:
-        warnings.append(f"{path.name}/{ecu_name}/{pid_str}: no parameters defined")
 
     # Only what ships reaches the device, so only that can sink its table.
     pid_shipped = pid_ships(pid_def, pid_str)

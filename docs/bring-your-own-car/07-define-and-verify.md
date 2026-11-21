@@ -45,6 +45,9 @@ accepts `--source` and `--source-link`. Each signal that sets none of its own in
 defaults. A signal that sets its own value keeps it. `canair pids hoist-defaults` moves repetition
 that you already have up to the PID. It changes no signal.
 
+`canair validate pids` checks `send_to` using the signal's own `verified` value or the PID
+default. [ECU revisions](../concepts/variants.md) can carry different verification.
+
 ## Verify before you trust it
 
 Mark a signal `--verified` only after you confirm that it holds up. Check three things:
@@ -76,6 +79,11 @@ canair pids rm-pid       MyECU 22B002         # remove a whole PID (drops pids: 
 
 If no `canair pids` subcommand covers a field you need, edit the file directly. Then run
 `canair validate pids` and [report the gap](../contributing/index.md).
+
+A PID can be recorded before it has decoded signals, or kept as a static identity record.
+`canair validate pids` does not warn merely because its `parameters:` block is empty or absent;
+the other checks, including the required status and the PID's period, still apply. Such a PID is
+omitted from AutoPID exports until the PID and at least one signal are eligible to ship.
 
 `canair validate pids` also catches a common hand-editing slip: a key that is written twice. An
 example is two signals of the same name in one PID. YAML would load the later one and say nothing.
