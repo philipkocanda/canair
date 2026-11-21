@@ -319,13 +319,16 @@ MCU:
           unit: A
           min: "0"
           max: "600"
-          source: canair align + within-PID fit 2026-10-21
+          source: MCU firmware EAEEHEL-MS2-D000, static analysis; canair align 2026-10-21
           notes: >-
-            Motor phase-current magnitude, 16-bit little-endian split across the PCI byte B16; never
-            negative. Scale unproven. With the motor stopped it reads 2.7-6.0 (median 3.0) in
-            CHARGING, READY and TOPUP alike, so about 3.0 is its zero; up to 214 while driving.
-            Tracks |MCU_MOTOR_TORQUE| at about 1.2 counts per 0.1 Nm below 5000 RPM, rising to 1.6
-            above 6500 RPM.
+            Motor phase-current magnitude, 16-bit little-endian split across PCI byte B16. Firmware
+            forms the squared magnitude of the transformed phase currents, applies a three-iteration
+            square-root approximation, then multiplies by 0.70721. At zero input the approximation
+            returns 3.9375, yielding 2.78464 before truncation to 0.1-unit counts, so an indicated
+            2.7 is a firmware floor, not a 12 V load or proof of motor current. Small readings are
+            biased nonlinearly; do not subtract a fixed offset. The current unit and scale remain
+            unverified. Up to 214.1 while driving. Tracks |MCU_MOTOR_TORQUE| at about 1.2 counts per
+            0.1 Nm below 5000 RPM, rising to 1.6 above 6500 RPM.
         MCU_COOLANT_TEMP:
           expression: S20*2
           unit: °C

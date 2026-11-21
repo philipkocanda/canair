@@ -10,7 +10,7 @@ subject: >-
   2102, 2103, 21F2), the DTC manager and its 44 codes, the CAN mailbox map and the transmitted
   frames, and the requests that must never be sent
 created: 2026-11-12
-updated: 2026-11-18
+updated: 2026-11-21
 status: active
 verification: >-
   Static reverse-engineering of the MCU flash image (Ghidra 12.2, 32-bit PowerPC e500 language,
@@ -643,7 +643,7 @@ about ±1000 A (probable).
 | 4-5 | B09:B10 | s16 | `0x40016650` (float) | ×1 → rpm | motor speed. `FUN_001559A0` takes it from `0x40016284`, the speed estimate. Also `0x523`/`0x5DC` | **confirmed** `MCU_MOTOR_RPM` |
 | 6-7 | B11:B12 | s16 | `0x40016780` (float) | ×10 → 0.1 Nm | motor torque (written by `FUN_00158390`) | **confirmed** `MCU_MOTOR_TORQUE` |
 | 8-9 | B13:B14 | s16 | `0x400167A8` (float) | ×10 → 0.1 Nm | a second torque value (`FUN_00157598`); the profile found it byte-identical to the first in all 8,231 captures, which fits a limited and an unlimited copy that agree in the states captured. It is the source of the `0x291` torque field | confirmed `MCU_MOTOR_TORQUE_2` |
-| 10-11 | B15:B17 | u16 | `0x40015EAC` (float) | ×10 → 0.1 | motor current magnitude: `0.70721 × √(0x400164E4)` (`FUN_00136FE0`), i.e. an RMS-style figure from the sum of two squared current components | **confirmed** `MCU_MOTOR_CURRENT` (never negative, as the profile found) |
+| 10-11 | B15:B17 | u16 | `0x40015EAC` (float) | ×10 → 0.1 | motor current magnitude: `0.70721 × approximate_sqrt(0x400164E4)` (`FUN_00136FE0`), an RMS-style figure from the sum of two squared current components; its approximation has a nonzero floor (below) | **confirmed** `MCU_MOTOR_CURRENT` (never negative, as the profile found) |
 | 12 | B18 | **s8** | `0x40016680` (float) | ×0.5 | **motor temperature sensor**, °C = raw × 2 (§11.2) | **contradicts** in the sign: the profile reads `B18*2` as unsigned, which is wrong below 0 °C (`S18*2`); the component is new |
 | 13 | B19 | **s8** | `0x40016678` (float) | ×0.5 | **inverter temperature sensor** (§11.2); the profile's heatsink | confirmed meaning; contradicts in the sign |
 | 14 | B20 | **s8** | `0x40016690` (float) | ×0.5 | **coolant temperature sensor** (§11.2); the profile's coolant | confirmed meaning; contradicts in the sign |
@@ -667,6 +667,18 @@ about ±1000 A (probable).
 | 48-49 | B59:B60 | u16 | `0x40000DD0` | ×1 | counter written by the interrupt `FUN_001242B4`. Obs. 0 | new |
 | 50-51 | B61:B62 | u16 | `0x40000DD2` | ×1 | counter written by the interrupt `FUN_0012434C`. Obs. 0 | new |
 | 52-53 | B63:B65 | u16 | `0x40001E6C` | ×1 | **HV interlock open count**: the P0A0D monitor adds 1 on each call while a loop is open (§13.1); a 32-bit counter clipped to 16 bits, kept in the EEPROM. Obs. 0 | new |
+
+**Why motor current reads about 3 at idle (2026-11-21).** `FUN_00125648` scales two phase-current
+sensor readings and derives the third as their negative sum. `FUN_0015B65C` transforms these into
+two rotating-frame components at `0x40016C1C` and `0x40016C24`; `FUN_00154630` sums their squares
+into `0x400164E4`. They are not the 12 V supply channels. `FUN_00136FA4` approximates the square
+root with `y = (x / 63 + 63) / 2`, followed by only three Newton steps `y = (y + x / y) / 2`.
+At `x = 0`, it returns 3.9375, not zero. `FUN_00136FE0` multiplies by 0.70721, giving 2.78464;
+the record converter multiplies by 10 and truncates, so the decoded floor is **2.7**. This
+explains the idle baseline without an actual 3 A current; sensor noise and the nonlinear
+approximation can raise it. A fixed offset subtraction is not a valid correction. The source
+unit in amperes remains probable, not independently verified. In captures tagged PARKED, IG3,
+the signal is 2.7–4.5 (median 2.8; 381 stored rows); state tags alone do not prove HV is off.
 
 The profile's "B54 to B65 read 0 in all captures" is explained: all six are event counters (B63:B65
 the interlock open count, §13.1). The three counters `0x40000DCC`, `DD0` and `DD2` are each owned by
