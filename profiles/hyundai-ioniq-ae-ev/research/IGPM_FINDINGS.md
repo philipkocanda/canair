@@ -408,12 +408,16 @@ five transceivers on both boards). The OBD-II port's CAN pins are wired only to 
 "진단 커넥터(OBD-Ⅱ 커넥터)의 CAN 통신 단자가 중앙게이트웨이에 직접 연결" ("the CAN terminals of
 the OBD-II connector are connected directly to the central gateway", KR101439050B1, co-assigned
 to junction-box supplier Kyungshin). **Confirmed.** On the AE hybrid, H-CAN (engine, DCT, BMS,
-HPCU) is also wired straight to the OBD connector; the EV has no H-CAN.
+HPCU) is also wired straight to the OBD connector. The EV has a different H-CAN: the 2017 US EV
+wiring (Data Link Details SD200-8) connects the EPCU to the E01 multipurpose check connector, not
+the OBD connector or IGPM. The MCU and VCU use it as their second CAN link; its identification with
+the bench-test CCP-CAN is probable (VCU firmware findings §22.5).
 
 The only AE network diagram found is the hybrid's: C-CAN AEB, MDPS, LDWS, ACU, AHB, BSD L/R, rear
 camera; B-CAN BCM, WPC, SMK; M-CAN audio, amp, cluster, AVN; P-CAN VESS, DATC, OCS, AAF, water
-pumps; with BCM and cluster also on C-CAN and SMK/ACU/AHB also on P-CAN. No EV diagram was found;
-`can_buses.yaml` follows US EV wiring.
+pumps; with BCM and cluster also on C-CAN and SMK/ACU/AHB also on P-CAN. The US EV Data Link
+Details diagram now supplies the EV wiring; `can_buses.yaml` follows it, subject to differences
+from the EU car.
 
 ### 3.2 It routes signals, not frames (confirmed mechanism)
 

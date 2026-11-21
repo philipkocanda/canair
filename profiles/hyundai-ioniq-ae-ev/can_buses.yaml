@@ -10,8 +10,8 @@ can_buses:
   ALL:
     name: All segments
     description: >-
-      The gateway (IGPM) bridges every segment except the private ones (CLIMATE-CAN); the OBD-II
-      port connects to it over D-CAN.
+      The gateway (IGPM) bridges the non-private segments; it does not connect to H-CAN or
+      CLIMATE-CAN. The OBD-II port connects to it over D-CAN.
   B-CAN:
     name: Body CAN
     description: Comfort/body electronics (doors, seats, BCM, smart key).
@@ -43,3 +43,14 @@ can_buses:
       heater, on separate DATC pins from its P-CAN connection. Neither the gateway (IGPM) nor the
       OBD-II port is on it, so the compressor and heater are not expected to answer on the OBD-II
       port. Bit rate unknown. From US-market wiring; unconfirmed on the EU car.
+  H-CAN:
+    name: High-speed CAN
+    description: >-
+      Private EPCU link connecting the VCU and motor controller (MCU), probably the bus called
+      CCP-CAN in bench research. The 2017 US EV wiring shows H-CAN at EPCU E15-S pins 11/12 and
+      multipurpose check connector E01 pins 6/14; it is not connected to the IGPM or OBD-II. The BMS
+      is shown on P-CAN, not H-CAN. The MCU firmware configures both CAN controllers with the same
+      bit timing, implying 500 kbit/s as on P-CAN; not measured on H-CAN. Wiring is unconfirmed on
+      the EU car.
+    private: true
+    bitrate: 500000

@@ -10,7 +10,7 @@ module with no row below either does not answer at a 0x7xx address or was not aw
 
 | Factory module | Profile ECU | Confidence | Basis |
 |---|---|---|---|
-| IGPM (gateway, power switches) | IGPM | certain | self-identifies; bridges every bus except the private CLIMATE-CAN |
+| IGPM (gateway, power switches) | IGPM | certain | self-identifies; does not bridge private CLIMATE-CAN or H-CAN |
 | SMK, DATC, ACU, AAF, CCM, VESS, AMP, AVN (MM-CAN only on the EU car), WPC, DDM, ADM, BSD LH/RH, rear camera | SKM, HVAC, SRS, AAF, CCM, VESS, AMP, AVN, WPC, DDM, ADM, BSD-L/R, RCAM | certain | same name or alias, same bus |
 | EPCU (VCU + MCU + LDC) | VCU, MCU | certain | VCU identifies as "VCU with the LDC integrated" |
 | IBAU (integrated brake unit) | ESC | probable | ESC's alias is AHB (active hydraulic boost); the IBAU sits on C-CAN and P-CAN |
@@ -30,4 +30,5 @@ same pair. The April 2026 sweep reported 0x7C0 alive, but it stays silent on eve
 and charging, so the entry was dropped as a false positive. No dash charge-lamp unit has been
 found. The HVAC unit also has a private link to the compressor and PTC heater (`CLIMATE-CAN` in
 `can_buses.yaml`, marked `private: true`): neither the IGPM nor the OBD-II port is on it.
-
+The EPCU's private H-CAN, probably the MCU/VCU CCP-CAN, is likewise outside the IGPM and OBD-II;
+the US EV diagram shows the BMS on P-CAN and H-CAN at the E01 multipurpose check connector.

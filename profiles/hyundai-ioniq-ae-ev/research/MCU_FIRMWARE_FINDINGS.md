@@ -70,8 +70,8 @@ sections:
       Two FlexCAN controllers (CCP-CAN and P-CAN), 128 mailbox slots, the seven transmitted P-CAN
       frames with every byte's source, the received frames, and a CCP slave on 0x632/0x633. The
       P-CAN frames 0x291, 0x2A1, 0x523, 0x524, 0x540, 0x5DC and 0x5DE are in
-      signals/powertrain.yaml as unverified signals since 2026-11-18; 0x2C1 is on CCP-CAN, which
-      is not in can_buses.yaml.
+      signals/powertrain.yaml as unverified signals since 2026-11-18; 0x2C1 is on CCP-CAN, probably
+      H-CAN, now declared private in can_buses.yaml.
     target: profiles/hyundai-ioniq-ae-ev/signals/powertrain.yaml
   - section: "8"
     status: open
@@ -885,8 +885,8 @@ across a power loss through the SPI EEPROM (§11.1).
 ### 7.1 Controllers and the mailbox map
 
 Two FlexCAN controllers carry traffic: **CAN A** (`0xFFFC0000`, mailboxes 0-63) is the EPCU's
-private link to the VCU (**CCP-CAN**, the bus that carries `0x232` and `0x2C1`; it is not in
-`can_buses.yaml`), and **CAN C** (`0xFFFC8000`, 64 mailboxes, slots 64-127) is **P-CAN**. The
+private link to the VCU (**CCP-CAN**, probably H-CAN in `can_buses.yaml`, carrying `0x232` and
+`0x2C1`), and **CAN C** (`0xFFFC8000`, 64 mailboxes, slots 64-127) is **P-CAN**. The
 application does not initialise CAN B (`0xFFFC4000`). `FUN_001018E0` and `FUN_00101B28` write the
 same module configuration (`MCR 0x5980003F`, `CTRL 0x15522004`, which sets the bit timing) and
 configure every mailbox from the slot table at `0x100268`: 4 bytes per slot, an 11-bit id, a used

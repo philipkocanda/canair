@@ -133,6 +133,11 @@ The [At a glance](#at-a-glance) table gives the number of registered ECUs. The m
 | HVAC | 0x7B3 | Climate control |
 | CLU | 0x7C6 | Cluster / instrument panel (odometer) |
 
+The MCU and VCU also share private **H-CAN**, probably the EPCU bench link called CCP-CAN. It is
+not connected to the IGPM or OBD-II port. The 2017 US EV diagrams show the BMS on P-CAN, not H-CAN,
+and bring H-CAN out to the E01 multipurpose check connector. EU wiring is unconfirmed. Its
+500 kbit/s speed is inferred from the MCU firmware's identical H-CAN and P-CAN timing, not measured.
+
 The profile also registers AAF, ADM, AMP, AVN, BSD-L/R, CCM, DDM, EDR, EPB, EWP, GSA, MFC, PSM,
 RCAM, SCC, SKM, SRS, VESS and WPC. EDR (0x7F1) is probably the airbag unit's second diagnostic
 address. List all ECUs with:

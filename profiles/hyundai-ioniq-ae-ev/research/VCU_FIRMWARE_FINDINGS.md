@@ -47,7 +47,7 @@ sections:
     note: >-
       The CAN layer: three FlexCAN controllers, two used (P-CAN and the EPCU's CCP-CAN), 98
       mailbox slots, the RAM buffer and unpack/pack function of every frame. Bus assignment matches
-      uhi22's EPCU transceiver test exactly. CCP-CAN is deliberately not in can_buses.yaml.
+      uhi22's EPCU transceiver test exactly. CCP-CAN is probably the H-CAN in can_buses.yaml.
   - section: "5"
     status: open
     date: 2026-11-08
@@ -476,7 +476,7 @@ the EPCU, each wired to both the MCU and the VCU. On the "left CAN, CCP-CAN" the
 transceiver sends `0x232` and `0x58F` and the MCU's sends `0x2C1`. On P-CAN the VCU sends `0x109`,
 `0x200`-`0x202`, `0x549`, `0x579`-`0x57B`, `0x590` and `0x592`. These are exactly the firmware's
 FlexCAN C and FlexCAN A transmit slots. None of the CCP-CAN ids appears in either uhi22 P-CAN log.
-`can_buses.yaml` does not list this bus.
+`can_buses.yaml` lists this bus as H-CAN, private from the IGPM (section 22.5).
 
 ### 4.2 The slot table
 
@@ -665,7 +665,7 @@ car has no telematics unit, so `0x587` is absent from uhi22's P-CAN logs.
   needs a P-CAN tap to see `0x587`/`0x567`/`0x57B`, which the OBD port does not carry.
 - **Done 2026-11-08:** `signals/` now carries the VCU's `0x55C`/`0x57A` and `0x588`/`0x579`
   layouts (sections 9.2 and 9.3), with the same signal names.
-- **Not applied, by the owner's choice:** a CCP-CAN entry in `can_buses.yaml` (section 4.1).
+- **Done 2026-11-21:** H-CAN was added as a private bus in `can_buses.yaml` (section 22.5).
 - **Done 2026-11-08:** the scheduled-wake entry in `ecus/vcu.yaml` and the top-up entry in
   `ecus/igpm.yaml` carry sections 10.2 and 11 as their results; both stay pending until the car
   shows that the clock's alarm powers the EPCU. `signals/` has the `0x590` top-up bits, the
@@ -1399,7 +1399,8 @@ no CCP resource protection. SET_MTA (`FUN_0018AAF0`, `FUN_0018AA40`) accepts SRA
 area `0x010000`-`0x05FFFF`. So on CCP-CAN a CCP master could read every schedule address in 12.1.
 
 The OBD port does not reach CCP-CAN. The bus leaves the EPCU at its connector, and uhi22 found only
-the VCU and the MCU on it (section 4.1). Using it needs a tap on the EPCU harness. CCP also writes
+the VCU and the MCU on it (section 4.1). The US EV diagram also shows it at the E01 multipurpose
+check connector (section 22.5); EU wiring is unconfirmed. CCP also writes
 (DNLOAD, DNLOAD_6, CLEAR_MEMORY) and starts DAQ lists. The VCU accepts these without a key. Do not
 use it on a car that is driven or charging; use uhi22's bench set-up instead. canair has no CCP
 client.
@@ -2241,10 +2242,14 @@ is reached from the DSPI B state machine (section 28.3).
   reads "High speed CAN communication bus (H-CAN)". The firmware sets U1001 from the FlexCAN C
   controller, the bus that carries the MCU's `0x2C1`, while U0001 covers P-CAN. So the two are
   probably the same bus (inferred from the EPCU having exactly two external CAN pairs and the
-  firmware two used controllers). The manual's own expansion is "high speed". Whether the H
-  originally stood for "Hybrid" on the shared Ioniq platform was not established.
+  firmware two used controllers). The US EV Data Link Details SD200-8 shows H-CAN on the E01
+  multipurpose check connector pins 6 (high) and 14 (low), not on the OBD connector or IGPM. It
+  places the BMS on P-CAN (SD200-4/5/10), with no BMS H-CAN connection shown. The EU car's wiring
+  is unconfirmed. The MCU sets identical CAN timing registers for this link and P-CAN, supporting
+  500 kbit/s by comparison, not by an H-CAN measurement. The manual's expansion is "high speed";
+  whether H originally stood for "Hybrid" on the shared Ioniq platform was not established.
 - CCP-CAN `0x2C1` has `0x291`'s layout and `0x58F` carries the `0x590` buffer: a capture that
-  merges buses, or a definition with no bus, would mix them. `can_buses.yaml` has no H-CAN entry.
+  merges buses, or a definition with no bus, would mix them. `can_buses.yaml` marks H-CAN private.
 - opendbc names that do not apply here: P-CAN `0x523` is the MCU's, not `GW_SWRC_PE`; `0x570` is
   not `HU_TMU_P_01`; `0x2A2`, `0x050`, `0x051` and `0x060` collide with unrelated CAN-FD frames.
 

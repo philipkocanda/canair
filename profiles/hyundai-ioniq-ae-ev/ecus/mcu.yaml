@@ -8,7 +8,7 @@
 # Only KWP2000 session 0x81 is accepted; the 21xx pages also read in the default session.
 MCU:
   tx_id: 0x7E3
-  can_bus: [P-CAN]
+  can_bus: [P-CAN, H-CAN]
   identity:
     alias: VMCU # also known as HPCU (Hybrid Power Control Unit)
     description: Motor Control Unit (inverter)
