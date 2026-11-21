@@ -232,3 +232,36 @@ def test_pipeline_stops_after_uncertain_key_result(tmp_path, capsys):
     assert "outcome is unknown" in captured.err
     assert "1234" not in captured.out + captured.err
     assert "A1B2" not in captured.out + captured.err
+
+
+def test_pipeline_warns_if_security_session_close_times_out(tmp_path, monkeypatch, capsys):
+    from canair.live.read import multi
+
+    root = tmp_path / "profile"
+    root.mkdir()
+    (root / "ecus").mkdir()
+    (root / "profile.yaml").write_text('car_model: "Test"\ninit: ""\n')
+    key_file = tmp_path / "key"
+    key_file.write_bytes(bytes.fromhex("A1B2"))
+    key_file.chmod(0o600)
+    terminal = FakeTerminal(responses={"2701": ok("67011234"), "2702A1B2": ok("6702")})
+    data = {"ecus": {"TEST": {"tx_id": 0x720, "pids": {}}}}
+
+    async def timed_out(coroutine, timeout):
+        coroutine.close()
+        raise TimeoutError
+
+    monkeypatch.setattr(multi.asyncio, "wait_for", timed_out)
+    asyncio.run(
+        mode_multi(
+            terminal,
+            ["session TEST --mode 03", "unlock TEST --level 01"],
+            data,
+            False,
+            no_repl=True,
+            security_key_file=str(key_file),
+            security_confirmed=True,
+            profile=Profile("test", root),
+        )
+    )
+    assert "security session close timed out" in capsys.readouterr().err

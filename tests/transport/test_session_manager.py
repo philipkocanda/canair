@@ -133,6 +133,17 @@ class TestSessionMode:
 
 class TestSecuritySessionClose:
     @pytest.mark.asyncio
+    async def test_security_session_closes_before_other_sessions(self):
+        terminal = FakeTerminal({"1081": _ok("5081"), "1001": _ok("5001")})
+        terminal.session_policy = SessionPolicy(protocols={0x720: KWP})
+        sm = SessionManager(terminal)
+        sm.track(0x721, 3)
+        sm.track(0x720, 0x90)
+        sm.security_targets.add(0x720)
+        await sm.close_all()
+        assert terminal.addressed == [(0x720, "1081"), (0x721, "1001")]
+
+    @pytest.mark.asyncio
     async def test_kwp_security_session_returns_to_standard_mode(self):
         terminal = FakeTerminal({"1081": _ok("5081")})
         terminal.session_policy = SessionPolicy(protocols={0x720: KWP})

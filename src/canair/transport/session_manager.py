@@ -490,5 +490,7 @@ class SessionManager:
     async def close_all(self):
         """Close all active sessions."""
         await self.stop_background_keepalive()
-        for tx_id in self.table.tracked():
+        # A global teardown deadline must not leave an unlocked ECU behind an unrelated timeout.
+        targets = sorted(self.table.tracked(), key=lambda tx: tx not in self.security_targets)
+        for tx_id in targets:
             await self.close_session(tx_id)

@@ -489,5 +489,8 @@ async def _run_pipeline(
         print("  Closing all sessions…")
         try:
             await asyncio.wait_for(sm.close_all(), timeout=3.0)
-        except (TimeoutError, KeyboardInterrupt, Exception):
+        except TimeoutError:
+            if sm.security_targets:
+                messages.warning("security session close timed out; ECU access may remain active")
+        except (KeyboardInterrupt, Exception):
             pass
