@@ -12,6 +12,7 @@ target                file                        section             edited by
 ``actions``           ``actions.yaml``            ``actions:``        :mod:`.actions`
 ``states``            ``vehicle_states.yaml``     ``states:``         :mod:`.states`
 ``variants``          ``variants.yaml``           ``variants:``       :mod:`.variants`
+``can_buses``         ``can_buses.yaml``          ``can_buses:``      :mod:`.can_buses`
 ``signals``           ``signals/<bus>.yaml``      ``messages:``       :mod:`.signals`
 ``ecu``               ``ecus/<name>.yaml``        the ECU's mapping   :mod:`.ecu`, :mod:`.revisions`
 ====================  ==========================  ==================  =========================
@@ -27,7 +28,7 @@ from __future__ import annotations
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any
 
-from . import actions, ecu, groups, signals, states, variants
+from . import actions, can_buses, ecu, groups, signals, states, variants
 from .doc import edit_doc
 
 if TYPE_CHECKING:
@@ -43,6 +44,7 @@ def targets() -> dict[str, Target]:
         actions.ACTIONS,
         states.STATES,
         variants.VARIANTS,
+        can_buses.CAN_BUSES,
         signals.SIGNALS,
         ecu.ECU,
     )

@@ -3,9 +3,13 @@
 # `canair bus`
 
 ```
-usage: canair bus [-h] [--json]
+usage: canair bus [-h] [--json] {upsert} ...
 
-List the active profile's CAN bus segments with their human names, descriptions, and the number of ECUs on each (from can_buses.yaml).
+List the active profile's CAN buses and ECU counts, or edit the mapping-form vocabulary in can_buses.yaml.
+
+positional arguments:
+  {upsert}
+    upsert    Add or update a CAN bus
 
 options:
   -h, --help  show this help message and exit
@@ -13,4 +17,27 @@ options:
 
   canair bus            # table of buses + descriptions + ECU counts
   canair bus --json     # machine-readable
+  canair bus upsert H-CAN --name "High-speed CAN" --private
+```
+
+## `canair bus upsert`
+
+```
+usage: canair bus upsert [-h] [--json] [--name NAME]
+                         [--description DESCRIPTION] [--bitrate BITRATE]
+                         [--private | --public]
+                         code
+
+positional arguments:
+  code                  Bus code, e.g. H-CAN
+
+options:
+  -h, --help            show this help message and exit
+  --json                Output as JSON
+  --name NAME           Human-readable name
+  --description DESCRIPTION
+                        Description of the segment
+  --bitrate BITRATE     Bus speed in bit/s
+  --private             Mark a segment the gateway and OBD-II do not reach
+  --public              Mark a segment the gateway reaches
 ```

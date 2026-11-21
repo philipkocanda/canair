@@ -8,7 +8,7 @@
 # codes accepted by each ECU's top-level `can_bus:` field (in ecus/). Bus naming
 # is VENDOR-SPECIFIC, so it lives per profile rather than in a global enum:
 #   Hyundai/Kia   B-CAN / P-CAN / C-CAN / M-CAN / H-CAN
-#                 (Body, Powertrain, Chassis, Multimedia, Hybrid)
+#                 (Body, Powertrain, Chassis, Multimedia, High-speed)
 #   Ford          HS / MS            (High-/Medium-speed CAN)
 #   BMW           PT-CAN / K-CAN / F-CAN
 #   VW/Audi       Antriebs / Komfort / Infotainment (German domain names)

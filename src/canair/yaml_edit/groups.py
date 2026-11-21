@@ -17,20 +17,17 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from ruamel.yaml.comments import CommentedMap
 
 from canair.core.edit_errors import EditError
 from canair.core.paths import schema_modeline
 from canair.ecus.ecu_groups import normalize_group_name
+from canair.profile.model import Profile
 from canair.query import QueryError, parse_selector
 
 from .doc import Target, edit_doc
 from .ruamel_ops import find_key, flow_seq, remove_key, rename_key
-
-if TYPE_CHECKING:
-    from canair.profile.model import Profile
 
 # A group name: a lower-cased word of letters/digits, optionally with internal
 # hyphens/underscores (e.g. ``charging``, ``charge-detail``, ``12v``). No spaces

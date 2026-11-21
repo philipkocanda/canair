@@ -39,7 +39,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 - [`canair pids`](pids.md) — Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions).
 - [`canair signals`](signals.md) — View/edit broadcast signal definitions (domain B).
 - [`canair ecu`](ecu.md) — Inspect or edit the profile's ECU registry.
-- [`canair bus`](bus.md) — List the active profile's CAN bus segments with their human names, descriptions, and the number of ECUs on each (from can_buses.yaml).
+- [`canair bus`](bus.md) — List the active profile's CAN buses and ECU counts, or edit the mapping-form vocabulary in can_buses.yaml.
 - [`canair states`](states.md) — List the active profile's vehicle operating states, or edit the vocabulary (add/rm/rename/set-description/set-predicate/set-implies/set-excludes).
 - [`canair groups`](groups.md) — List the active profile's named selector groups, or edit the vocabulary (add/rm/rename/set-description/set-members).
 - [`canair wican`](wican.md) — Build and sync the WiCAN device's AutoPID profile.

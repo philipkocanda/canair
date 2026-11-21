@@ -1,17 +1,16 @@
-"""``canair bus`` — list the profile's CAN bus segments.
+"""``canair bus`` — list and edit the profile's CAN bus segments.
 
 Prints each physical CAN bus segment declared in the active profile's
 ``can_buses.yaml`` with its human name, description, bus speed (bitrate), and
 the number of ECUs sitting on it (an ECU spanning two segments counts on each).
 An ECU tagged with the gateway code ``ALL`` bridges every segment, so it is
 counted on each declared bus (including the diagnostic bus), not just a lone
-``ALL`` row; a segment marked ``private`` (a link the gateway does not bridge) is skipped. The bus vocabulary is vendor-specific (Hyundai/Kia B-CAN/P-CAN/
-C-CAN/MM-CAN/H-CAN, Ford HS/MS, BMW PT-CAN/K-CAN, …), so it lives per profile —
-this is the read-only view of it.
+``ALL`` row; a segment marked ``private`` is skipped. Bus codes are vendor-specific.
 
 Examples:
   canair bus            # table of buses + descriptions + ECU counts
   canair bus --json     # machine-readable
+  canair bus upsert H-CAN --name "High-speed CAN" --private
 """
 
 from __future__ import annotations
@@ -21,10 +20,12 @@ import json
 import sys
 from typing import TypedDict
 
+from canair.cli.commands._edit import edit_scope
 from canair.cli.profile_context import active
 from canair.ecus.can_buses import ALL_CODE, expand_bus_membership, load_can_buses
 from canair.ecus.registry import load_ecus
 from canair.render import ansi
+from canair.yaml_edit.echo import echo_edit
 
 NAME = "bus"
 
@@ -36,6 +37,7 @@ class BusRecord(TypedDict):
     name: str | None
     description: str | None
     bitrate: int | None
+    private: bool
     ecus: int
 
 
@@ -61,18 +63,45 @@ def _normalize_bus(value) -> list[str]:
 def add_parser(subparsers) -> argparse.ArgumentParser:
     parser = subparsers.add_parser(
         NAME,
-        help="List the profile's CAN bus segments (names, descriptions, ECU counts)",
-        description="List the active profile's CAN bus segments with their human "
-        "names, descriptions, and the number of ECUs on each (from can_buses.yaml).",
+        help="List and edit the profile's CAN bus segments",
+        description="List the active profile's CAN buses and ECU counts, or edit "
+        "the mapping-form vocabulary in can_buses.yaml.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__.split("Examples:")[1] if "Examples:" in __doc__ else "",
     )
     parser.add_argument("--json", action="store_true", help="Output as JSON")
+    sub = parser.add_subparsers(dest="bus_command")
+    upsert = sub.add_parser("upsert", help="Add or update a CAN bus")
+    upsert.add_argument(
+        "--json", action="store_true", default=argparse.SUPPRESS, help="Output as JSON"
+    )
+    upsert.add_argument("code", help="Bus code, e.g. H-CAN")
+    upsert.add_argument("--name", help="Human-readable name")
+    upsert.add_argument("--description", help="Description of the segment")
+    upsert.add_argument("--bitrate", type=int, help="Bus speed in bit/s")
+    access = upsert.add_mutually_exclusive_group()
+    access.add_argument(
+        "--private",
+        dest="private",
+        action="store_const",
+        const=True,
+        help="Mark a segment the gateway and OBD-II do not reach",
+    )
+    access.add_argument(
+        "--public",
+        dest="private",
+        action="store_const",
+        const=False,
+        help="Mark a segment the gateway reaches",
+    )
+    upsert.set_defaults(private=None)
     parser.set_defaults(func=run)
     return parser
 
 
 def run(args) -> int:
+    if getattr(args, "bus_command", None) == "upsert":
+        return _upsert(args)
     from collections import Counter
 
     prof = active()
@@ -110,6 +139,7 @@ def run(args) -> int:
             "name": b.name or None,
             "description": b.description or None,
             "bitrate": b.bitrate,
+            "private": b.private,
             "ecus": per_bus.get(b.code, 0),
         }
         for b in buses
@@ -172,4 +202,24 @@ def run(args) -> int:
         )
 
     print(f"\n  {ansi.c(f'source: {prof.can_buses_file}', ansi.DIM)}\n")
+    return 0
+
+
+def _upsert(args) -> int:
+    # deferred: loading the bus editor at parser build adds a module to every invocation.
+    from canair.yaml_edit.can_buses import upsert_bus
+
+    with edit_scope(args):
+        path = upsert_bus(
+            args.code,
+            profile=active(),
+            name=args.name,
+            description=args.description,
+            bitrate=args.bitrate,
+            private=args.private,
+        )
+    echo_edit(f"updated bus {args.code}", path, file=sys.stderr)
+    if args.json:
+        json.dump({"code": args.code, "source": str(path)}, sys.stdout)
+        print()
     return 0

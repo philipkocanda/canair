@@ -181,7 +181,7 @@ helps you choose.
 | `canair pids` | Add or update signals and research entries in `ecus/`. |
 | `canair signals` | Add or update broadcast signal definitions in `signals/`. |
 | `canair ecu` | Inspect, add, rename and edit ECUs. |
-| `canair bus` | List the CAN bus segments of the profile. |
+| `canair bus` | List and edit the profile's CAN bus segments. |
 | `canair states` | List and edit the vehicle-state vocabulary. |
 | `canair groups` | List and edit named selector groups, for example `monitor @charging`. |
 | `canair variants` | List and edit the variants of the profile car. |

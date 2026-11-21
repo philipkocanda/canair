@@ -19,6 +19,7 @@ Editors, one per file kind
     :mod:`.groups` :mod:`.actions` :mod:`.states` :mod:`.variants` :mod:`.signals`
         a profile's ``groups.yaml``, ``actions.yaml``, ``vehicle_states.yaml``,
         ``variants.yaml`` and ``signals/<bus>.yaml``
+    :mod:`.can_buses`   ``can_buses.yaml``: physical bus definitions
     :mod:`.ecu` :mod:`.revisions`
         ``ecus/``: registration, addressing, scan log, revisions, gates, overrides (ruamel)
     :mod:`.pids`

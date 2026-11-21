@@ -10,6 +10,7 @@ import pytest
 
 import canair.cli.commands.bus as bus
 from canair.ecus.can_buses import BusDef
+from canair.profile.model import Profile
 
 
 class _FakeProfile:
@@ -72,6 +73,7 @@ def test_json(_patched, capsys):
     assert counts == {"B-CAN": 1, "P-CAN": 2, "ALL": 0}
     rates = {b["code"]: b["bitrate"] for b in data["buses"]}
     assert rates == {"B-CAN": 100000, "P-CAN": 500000, "ALL": None}
+    assert all(not b["private"] for b in data["buses"])
     assert data["unbussed_ecus"] == 1
     assert [u["code"] for u in data["undeclared"]] == ["H-CAN"]
 
@@ -126,3 +128,19 @@ def test_no_color_when_piped(_patched, capsys):
     _run()
     out = capsys.readouterr().out
     assert "\033[" not in out  # NO_COLOR set → no ANSI escapes
+
+
+@pytest.mark.parametrize("json_first", [False, True])
+def test_upsert_json(monkeypatch, tmp_path, capsys, json_first):
+    profile = Profile("test", tmp_path)
+    monkeypatch.setattr("canair.cli.profile_context._active", profile)
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers()
+    bus.add_parser(subparsers)
+    tokens = ["bus", "upsert", "H-CAN", "--private"]
+    tokens.insert(1 if json_first else len(tokens), "--json")
+    args = parser.parse_args(tokens)
+    assert args.func(args) == 0
+    out, err = capsys.readouterr()
+    assert json.loads(out) == {"code": "H-CAN", "source": str(profile.can_buses_file)}
+    assert str(profile.can_buses_file) in err
