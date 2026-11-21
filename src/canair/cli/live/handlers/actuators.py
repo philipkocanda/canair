@@ -25,7 +25,12 @@ from canair.live.actuate.ecu_reset import mode_ecu_reset
 from canair.live.actuate.iocontrol import mode_iocontrol_tui
 from canair.live.actuate.iocontrol_execute import mode_iocontrol_execute
 from canair.live.actuate.routines import mode_routines_tui
-from canair.live.actuate.routines_execute import check_routines_protocol, mode_routines_execute
+from canair.live.actuate.routines_execute import (
+    DEFAULT_ROUTINE_TIMEOUT_S,
+    check_routine_request_size,
+    check_routines_protocol,
+    mode_routines_execute,
+)
 from canair.live.hold import wake_plan
 from canair.render import messages
 from canair.safety.blocklist import SafetyBlocked
@@ -70,6 +75,7 @@ async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnec
     # Before any question: a refused ECU is never asked about.
     check_routines_protocol(pids_data, args.routines)
     yes = getattr(args, "yes", False)
+    option_record = args.option_record or b""
     sub_function = RoutineControlType.REQUEST_ROUTINE_RESULTS
     if args.rid:
         sf_map = {
@@ -81,17 +87,24 @@ async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnec
         if sf_name not in sf_map:
             messages.fail(f"--sf must be one of: results, start, stop (got {args.sf!r})", code=2)
         sub_function = sf_map[sf_name]
+        try:
+            check_routine_request_size(option_record, terminal.max_request_bytes)
+        except ValueError as exc:
+            messages.fail(str(exc), code=2)
     what = f"31 {sub_function:02X} {args.rid.upper()}" if args.rid else "the TUI's 31 … requests"
+    if args.rid and option_record:
+        what += f" {option_record.hex().upper()}"
     if not confirm_unknown_protocol([args.routines], what, pids_data, yes=yes, profile=active()):
         raise SystemExit(1)
     if args.rid:
         if sub_function == RoutineControlType.START_ROUTINE:
+            record = f" with option record {option_record.hex().upper()}" if option_record else ""
             messages.warning(
-                f"--sf start sends startRoutine (SF 0x01) to {args.routines} RID {args.rid}"
+                f"--sf start sends startRoutine (SF 0x01) to {args.routines} RID {args.rid}{record}"
             )
             if not confirm("This may actuate hardware. Continue?", yes=yes, danger=True):
                 raise SystemExit(1)
-        await mode_routines_execute(
+        ok = await mode_routines_execute(
             terminal,
             pids_data,
             args.routines,
@@ -99,7 +112,11 @@ async def handle_routines(args, terminal: Terminal, pids_data, host, *, reconnec
             sub_function=sub_function,
             verbose=args.verbose,
             as_json=args.json,
+            option_record=option_record,
+            timeout=args.timeout if args.timeout is not None else DEFAULT_ROUTINE_TIMEOUT_S,
         )
+        if not ok:
+            raise SystemExit(1)
     else:
         await mode_routines_tui(
             terminal,

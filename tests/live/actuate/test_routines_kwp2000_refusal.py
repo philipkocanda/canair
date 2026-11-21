@@ -46,10 +46,15 @@ def test_a_uds_ecu_and_an_unknown_one_are_not_refused():
 
 
 @pytest.mark.parametrize("sub_function", list(RoutineControlType))
-def test_execute_sends_nothing_to_a_kwp2000_ecu(sub_function):
+@pytest.mark.parametrize("option_record", [b"", b"\xaa\xbb"])
+def test_execute_sends_nothing_to_a_kwp2000_ecu(sub_function, option_record):
     term = FakeTerminal()
     with pytest.raises(SafetyBlocked, match="BMS speaks KWP2000"):
-        asyncio.run(mode_routines_execute(term, DATA, "BMS", "05", sub_function=sub_function))
+        asyncio.run(
+            mode_routines_execute(
+                term, DATA, "BMS", "05", sub_function=sub_function, option_record=option_record
+            )
+        )
     assert term.sent == []
     assert term.headers == []
 

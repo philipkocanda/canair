@@ -55,6 +55,24 @@ def test_routine_control_request():
     assert routine_control_request(RoutineControlType.START_ROUTINE, 0x0203) == "31010203"
 
 
+@pytest.mark.parametrize(
+    ("sub_function", "expected"),
+    [
+        (RoutineControlType.START_ROUTINE, "310112A100FF"),
+        (RoutineControlType.STOP_ROUTINE, "310212A100FF"),
+        (RoutineControlType.REQUEST_ROUTINE_RESULTS, "310312A100FF"),
+    ],
+)
+def test_routine_control_request_appends_opaque_option_bytes(sub_function, expected):
+    assert routine_control_request(sub_function, 0x12A1, b"\x00\xff") == expected
+
+
+@pytest.mark.parametrize(("sub_function", "rid"), [(0x100, 0x12A1), (1, 0x10000), (-1, 0)])
+def test_routine_control_request_rejects_out_of_range_fields(sub_function, rid):
+    with pytest.raises(ValueError):
+        routine_control_request(sub_function, rid, b"\xaa")
+
+
 class TestClearDtcRequest:
     def test_all_groups_is_ff00_on_kwp2000_and_ffffff_on_uds(self):
         assert clear_dtc_request(kwp=True) == "14FF00"

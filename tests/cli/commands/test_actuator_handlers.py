@@ -14,6 +14,7 @@ from canair.cli.commands import io as io_cmd
 from canair.cli.live.handlers import actuators
 from canair.core.prompt import PromptUnavailable
 from canair.safety.blocklist import SafetyBlocked
+from tests.support.fakes import FakeTerminal
 
 DATA = {
     "ecus": {
@@ -42,18 +43,27 @@ def sent(monkeypatch):
 
     async def fake_execute(terminal, pids, ecu, rid, **kw):
         calls.append({"ecu": ecu, "rid": rid, **kw})
+        return True
 
     monkeypatch.setattr(actuators, "mode_routines_execute", fake_execute)
     return calls
 
 
 def _args(sf: str, **kw) -> argparse.Namespace:
-    base = {"routines": "BCM", "rid": "12A1", "sf": sf, "yes": False, "verbose": False}
+    base = {
+        "routines": "BCM",
+        "rid": "12A1",
+        "sf": sf,
+        "yes": False,
+        "verbose": False,
+        "option_record": None,
+        "timeout": None,
+    }
     return argparse.Namespace(**{**base, "json": False, **kw})
 
 
 def _handle(args):
-    asyncio.run(actuators.handle_routines(args, None, DATA, None))  # type: ignore[arg-type]
+    asyncio.run(actuators.handle_routines(args, FakeTerminal(), DATA, None))
 
 
 def test_the_routines_command_has_a_yes_flag():
@@ -97,7 +107,10 @@ def test_results_does_not_ask(monkeypatch, sent):
     assert len(sent) == 1
 
 
-def test_a_kwp2000_ecu_is_refused_before_the_start_question(monkeypatch, capsys, sent):
+@pytest.mark.parametrize("option_record", [None, b"\xaa" * 8])
+def test_a_kwp2000_ecu_is_refused_before_the_start_question(
+    option_record, monkeypatch, capsys, sent
+):
     data = {
         "ecus": {
             "BMS": {
@@ -108,7 +121,7 @@ def test_a_kwp2000_ecu_is_refused_before_the_start_question(monkeypatch, capsys,
         }
     }
     monkeypatch.setattr("sys.stdin", _Stdin("y\n", tty=True))
-    args = _args("start", routines="BMS", rid="05")
+    args = _args("start", routines="BMS", rid="05", option_record=option_record)
     with pytest.raises(SafetyBlocked, match="BMS speaks KWP2000"):
         asyncio.run(actuators.handle_routines(args, None, data, None))  # type: ignore[arg-type]
     assert sent == []
@@ -144,7 +157,7 @@ UNKNOWN_DATA = {"ecus": {"BCM": {"tx_id": 0x745, "routines": {"12A1": {"label": 
 
 
 def _handle_unknown(args):
-    asyncio.run(actuators.handle_routines(args, None, UNKNOWN_DATA, None))  # type: ignore[arg-type]
+    asyncio.run(actuators.handle_routines(args, FakeTerminal(), UNKNOWN_DATA, None))
 
 
 def test_an_ecu_of_unknown_protocol_is_asked_about_even_for_results(monkeypatch, capsys, sent):

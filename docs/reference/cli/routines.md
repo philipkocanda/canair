@@ -3,7 +3,8 @@
 # `canair routines`
 
 ```
-usage: canair routines [-h] [--rid RID] [--sf SF] [--yes] [--wican WICAN]
+usage: canair routines [-h] [--rid RID] [--sf SF] [--option-record HEX]
+                       [--yes] [--wican WICAN]
                        [--transport {slcan-tcp,wican-ws,elm327-tcp}]
                        [--no-fallback] [--wait] [--elm-timeout MS]
                        [--timeout SECONDS] [--no-learn-frames] [--json]
@@ -20,6 +21,8 @@ options:
   --rid RID             Routine ID to execute (e.g. 12A1)
   --sf SF               Sub-function: results (0x03, safe default), start
                         (0x01, actuates), stop (0x02)
+  --option-record HEX   Routine-specific option record as whole hex bytes
+                        (e.g. AABB); requires --rid
   --yes, -y             Send without asking first, with --sf start or to an
                         ECU whose protocol the profile does not record
                         (required when stdin is not a terminal)
@@ -69,6 +72,10 @@ examples:
   canair routines BCM                     Interactive TUI
   canair routines BCM --json              List all BCM routines (offline JSON)
   canair routines BCM --rid 12A1          Request results (SF 0x03, safe)
+  canair routines BCM --rid 12A1 --option-record AABB   Append routine-specific bytes
   canair routines BCM --rid 12A1 --sf stop
   canair routines BCM --rid 12A1 --sf start -y   Skip the question (scripts)
+
+An NRC or no usable response exits 1; --json still returns the complete result.
+A timeout does not prove the routine did not run; check its state before retrying.
 ```

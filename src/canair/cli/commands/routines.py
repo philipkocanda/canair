@@ -12,9 +12,18 @@ from canair.cli.profile_context import active
 from canair.ecus.pids import load_pids
 from canair.live.actuate.routines_list import mode_routines_list
 from canair.render import messages
+from canair.uds.echo import hex_bytes
 
 NAME = "routines"
 _OPERATION = LiveOperation(actuators.handle_routines)
+
+
+def _option_record(value: str) -> bytes:
+    """Parse the routine's opaque option record before connecting to the device."""
+    record = hex_bytes(value)
+    if record is None:
+        raise argparse.ArgumentTypeError("must be non-empty whole hex bytes (e.g. AABB)")
+    return record
 
 
 def add_parser(subparsers) -> argparse.ArgumentParser:
@@ -30,8 +39,12 @@ examples:
   canair routines BCM                     Interactive TUI
   canair routines BCM --json              List all BCM routines (offline JSON)
   canair routines BCM --rid 12A1          Request results (SF 0x03, safe)
+  canair routines BCM --rid 12A1 --option-record AABB   Append routine-specific bytes
   canair routines BCM --rid 12A1 --sf stop
   canair routines BCM --rid 12A1 --sf start -y   Skip the question (scripts)
+
+An NRC or no usable response exits 1; --json still returns the complete result.
+A timeout does not prove the routine did not run; check its state before retrying.
 """,
     )
     parser.add_argument(
@@ -44,6 +57,12 @@ examples:
         default="results",
         choices=["results", "start", "stop"],
         help="Sub-function: results (0x03, safe default), start (0x01, actuates), stop (0x02)",
+    )
+    parser.add_argument(
+        "--option-record",
+        metavar="HEX",
+        type=_option_record,
+        help="Routine-specific option record as whole hex bytes (e.g. AABB); requires --rid",
     )
     parser.add_argument(
         "--yes",
@@ -61,6 +80,9 @@ def run(args) -> int:
     if not args.routines:
         messages.error("specify an ECU, e.g. `canair routines BCM`")
         print(ecu_hint(), file=sys.stderr)
+        return 2
+    if getattr(args, "option_record", None) is not None and not args.rid:
+        messages.error("--option-record requires --rid")
         return 2
     if args.json and not args.rid:
         # Listing reads only the profile, so it must not need (or lock) the device.

@@ -16,6 +16,7 @@ class Terminal:
         self.in_transaction = False
         self.session_policy = SessionPolicy()
         self.reply = reply
+        self.timeouts: list[float | None] = []
 
     @contextlib.asynccontextmanager
     async def transaction(self):
@@ -30,6 +31,7 @@ class Terminal:
 
     async def send_uds(self, cmd: str, **kwargs) -> dict:
         self.calls.append(("send", (cmd, self.in_transaction)))
+        self.timeouts.append(kwargs.get("timeout"))
         if self.reply is not None:
             return self.reply
         hexs = f"71{cmd[2:]}"
@@ -64,6 +66,7 @@ def test_a_request_opens_the_session_then_sends_in_one_transaction():
     asyncio.run(bank.send("12A1", RoutineControlType.REQUEST_ROUTINE_RESULTS))
     assert sessions.asked == [(0x7A0, None)]
     assert terminal.calls == [("header", (0x7A0, True)), ("send", ("310312A1", True))]
+    assert terminal.timeouts == [3.0]
     assert bank.state["12A1"] == "ok"
     assert bank.last_sf["12A1"] == RoutineControlType.REQUEST_ROUTINE_RESULTS
     assert bank.busy is False

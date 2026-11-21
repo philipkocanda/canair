@@ -246,6 +246,30 @@ Discovering a capability is different from using it:
     - The value keys of the TUI build UDS `0x2F` requests, so canair refuses them for a KWP2000
       ECU.
 
+### Routine option records
+
+Some UDS routines need a `routineControlOptionRecord`: routine-specific bytes after the routine
+identifier. For a single request, `canair routines ECU --rid RID --option-record HEX` appends
+those bytes to the chosen start, stop or results request. For example, RID `12A1`, `--sf start`
+and `--option-record AABB` form `31 01 12 A1 AA BB`. These are illustrative bytes, not a known
+safe routine. Use only the record documented for the ECU and routine: canair checks the hex and
+the transport's length limit, but cannot verify what the bytes do.
+
+The start confirmation shows the option record. The existing blocklist, KWP2000 refusal and
+unknown-protocol question still apply. A positive response is displayed in full as hex; any
+routine status record is not decoded. Option records are available on the one-shot command, not
+in the routines or monitor TUI. See the [routines reference](../reference/cli/routines.md).
+
+One-shot routine requests exit with code 1 when the ECU sends an NRC or no usable response. With
+`--json`, the complete result has `ok: false` and the error is on stderr. A timeout does not prove
+the routine did not run: check the ECU's state before retrying.
+
+The ELM-based `wican-ws` and `elm327-tcp` transports accept at most seven request bytes: four for
+the service, sub-function and RID, leaving three for the option record. `slcan-tcp` can segment
+longer requests with ISO-TP (up to 4,095 request bytes), provided the ECU accepts them.
+The one-shot request waits three seconds by default; use `--timeout SECONDS` for a longer transfer
+or response. ELM-based transports also have their own ECU wait (`--elm-timeout`).
+
 ### Actuating from the monitor
 
 `canair monitor` can switch outputs and run routines while it polls, so you can watch what an

@@ -22,6 +22,9 @@ class TestSubFunctionEchoOnUds:
             ("8501", "01"),  # ControlDTCSetting on
             ("3101F000", "01F000"),  # RoutineControl: the type and the routine id
             ("3181F000AA", "01F000"),  # ... suppress bit, and an option record
+            ("3101F000AABBCCDD", "01F000"),  # the option record is not echoed
+            ("3102F00000", "02F000"),
+            ("3103F000FF", "03F000"),
             ("3103FF00", "03FF00"),
         ],
     )

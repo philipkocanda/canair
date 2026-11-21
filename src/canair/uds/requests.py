@@ -74,12 +74,16 @@ def kwp_io_control_request(lid: int, option: bytes) -> str:
     return _request(KWP_INPUT_OUTPUT_CONTROL_BY_LOCAL_IDENTIFIER, _field(lid, 1, "LID"), option)
 
 
-def routine_control_request(routine_control_type: int, rid: int) -> str:
-    """``31 {type} {RID}``: RoutineControl (UDS)."""
+def routine_control_request(routine_control_type: int, rid: int, option_record: bytes = b"") -> str:
+    """``31 {type} {RID} {option_record}``: RoutineControl (UDS).
+
+    The optional routineControlOptionRecord is opaque: its contents are defined by the routine.
+    """
     return _request(
         ROUTINE_CONTROL,
         _field(routine_control_type, 1, "routine control type"),
         _field(rid, 2, "routine id"),
+        option_record,
     )
 
 
