@@ -1,8 +1,8 @@
 # canair — agent guide
 
-canair is a vehicle-agnostic CAN/UDS reverse-engineering CLI. The bundled reference car is a 2017
-Hyundai Ioniq Electric (`profiles/hyundai-ioniq-ae-ev/`). For reference, the WiCAN firmware is
-checked out in `wican-fw/` (gitignored; pull if you need the latest).
+canair is a vehicle-agnostic CAN/UDS CLI; its bundled reference car is the 2017 Ioniq Electric
+(`profiles/hyundai-ioniq-ae-ev/`). `wican-fw/` is a gitignored WiCAN checkout (pull to update).
+`references/` is a separate private repo (gitignored here): firmware, Ghidra, manuals/specs and CAN.
 
 **How to read this file:** it carries the *rules*, a short *map* of the commands and the data, and
 pointers to where each design lives. It is not a flag reference, a workflow guide or a design
