@@ -334,6 +334,17 @@
       "attribution": {
         "variant": "migrated"
       },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {"at": "09:25:48.175", "states": ["READY", "ON", "PARKED", "IG3"]},
+          {"at": "09:25:58.215", "states": ["ON", "PARKED", "IG3"]},
+          {"at": "09:26:12.415", "states": ["READY", "ON", "PARKED", "IG3"]},
+          {"at": "09:27:06.880", "states": ["ON", "PARKED", "IG3"]},
+          {"at": "09:27:18.929", "states": ["READY", "ON", "PARKED", "IG3"]}
+        ],
+        "version": "5.5.0+main.09472b4.dirty"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C000211300000000001660002D2D00007113009898","time":"09:25:51.513"},
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C000211300000000001660002D2E00007113009898","time":"09:25:57.887"},

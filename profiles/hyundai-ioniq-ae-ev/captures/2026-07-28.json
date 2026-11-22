@@ -281,6 +281,15 @@
       "attribution": {
         "variant": "migrated"
       },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {"at": "12:18:13.898", "states": ["READY", "ON", "PARKED", "IG3"]},
+          {"at": "12:19:33.612", "states": ["ON", "PARKED", "IG3"]},
+          {"at": "12:19:45.369", "states": ["READY", "ON", "PARKED", "IG3"]}
+        ],
+        "version": "5.5.0+main.09472b4.dirty"
+      },
       "captures": [
         {"rx":"0x7ED","pid":"2101","payload":"6101FFFFF8000102A601BB032500007F003301BD05964100000000000E0000600000000001F493E702480000","time":"12:18:13.912"},
         {"rx":"0x7ED","pid":"2102","payload":"6102FFFC0000684F792A694A79286E847927650F791B7499791F7293792B74827931","time":"12:18:14.061"},
@@ -450,6 +459,27 @@
       "variant": "28kwh",
       "attribution": {
         "variant": "migrated"
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {"at": "12:20:21.526", "states": ["READY", "ON", "PARKED", "IG3"]},
+          {"at": "12:21:23.068", "states": ["ON", "PARKED", "IG3"]},
+          {"at": "12:21:36.719", "states": ["READY", "ON", "PARKED", "IG3"]},
+          {"at": "12:23:52.409", "states": ["ON", "PARKED", "IG3"]},
+          {"at": "12:24:21.913", "states": ["READY", "ON", "PARKED", "IG3"]},
+          {"at": "12:25:20.035", "states": ["ON", "PARKED", "IG3"]},
+          {"at": "12:25:31.020", "states": ["READY", "ON", "PARKED", "IG3"]},
+          {"at": "12:26:17.399", "states": ["ON", "PARKED", "IG3"]},
+          {"at": "12:26:29.097", "states": ["READY", "ON", "PARKED", "IG3"]},
+          {"at": "12:29:51.085", "states": ["ON", "PARKED", "IG3"]},
+          {"at": "12:30:14.484", "states": ["READY", "ON", "PARKED", "IG3"]},
+          {"at": "12:30:37.448", "states": ["ON", "PARKED", "IG3"]},
+          {"at": "12:30:48.871", "states": ["READY", "ON", "PARKED", "IG3"]},
+          {"at": "12:31:01.333", "states": ["ON", "PARKED", "IG3"]},
+          {"at": "12:31:12.031", "states": ["READY", "ON", "PARKED", "IG3"]}
+        ],
+        "version": "5.5.0+main.09472b4.dirty"
       },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C000212700000000002A8100453C00008713009595","time":"12:20:21.560"},

@@ -26,7 +26,7 @@
           {"at": "09:51:53.919", "states": ["SLEEP", "ACC", "PARKED", "IG3"]},
           {"at": "09:53:49.457", "states": ["READY", "SLEEP", "ACC", "PARKED", "IG3"]}
         ],
-        "version": "1.35.2+main.4636a47.dirty"
+        "version": "5.5.0+main.09472b4.dirty"
       },
       "variant": "28kwh",
       "attribution": {
@@ -2564,6 +2564,15 @@
       "attribution": {
         "variant": "migrated"
       },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {"at": "10:18:04.824", "states": ["READY", "ON", "PARKED", "IG3"]},
+          {"at": "10:19:51.206", "states": ["ON", "PARKED", "IG3"]},
+          {"at": "10:20:02.500", "states": ["READY", "ON", "PARKED", "IG3"]}
+        ],
+        "version": "5.5.0+main.09472b4.dirty"
+      },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C00022510000000000487F00423E00008413008D8D","time":"10:18:04.899"},
         {"rx":"0x7EE","pid":"2181","payload":"6181FFFFC00022510000000034487F7F413E45458413008D8D","time":"10:18:05.050"},
@@ -2992,6 +3001,15 @@
       "variant": "28kwh",
       "attribution": {
         "variant": "migrated"
+      },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {"at": "10:20:51.953", "states": ["READY", "ON", "PARKED", "IG3"]},
+          {"at": "10:26:35.760", "states": ["ON", "PARKED", "IG3"]},
+          {"at": "10:26:48.437", "states": ["READY", "ON", "PARKED", "IG3"]}
+        ],
+        "version": "5.5.0+main.09472b4.dirty"
       },
       "captures": [
         {"rx":"0x7EE","pid":"2180","payload":"6180C366C00022510000000000477F00474000008813008D8D","time":"10:20:51.953"},
@@ -3909,13 +3927,13 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {"at": "12:20:45.815", "states": ["CHARGING", "PLUGGED", "PARKED", "IG3"]},
-          {"at": "14:35:50.161", "states": ["CHARGING", "PLUGGED", "PARKED"]},
-          {"at": "14:43:20.818", "states": ["CHARGING", "PLUGGED", "PARKED", "IG3"]},
-          {"at": "14:43:31.164", "states": ["PLUGGED", "PARKED", "IG3"]},
-          {"at": "14:46:34.505", "states": ["PLUGGED", "PARKED"]}
+          {"at": "12:20:45.815", "states": ["CHARGING", "PLUGGED", "OFF", "PARKED", "IG3"]},
+          {"at": "14:35:50.161", "states": ["CHARGING", "PLUGGED", "OFF", "PARKED"]},
+          {"at": "14:43:20.818", "states": ["CHARGING", "PLUGGED", "OFF", "PARKED", "IG3"]},
+          {"at": "14:43:31.164", "states": ["PLUGGED", "OFF", "PARKED", "IG3"]},
+          {"at": "14:46:34.505", "states": ["PLUGGED", "OFF", "PARKED"]}
         ],
-        "version": "1.35.2+main.4636a47.dirty"
+        "version": "5.5.0+main.09472b4.dirty"
       },
       "variant": "28kwh",
       "attribution": {

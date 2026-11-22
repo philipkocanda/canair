@@ -19,6 +19,14 @@
       "attribution": {
         "variant": "migrated"
       },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {"at": "20:46:15.514", "states": ["PARKED"]},
+          {"at": "20:46:33.688", "states": ["OFF", "PARKED"]}
+        ],
+        "version": "5.5.0+main.09472b4.dirty"
+      },
       "captures": [
         {"rx":"0x7EA","pid":"2101","payload":"6101FFE000000921806F064A0300000000A967300420","time":"20:46:15.514"},
         {"rx":"0x7EA","pid":"2102","payload":"6102F8F800000101000000951CB186463AC80A888AF539","time":"20:46:15.668"},

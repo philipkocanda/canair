@@ -20,11 +20,11 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {"at": "13:27:30.723", "states": []},
-          {"at": "13:27:52.905", "states": ["PARKED", "TOPUP", "IG3"]},
-          {"at": "13:40:17.679", "states": ["PARKED"]}
+          {"at": "13:27:30.723", "states": ["OFF"]},
+          {"at": "13:27:52.905", "states": ["OFF", "PARKED", "TOPUP", "IG3"]},
+          {"at": "13:40:17.679", "states": ["OFF", "PARKED"]}
         ],
-        "version": "1.35.2+main.4636a47.dirty"
+        "version": "5.5.0+main.09472b4.dirty"
       },
       "variant": "28kwh",
       "attribution": {

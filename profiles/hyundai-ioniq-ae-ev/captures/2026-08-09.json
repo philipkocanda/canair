@@ -24,7 +24,7 @@
           {"at": "11:44:08.074", "states": ["PLUGGED", "PARKED", "IG3"]},
           {"at": "11:44:20.008", "states": ["PLUGGED", "PARKED"]}
         ],
-        "version": "1.35.2+main.4636a47.dirty"
+        "version": "5.5.0+main.09472b4.dirty"
       },
       "variant": "28kwh",
       "attribution": {
@@ -9681,7 +9681,7 @@
           {"at": "14:06:17.393", "states": ["READY", "ON", "DRIVING", "IG3"]},
           {"at": "14:07:46.982", "states": ["READY", "ON", "PARKED", "IG3"]}
         ],
-        "version": "1.35.2+main.4636a47.dirty"
+        "version": "5.5.0+main.09472b4.dirty"
       },
       "variant": "28kwh",
       "attribution": {

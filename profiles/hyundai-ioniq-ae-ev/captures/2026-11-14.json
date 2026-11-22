@@ -133,13 +133,13 @@
         }
       },
       "state_spans": {
-        "source": "record",
+        "source": "backfill",
         "spans": [
           {"at": "23:12:08.050", "states": ["PLUGGED", "PARKED", "IG3"]},
           {"at": "23:14:20.991", "states": ["PLUGGED", "PARKED"]},
           {"at": "23:14:36.965", "states": ["PARKED"]}
         ],
-        "version": "5.5.0+main.21ad643"
+        "version": "5.5.0+main.09472b4.dirty"
       },
       "captures": [
         {"rx":"0x778","pid":"22BC07","payload":"62BC070841FBCC00001500","time":"23:11:53.486"},
