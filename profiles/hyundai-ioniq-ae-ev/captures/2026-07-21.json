@@ -448,6 +448,15 @@
       "attribution": {
         "variant": "migrated"
       },
+      "state_spans": {
+        "source": "backfill",
+        "spans": [
+          {"at": "12:41:16.226", "states": ["READY", "ON", "PARKED", "IG3"]},
+          {"at": "12:41:47.984", "states": ["ON", "PARKED", "IG3"]},
+          {"at": "12:41:58.280", "states": ["READY", "ON", "PARKED", "IG3"]}
+        ],
+        "version": "5.5.0+main.09472b4.dirty"
+      },
       "captures": [
         {"rx":"0x7A8","pid":"22B001","payload":"62B00140C0000000010000000000000201000000","time":"12:41:17.737","repeat_inline_ms":[13797,11300,16809,10892,11857,11000,11391,11496,11136,11583]},
         {"rx":"0x7A8","pid":"22B002","payload":"62B002C00000000200AAAAAAAA","time":"12:41:18.120","repeat_inline_ms":[13815,11300,16750,11014,11720,11072,11552,11279,11129,11640]},
@@ -559,10 +568,16 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {"at": "12:51:27.403", "states": ["READY", "IG3"]},
-          {"at": "12:51:38.166", "states": ["READY", "ON", "IG3"]}
+          {"at": "12:51:27.403", "states": ["READY", "ON", "IG3"]},
+          {"at": "12:51:59.672", "states": ["ON", "IG3"]},
+          {"at": "12:52:09.917", "states": ["READY", "ON", "IG3"]},
+          {"at": "12:52:31.142", "states": ["ON", "IG3"]},
+          {"at": "12:52:41.265", "states": ["READY", "ON", "IG3"]},
+          {"at": "12:53:02.412", "states": ["ON", "IG3"]},
+          {"at": "12:53:13.055", "states": ["READY", "ON", "IG3"]},
+          {"at": "12:53:23.505", "states": ["ON", "IG3"]}
         ],
-        "version": "1.35.2+main.4636a47.dirty"
+        "version": "5.5.0+main.09472b4.dirty"
       },
       "variant": "28kwh",
       "attribution": {

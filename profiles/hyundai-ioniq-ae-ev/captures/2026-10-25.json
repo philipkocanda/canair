@@ -20,17 +20,18 @@
       "state_spans": {
         "source": "backfill",
         "spans": [
-          {"at": "00:00:33.969", "states": ["CHARGING", "PLUGGED", "PARKED", "IG3"]},
-          {"at": "08:46:20.424", "states": ["PLUGGED", "PARKED"]},
-          {"at": "08:47:01.637", "states": ["PARKED"]},
-          {"at": "08:51:17.150", "states": ["PLUGGED", "PARKED", "IG3"]},
-          {"at": "08:52:26.604", "states": ["PARKED", "IG3"]},
-          {"at": "08:52:36.773", "states": ["PLUGGED", "PARKED", "IG3"]},
-          {"at": "08:54:38.489", "states": ["PARKED"]},
-          {"at": "09:03:11.379", "states": ["PLUGGED", "PARKED", "IG3"]},
-          {"at": "09:06:01.346", "states": ["PARKED"]}
+          {"at": "00:00:09.017", "states": ["OFF"]},
+          {"at": "00:00:33.969", "states": ["CHARGING", "PLUGGED", "OFF", "PARKED", "IG3"]},
+          {"at": "08:46:20.424", "states": ["PLUGGED", "OFF", "PARKED"]},
+          {"at": "08:47:01.637", "states": ["OFF", "PARKED"]},
+          {"at": "08:51:17.150", "states": ["PLUGGED", "OFF", "PARKED", "IG3"]},
+          {"at": "08:52:26.604", "states": ["OFF", "PARKED", "IG3"]},
+          {"at": "08:52:36.773", "states": ["PLUGGED", "OFF", "PARKED", "IG3"]},
+          {"at": "08:54:38.489", "states": ["OFF", "PARKED"]},
+          {"at": "09:03:11.379", "states": ["PLUGGED", "OFF", "PARKED", "IG3"]},
+          {"at": "09:06:01.346", "states": ["OFF", "PARKED"]}
         ],
-        "version": "1.35.2+main.4636a47.dirty"
+        "version": "5.5.0+main.09472b4.dirty"
       },
       "variant": "28kwh",
       "attribution": {
@@ -11869,9 +11870,10 @@
         "source": "backfill",
         "spans": [
           {"at": "10:29:58.653", "states": ["READY", "ON", "PARKED", "IG3"]},
-          {"at": "10:30:13.747", "states": ["READY", "ON", "DRIVING", "IG3"]}
+          {"at": "10:30:13.747", "states": ["READY", "ON", "DRIVING", "IG3"]},
+          {"at": "10:30:24.025", "states": ["ON", "DRIVING", "IG3"]}
         ],
-        "version": "1.35.2+main.4636a47.dirty"
+        "version": "5.5.0+main.09472b4.dirty"
       },
       "variant": "28kwh",
       "attribution": {
@@ -11983,6 +11985,7 @@
           {"at": "10:47:57.983", "states": ["ON", "PARKED", "IG3"]},
           {"at": "10:48:10.813", "states": ["READY", "ON", "PARKED", "IG3"]},
           {"at": "10:49:25.543", "states": ["ON", "PARKED"]},
+          {"at": "12:21:34.899", "states": ["PARKED"]},
           {"at": "12:22:24.118", "states": ["PARKED", "IG3"]},
           {"at": "12:22:34.200", "states": ["ON", "PARKED", "IG3"]},
           {"at": "12:23:05.212", "states": ["READY", "ON", "PARKED", "IG3"]},
@@ -12007,10 +12010,10 @@
           {"at": "12:37:05.398", "states": ["ON", "PARKED", "IG3"]},
           {"at": "12:37:37.561", "states": ["READY", "ON", "PARKED", "IG3"]},
           {"at": "12:38:07.703", "states": ["OFF", "ON", "PARKED", "IG3"]},
-          {"at": "12:38:28.526", "states": ["OFF", "ON", "PARKED"]},
-          {"at": "12:39:00.049", "states": ["OFF", "PARKED"]}
+          {"at": "12:38:18.063", "states": ["OFF", "PARKED", "IG3"]},
+          {"at": "12:38:28.526", "states": ["OFF", "PARKED"]}
         ],
-        "version": "4.3.0+main.7cb4725.dirty"
+        "version": "5.5.0+main.09472b4.dirty"
       },
       "variant": "28kwh",
       "attribution": {
