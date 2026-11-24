@@ -21,7 +21,7 @@ from canair.render import messages
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.session_manager import SessionManager
 from canair.uds.parse import parse_uds_response
-from canair.uds.security import is_security_request, is_security_response
+from canair.uds.security import displayed_reply, is_security_request
 
 from ..elm.skm_wakeup import SKM_SESSION_MODE, SKM_TX_ID, mode_skm_wakeup
 from .exec import _exec_raw, exec_query
@@ -139,10 +139,8 @@ class ReplCommands:
             return
         response = parse_uds_response(raw, request=cmd)
         self.security_seen |= is_security_request(cmd)
-        withheld = self.security_seen and not response.get("ok") and response.get("nrc") is None
-        withheld |= is_security_request(cmd) or is_security_response(response.get("bytes") or b"")
-        shown = response.get("hex", "[reply withheld]") if self.security_seen else raw
-        print("  SecurityAccess response withheld" if withheld else shown)
+        shown, _ = displayed_reply(cmd, raw, response, security_seen=self.security_seen)
+        print(shown)
         if response.get("nrc") is not None:
             print(f"  [NRC] 0x{response['nrc']:02X} ({response.get('nrc_desc', 'unknown')})")
 

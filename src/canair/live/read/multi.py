@@ -41,6 +41,7 @@ import json
 import sys
 
 from canair.captures.journal import CaptureJournal
+from canair.ecus.names import ecu_index_key
 from canair.ecus.pids import build_ecu_index
 from canair.expression.results import ResultEntry
 from canair.profile.model import Profile
@@ -262,6 +263,21 @@ async def _run_pipeline(
         matched, _false = suggest_states(rules, pipe_values, pipe_responded)
         return join_states(matched) if matched else None
 
+    def _reconcile_unprompted() -> None:  # whatever was captured before an abort, no prompt
+        nonlocal journal
+        if save and journal is not None:
+            finalize_journal(
+                journal,
+                len(collected),
+                label,
+                vehicle_states,
+                notes,
+                prompt=False,
+                quality=getattr(getattr(terminal, "diag", None), "quality", lambda: None)(),
+                non_answers=non_answers,
+            )
+            journal = None
+
     try:
         # Shared batch state so multi_did-capable ECUs batch service-22 DIDs here too: it learns
         # per-DID lengths across steps and falls back per-DID on rejection.
@@ -308,7 +324,7 @@ async def _run_pipeline(
                 print(f"\n{step} SecurityAccess on {target}…")
                 status = await unlock(
                     sm,
-                    ecu=target,
+                    ecu=ecu_index_key(target, ecu_index, profile=profile) or target,
                     tx_id=tx_id,
                     level=cmd["level"],
                     provider=security_provider,
@@ -464,23 +480,11 @@ async def _run_pipeline(
 
     except SecurityAccessError as e:
         messages.error(str(e))
+        _reconcile_unprompted()
         raise SystemExit(1) from None
     except KeyboardInterrupt:
         print("\n  Interrupted.")
-        # Reconcile whatever was captured before the interrupt (no prompt).
-        if save and journal is not None:
-            finalize_journal(
-                journal,
-                len(collected),
-                label,
-                vehicle_states,
-                notes,
-                prompt=False,
-                quality=getattr(getattr(terminal, "diag", None), "quality", lambda: None)(),
-                non_answers=non_answers,
-            )
-            journal = None
-
+        _reconcile_unprompted()
     finally:
         # Inside the sessions the actuators were switched on in: before the keepalive stops.
         with contextlib.suppress(Exception):

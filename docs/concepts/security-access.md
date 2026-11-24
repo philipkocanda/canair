@@ -44,6 +44,10 @@ The ECU may expire the session or challenge, so a slow provider can fail; a comm
 after sending a key makes its outcome unknown. Do not repeat the attempt without considering the
 ECU's lockout rules.
 
+While a provider runs, canair sends TesterPresent to keep the session alive and stops if that
+fails. An ECU that has no TesterPresent service is not asked again, so a slow provider can still
+outlast its challenge there.
+
 The exchange is withheld from output, capture journals and logs. Ordinary reads after a successful
 unlock are still saved with `--save`. Since a late diagnostic reply can arrive after an exchange,
 raw wire tracing and per-ECU response logging stop for the rest of that connection. Other tools,

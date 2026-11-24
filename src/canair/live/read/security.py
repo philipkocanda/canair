@@ -56,7 +56,12 @@ async def _provider_key(
             done, _ = await asyncio.wait({task}, timeout=PROVIDER_KEEPALIVE_INTERVAL)
             if done:
                 return task.result()
-            if not await sm.send_keepalive(tx_id, sensitive=True):
+            if not sm.table.wants_keepalive(tx_id):
+                continue
+            # An ECU with no TesterPresent refuses the first one and is never asked again.
+            if not await sm.send_keepalive(tx_id, sensitive=True) and sm.table.wants_keepalive(
+                tx_id
+            ):
                 raise ProviderError("session keepalive failed before security key submission")
     finally:
         if not task.done():
@@ -123,8 +128,8 @@ async def unlock(
         raise ProviderError("no security provider or key file selected")
     if sm.link_error is not None:
         raise ProviderError("session connection was lost before security key submission")
-    if not sm.table.wants_keepalive(tx_id):
-        raise ProviderError("session keepalive failed before security key submission")
+    if not sm.table.has(tx_id):
+        raise ProviderError("session was closed before security key submission")
 
     key_request = bytes([SECURITY_ACCESS, level + 1]) + key
     text = key_request.hex().upper()

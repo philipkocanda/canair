@@ -4,10 +4,19 @@ The seed and response may disclose security material even when a profile does no
 sensitive. They must never be used as identifiers in logs, captures or frame-count ledgers.
 """
 
+from canair.uds.parse import ADAPTER_STATUS
 from canair.uds.protocol import KWP, DiagProtocol
-from canair.uds.response import UdsResponse
+from canair.uds.response import CAT_BUS, CAT_NO_DATA, UdsResponse
 from canair.uds.services import NEGATIVE_RESPONSE_SID, SECURITY_ACCESS, positive_response_sid
 from canair.uds.subfunctions import SUPPRESS_POSITIVE_RESPONSE
+
+# Failures whose error text is fixed adapter or transport wording, never a reply's bytes.
+_PLAIN_FAILURES = frozenset({CAT_NO_DATA, CAT_BUS})
+WITHHELD_ERROR = "response withheld after SecurityAccess"
+WITHHELD_NOTE = "  SecurityAccess response withheld"
+
+# What an adapter answers to an AT command or when it has no reply: no ECU data in it.
+_ADAPTER_REPLIES = frozenset(ADAPTER_STATUS) | {"OK"}
 
 
 class SecurityAccessError(ValueError):
@@ -39,14 +48,34 @@ def withhold_uncertain_response(response: UdsResponse) -> UdsResponse:
         safe: UdsResponse = {**response}
         safe["raw"] = "[withheld]"
         return safe
+    kind = response.get("error_kind")
+    plain = kind in _PLAIN_FAILURES and response.get("error")
     result: UdsResponse = {
         "raw": "[withheld]",
         "ok": False,
-        "error": "response withheld after SecurityAccess",
+        "error": plain or WITHHELD_ERROR,
     }
-    if response.get("error_kind"):
-        result["error_kind"] = response["error_kind"]
+    if kind:
+        result["error_kind"] = kind
     return result
+
+
+def displayed_reply(
+    cmd: str, raw: str, response: UdsResponse, *, security_seen: bool
+) -> tuple[str, bool]:
+    """The text a REPL prints for a typed command's reply, and whether it was withheld.
+
+    A SecurityAccess request or reply is always withheld. Once the connection has carried
+    one, a late reply may still arrive, so only adapter status lines and parsed payloads are
+    shown as sent; any other text is not echoed.
+    """
+    if is_security_request(cmd) or is_security_response(response.get("bytes") or b""):
+        return WITHHELD_NOTE, True
+    if not security_seen or raw.strip().upper() in _ADAPTER_REPLIES:
+        return raw, False
+    if response.get("ok") or response.get("nrc") is not None:
+        return response.get("hex", "[reply withheld]"), False
+    return "  [reply withheld]", True
 
 
 def is_seed_request(request: bytes, protocol: DiagProtocol) -> bool:

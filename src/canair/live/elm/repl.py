@@ -12,7 +12,7 @@ from canair.render.signal_table import print_decoded_params
 from canair.transport.elm327.terminal import Elm327Terminal
 from canair.transport.elm327.wican import WiCANTerminal, reboot_wican
 from canair.uds.parse import parse_uds_response
-from canair.uds.security import is_security_request, is_security_response
+from canair.uds.security import displayed_reply, is_security_request
 from canair.uds.services import (
     KWP_READ_DATA_BY_LOCAL_IDENTIFIER,
     OBD_REQUEST_VEHICLE_INFORMATION,
@@ -197,12 +197,8 @@ async def mode_interactive(
             raw = await terminal.send_command(cmd)
             response = parse_uds_response(raw, request=cmd)
             security_seen |= is_security_request(cmd)
-            withheld = security_seen and not response.get("ok") and response.get("nrc") is None
-            withheld |= is_security_request(cmd) or is_security_response(
-                response.get("bytes") or b""
-            )
-            shown = response.get("hex", "[reply withheld]") if security_seen else raw
-            print("  SecurityAccess response withheld" if withheld else shown)
+            shown, withheld = displayed_reply(cmd, raw, response, security_seen=security_seen)
+            print(shown)
             if withheld:
                 last_response = None
             elif response.get("ok") or response.get("nrc") is not None:

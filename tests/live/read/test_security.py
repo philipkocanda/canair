@@ -265,3 +265,105 @@ def test_pipeline_warns_if_security_session_close_times_out(tmp_path, monkeypatc
         )
     )
     assert "security session close timed out" in capsys.readouterr().err
+
+
+def test_ecu_without_tester_present_can_still_be_unlocked(tmp_path):
+    key_file = tmp_path / "key"
+    key_file.write_bytes(bytes.fromhex("A1B2"))
+    key_file.chmod(0o600)
+    terminal = FakeTerminal(
+        responses={"2701": ok("67011234"), "2702A1B2": ok("6702"), "3E00": nrc(0x11)}
+    )
+    sm = SessionManager(terminal)
+    sm.track(0x720, 3)
+    asyncio.run(sm.keepalive_all())
+    assert not sm.table.wants_keepalive(0x720)
+    result = asyncio.run(
+        unlock(sm, ecu="TEST", tx_id=0x720, level=1, provider=None, key_file=str(key_file))
+    )
+    assert result == "accepted"
+    assert terminal.sent == ["3E00", "2701", "2702A1B2"]
+
+
+def test_slow_provider_tolerates_ecu_without_tester_present(tmp_path, monkeypatch):
+    program = tmp_path / "provider"
+    program.write_text(
+        f"#!{sys.executable}\n"
+        "import time\ntime.sleep(0.5)\n"
+        'print(\'{"version": 1, "key": "A1B2"}\')\n'
+    )
+    program.chmod(0o700)
+    terminal = FakeTerminal(
+        responses={"2701": ok("67011234"), "2702A1B2": ok("6702"), "3E00": nrc(0x11)}
+    )
+    sm = SessionManager(terminal)
+    sm.track(0x720, 3)
+    monkeypatch.setattr("canair.live.read.security.PROVIDER_KEEPALIVE_INTERVAL", 0.05)
+    result = asyncio.run(
+        unlock(sm, ecu="TEST", tx_id=0x720, level=1, provider=str(program), key_file=None)
+    )
+    assert result == "accepted"
+    assert terminal.sent.count("3E00") == 1
+    assert terminal.sent[-1] == "2702A1B2"
+
+
+def test_provider_receives_the_canonical_ecu_name(tmp_path):
+    root = tmp_path / "profile"
+    root.mkdir()
+    (root / "ecus").mkdir()
+    (root / "profile.yaml").write_text('car_model: "Test"\ninit: ""\n')
+    profile = Profile("test", root)
+    seen = tmp_path / "seen"
+    program = tmp_path / "provider"
+    program.write_text(
+        f"#!{sys.executable}\n"
+        "import json,sys\n"
+        f"open({str(seen)!r}, 'w').write(json.load(sys.stdin)['ecu'])\n"
+        "print(json.dumps({'version':1,'key':'A1B2'}))\n"
+    )
+    program.chmod(0o700)
+    terminal = FakeTerminal(responses={"2701": ok("67011234"), "2702A1B2": ok("6702")})
+    data = {"ecus": {"TEST": {"tx_id": 0x720, "pids": {"2101": {"parameters": {}}}}}}
+    asyncio.run(
+        mode_multi(
+            terminal,
+            ["session test --mode 03", "unlock test --level 01"],
+            data,
+            False,
+            no_repl=True,
+            security_provider=str(program),
+            security_confirmed=True,
+            profile=profile,
+        )
+    )
+    assert seen.read_text() == "TEST"
+
+
+def test_failed_unlock_still_saves_earlier_reads(tmp_path):
+    root = tmp_path / "profile"
+    root.mkdir()
+    (root / "ecus").mkdir()
+    (root / "profile.yaml").write_text('car_model: "Test"\ninit: ""\n')
+    profile = Profile("test", root)
+    key_file = tmp_path / "key"
+    key_file.write_bytes(bytes.fromhex("A1B2"))
+    key_file.chmod(0o600)
+    terminal = FakeTerminal(responses={"2101": ok("6101ABCD"), "2701": nrc(0x33)})
+    data = {"ecus": {"TEST": {"tx_id": 0x720, "pids": {"2101": {"parameters": {}}}}}}
+    with pytest.raises(SystemExit):
+        asyncio.run(
+            mode_multi(
+                terminal,
+                ["session TEST --mode 03", "query TEST:2101", "unlock TEST --level 01"],
+                data,
+                False,
+                no_repl=True,
+                save=True,
+                label="synthetic",
+                security_key_file=str(key_file),
+                security_confirmed=True,
+                profile=profile,
+            )
+        )
+    saved = "".join(path.read_text() for path in profile.captures_dir.rglob("*.json"))
+    assert "6101ABCD" in saved
