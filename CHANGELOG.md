@@ -15,6 +15,21 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [6.0.1](https://github.com/philipkocanda/canair/compare/v6.0.0...v6.0.1) (2026-11-24)
+
+
+### Fixed
+
+* **security:** unlock ECUs without TesterPresent and keep REPL output readable ([bf2f85e](https://github.com/philipkocanda/canair/commit/bf2f85e67913a3c56e1f2df1e5365ea5705e2f54))
+
+
+### Documentation
+
+* **agents:** allow one approval for session reads and fix inaccurate skill text ([6cfb5f8](https://github.com/philipkocanda/canair/commit/6cfb5f83465750571181a9aacec509de0e190c1e))
+* **agents:** move per-command rules into a canair-commands skill ([5208530](https://github.com/philipkocanda/canair/commit/520853076e507037eec9c58433d3e4254cae2625))
+* **ioniq:** note MCU temperature rounding and cold-end bias ([583a944](https://github.com/philipkocanda/canair/commit/583a944b18bca0747ab59ffa4e8540823fae9556))
+* **skills:** trim duplicated and stale text from the agent skills ([c8f389b](https://github.com/philipkocanda/canair/commit/c8f389b091bbf16f0de0736654482df320b6bce2))
+
 ## [6.0.0](https://github.com/philipkocanda/canair/compare/v5.5.0...v6.0.0) (2026-11-22)
 
 
