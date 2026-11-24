@@ -6,7 +6,7 @@ description: "Ground truth about the WiCAN device itself — the WiCAN Pro hardw
 # WiCAN hardware, firmware and protocol — ground truth
 
 Everything here was established by reading the **wican-fw C source** and by **measuring a live
-device**, on 2026-08-09; citations were re-based onto `v4.52p` on 2026-10-20. Each claim carries a
+device**. Citations are based on `v4.52p` (table below). Each claim carries a
 `file:line` citation or is labelled as measured. Where the source does not settle a question, this
 skill says so rather than guessing.
 
@@ -52,21 +52,6 @@ device, and wait for an explicit "yes".
 | GPIO map, chip identity, the three OBD CAN interfaces, gateway segments, the MIC3624 UART link and chip reflash | [`hardware.md`](hardware.md) |
 | Protocol modes and their mutual exclusions, `/ws` routing and framing, HTTP routes, `/check_status` fields, sleep and wake | [`firmware-api.md`](firmware-api.md) |
 | Latency numbers, the frame-count digit, `ATAT`/`ATST`, `STPX`, per-ECU `ATCRA`/flow control, `ATCRA` and EEPROM housekeeping | [`elm327-performance.md`](elm327-performance.md) |
-
-Facts that bite most often, each detailed in the file named:
-
-- **Read the `wican-pro` branch.** `main` is classic-WiCAN firmware, and the Pro tree carries a
-  compiled-out emulator and a dead `wican-fw/main/ws_router.c` (`firmware-source.md`).
-- **`/ws` has one connection slot.** A second client overwrites the first, so `canair lock` is
-  load-bearing (`firmware-api.md`).
-- **The terminal pauses AutoPID**, and an ELM327 request holds it off for 10 s
-  (`firmware-api.md`).
-- **One command per WebSocket frame.** Every command flushes the UART first, so pipelining and
-  CR-batching cannot work (`hardware.md`, `firmware-api.md`).
-- **The ELM327 cost is the adapter's end-of-response wait.** A learned frame-count digit removes
-  it, and an undercount desynchronises the pipe (`elm327-performance.md`).
-- **`ATCRA` and `ATAT` persist across sessions**, and `ATSP` writes the chip EEPROM
-  (`elm327-performance.md`).
 
 ## The two paths to the vehicle bus — the fact that matters most
 
@@ -117,16 +102,12 @@ Consequences to design around:
 ## Checklist before changing transport code
 
 - [ ] `wican-fw` on `wican-pro`, and the tag diffed against the device's `git_version`.
-- [ ] Device firmware generation known (`canair status`, approved or run by the user); anything
-      that uses a 4.x-only interface
-      (`/ws`, the protocol mode, the legacy HTTP routes, AutoPID sync) is gated through
-      `src/canair/device/wican/firmware.py`'s policy table, not an ad-hoc version check.
+- [ ] Device firmware generation known (`canair status`, approved or run by the user).
+- [ ] The `AGENTS.md` rules for "WiCAN access and transports" hold (echo validation, one
+      `terminal.transaction()`, the `firmware.py` compatibility gate, `eeprom.py`).
 - [ ] Not reading the `!= WICAN_PRO` emulator block, or `wican-fw/main/ws_router.c`.
 - [ ] Clear on which chip the change affects — MIC3624 (`wican-ws`, `elm327-tcp`) or ESP32 TWAI
       (`slcan-tcp`) — and whether it must work on both.
-- [ ] New `send_uds` calls pass `expected_sid` **and** `expected_echo` (a desync is otherwise
-      undetectable — see `docs/development/link-health.md`).
-- [ ] `set_header` + `send_uds` held inside one `terminal.transaction()`.
 - [ ] Any adapter setting written outside the init string is reset, or added to the init string.
 - [ ] Feature gated on a **chip** capability probe, not a WiCAN firmware version — the ESP32
       reflashes the chip independently.

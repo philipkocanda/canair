@@ -5,21 +5,21 @@ description: Guidelines for agents making code or architecture changes to the ca
 
 # Contributing code to canair
 
-Guidelines for *engineering* canair itself (the `src/canair/` package: CLI, transports, modes, library,
-tests). Related skills: **`contributing-profiles`** if your change is profile *data* rather than
-Python; **`reverse-engineer-signal`** / **`ioniq-reverse-engineering`** for the RE workflow itself,
-and **`cli-tui-standards`** for how output, prompts and TUIs must look and behave.
+Guidelines for *engineering* canair itself (the `src/canair/` package: CLI, transports, modes,
+library, tests). Related skills: **`contributing-profiles`** if your change is profile *data* rather
+than Python; **`reverse-engineer-signal`** / **`ioniq-reverse-engineering`** for the RE workflow
+itself, and **`cli-tui-standards`** for how output, prompts and TUIs must look and behave.
 
-Run and test the tree with `uv run …` from the repo root, never a globally-installed `canair`
-(`AGENTS.md` explains why). Flags and subcommand lists are authoritative in `canair <cmd> --help`
-and the generated `docs/reference/cli/` — read them there rather than trusting any list.
+Flags and subcommand lists are authoritative in `canair <cmd> --help` and the generated
+`docs/reference/cli/`; read them there rather than trusting any list.
 
 ## First principle — describe intent, not code that will drift
 
 Snippets, signatures, and name lists go stale silently, and an agent that trusts them builds on a
-false premise. Point at the file to read *now* ("the guard is in `src/canair/safety/blocklist.py`") instead of
-pasting its contents; treat every specific below as a pointer to verify against the tree, and fix it
-if it has drifted (Boy Scout). This applies to this skill too — keep it intent-level.
+false premise. Point at the file to read *now* ("the guard is in `src/canair/safety/blocklist.py`")
+instead of pasting its contents; treat every specific below as a pointer to verify against the
+tree, and fix it if it has drifted (Boy Scout). This applies to this skill too — keep it
+intent-level.
 
 ## Non-negotiables
 
@@ -37,9 +37,9 @@ if it has drifted (Boy Scout). This applies to this skill too — keep it intent
    both the WiCAN Pro and the classic). Don't reintroduce a transport-specific default or code path.
    See Transports (`.claude/skills/contributing-code/architecture.md`).
 3. **Never break the real car.** No UDS programming session (`10 02`), no firmware/write/upload
-   services. The blocklist in `src/canair/safety/blocklist.py` exists for this — extend it, never bypass it.
-   **Never run a live command against the car without the user's explicit approval**
-   (`AGENTS.md` → The car): test against fakes or the loopback emulator instead.
+   services. The blocklist in `src/canair/safety/blocklist.py` exists for this — extend it, never
+   bypass it. Test against fakes or the loopback emulator; the approval policy for the car is in
+   `AGENTS.md` → The car.
 4. **Tests pass and cover the change** (see Test coverage,
    `.claude/skills/contributing-code/tests-refactor-style.md`).
 5. **Two data domains, one tool.** canair analyzes diagnostic request/response traffic *and* raw
@@ -48,22 +48,6 @@ if it has drifted (Boy Scout). This applies to this skill too — keep it intent
    (`.claude/skills/contributing-code/safety-pii-keys.md`).
 7. **Never share ECU security keys, seeds, or unlock algorithms** — see Never share security keys
    (`.claude/skills/contributing-code/safety-pii-keys.md`).
-
-Anything that changes ECU or device state (clearing DTCs, IOControl, routines, config writes,
-reboots) must confirm before acting, with a `--yes` escape hatch — see Mutative / sensitive
-operations in `.claude/skills/contributing-code/cli-conventions.md`. Never `git add -A`, `git add .`
-or `git commit -a`: other agents may be working in the tree (see
-`.claude/skills/contributing-code/docs-commits-release.md`).
-
-## Workflow
-
-1. **Orient** — decide which layer the change belongs in and which transport/data domain it touches.
-2. **Implement** — follow the CLI, selection, time-scope and mutative-operation conventions.
-3. **Keep generated artifacts current** — regenerate schemas/docs/CLI reference when you touch them.
-4. **Test** — add coverage; refactor proactively rather than growing monoliths.
-5. **Document** — update docs and README for any user-facing change.
-6. **Finish** — run the checklist: `uv run pytest -q`, `ruff check`/`ruff format --check`,
-   `uv run ty check`, `make structure`; then commit with a Conventional Commits subject.
 
 ## Where to read next
 

@@ -6,7 +6,7 @@ What counts as a contribution, and how to prepare a profile before submitting.
 
 - **A whole new car** — a `profiles/<your-car>/` bundle you built with the
   bring-your-own-car journey.
-- **More of an existing profile** — newly-decoded params, a corrected byte
+- **More of an existing profile** — newly-decoded signals, a corrected byte
   offset, a fixed expression, added captures as evidence.
 - **A partial lead** — even a handful of `--verified` signals, one corrected
   offset, or a new `research:` entry is welcome. You do *not* need a "finished"
@@ -27,7 +27,7 @@ Before submitting, make the profile clean and honest:
   captures, non-hex payloads, degraded-transport sessions). Read the warnings —
   they often point at a real defect. Use `--strict` to also fail on untimed
   payload captures if you want the CI-grade gate.
-- **Prefer verified params with a `--source`.** A verified parameter should carry
+- **Prefer verified signals with a `--source`.** A verified signal should carry
   the evidence that verified it (`--source`, `--notes`); an honest `--unverified`
   candidate is fine and welcome, just labelled as such. Author these with
   `canair pids upsert-param` (never hand-edit `ecus/`). Values shared by a whole page (`unit`,

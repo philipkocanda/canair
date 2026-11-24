@@ -13,20 +13,15 @@ uv run canair --profile hyundai-ioniq-ae-ev bix -a <payload> --ecu IGPM --pid 22
 `have{}` must have grown by exactly the bits you defined and `missing{}` shrunk
 to match. If the byte *disappeared* from the report, you wrote an `&`-mask
 expression and silently claimed the whole byte — go back to Step 1's blind spot.
-(A plain whole-byte `Bn` no longer hides the gap; it just adds
-`(also read whole)`.)
+(A plain whole-byte `Bn` only adds `(also read whole)`.)
 
 ## Pitfalls
 
 | Symptom | Cause |
 |---|---|
-| Byte vanished from `coverage --bitfields` after an edit | An `&`-mask expression now claims it (a plain `Bn` only adds `(also read whole)`) |
-| New bit param reads `constant` in the upsert echo | Wrong byte offset (WiCAN `Bnn` includes ISO-TP PCI) or wrong bit index |
-| `bix -a` roles shifted by one | Annotating a `22xxxx` payload with no `--pid` and no `-2` |
+| New bit signal reads `constant` in the upsert echo | Wrong byte offset (WiCAN `Bnn` includes ISO-TP PCI) or wrong bit index |
 | `--dwell` classes all `unknown` | Session is legacy `keep:unique`; falling edges dropped |
 | Bit never appears in `--events` | Constant in scope — never exercised, not "unused" |
-| Several bits look like one signal | Enum code (check distinct byte values, Step 4.5) or co-driven by one action |
-| A bit toggles hundreds of times | Low bit of an analog/counter byte, not a flag (Step 4.5) |
 
 ## Definition of done
 
@@ -39,6 +34,6 @@ expression and silently claimed the whole byte — go back to Step 1's blind spo
 - No `&`-mask expression was introduced on a partially-decoded byte.
 - Every bit claimed against a *named* reference was cross-tabbed over the
   reference's full value set, not just correlated — supersets were ruled out.
-- No param decodes a constant under a name that asserts a state.
+- No signal decodes a constant under a name that asserts a state.
 - Unexercised bits have a `research:` lead naming the state/action needed.
 - `canair validate pids` passes; notes are bare facts.

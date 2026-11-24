@@ -1,17 +1,17 @@
 # Reference: reasoning about what a byte is
 
-Sibling reference for the `reverse-engineer-signal` skill: the **hypothesize** step
-(step 6) in full. Load this when you have captures of an unknown PID or frame and need
-to work out what its bytes *mean*. The skill body carries the surrounding workflow
-(orient → discover → capture → inspect → define → verify), the command cheat-sheet, and
-the byte-index/expression reference.
+Sibling reference for the `reverse-engineer-signal` skill: the **hypothesize** step in
+full. Load this when you have captures of an unknown PID or frame and need to work out what
+its bytes *mean*. `SKILL.md` routes to the other steps (orient → discover → capture →
+inspect → define → verify) and the byte-index/expression reference.
 
 Hypothesizing is not guessing a byte offset — it is reasoning from *domain knowledge*
 about what a signal must physically be, then confirming it in the data. Everything here
 is domain-agnostic: it applies to a diagnostic PID byte (WiCAN `Bnn`) and a broadcast
 frame byte (`0xID:rN`) alike. Flags live in each command's `--help`;
-`docs/concepts/analysis-commands.md` is the "which command when" map (and covers the
-ranking traps: bimodal references, monotonic scopes, fill semantics).
+`docs/concepts/analysis-commands.md` is the "which command when" map.
+`docs/concepts/analysis-techniques.md` covers counters, support maps, forward-fill
+semantics and mirrors, including the ranking traps (bimodal references, monotonic scopes).
 
 ## Let the ECU narrow the search space
 
@@ -29,21 +29,14 @@ role" applies to any powertrain):
   temperatures, charge-state enums. **HVAC/AAF** — ambient/evaporator/heatsink
   temperatures, fan/compressor state, flap positions.
 - **BCM/IGPM (body)** — mostly *discrete*: lights, locks, doors, switches ⇒ **bitfields
-  and enums**, not analog. Decode with the bit-level, event-driven loop: capture a
-  *narrated* event sequence (`monitor --save`, noting each physical action; propose it, and run
-  it only on the user's explicit approval), then
-  `investigate <ECU> <PID> --events --bits` for the edge timeline aligned to your notes,
-  and `correlate --find-mirrors --bits` for the same bit on a second ECU (an IGPM door
-  bit mirrored in BCM). This decoded DOOR_DRV_OPEN / HOOD_OPEN / the BC05 unlock+trunk
-  bits. The **decode-bitfields** skill has the full loop (incl. `--dwell` and the
-  partially-decoded-byte audit).
+  and enums**, not analog. Use the **decode-bitfields** skill's event-driven loop.
 
 A byte's plausible identity is constrained by its ECU: a load-tracking current on the
 BCM is unlikely; a door-ajar bit on the MCU is unlikely.
 
 ## Typed (multi-modal) signals
 
-A byte that is a *mode/flag/schedule/date*, not a number on a line, gets a param
+A byte that is a *mode/flag/schedule/date*, not a number on a line, gets a signal
 **`type:`** (`enum`/`bitmask`/`ascii`/`date`/`bcd`/`struct`) plus a `values:`/`bits:` map
 (`pids upsert-param --type … --value RAW=LABEL --bit INDEX=LABEL`); the WiCAN
 `expression` stays the pure float device value and the type is a parallel decoding.
@@ -74,7 +67,7 @@ A signal's *dynamics* reveal its nature before you know its scale:
   voltage; pack current integrates toward SOC change. A candidate violating a physical
   identity is wrong even if its range looks right — check with `--corr`.
 - **Rate limits.** A "temperature" that jumps 5 °C between two 5 s samples is a
-  load/current metric (a real case from this project).
+  load/current metric.
 
 ## Reason from computer science (state machines, counters, logic)
 
@@ -85,16 +78,10 @@ A signal's *dynamics* reveal its nature before you know its scale:
   (`Bnn:k`). `coverage --bitfields` flags partly-decoded bytes; see **decode-bitfields**.
 - **Counters** — a *fast* rolling counter or CRC is high-distinct noise with no physical
   correlation: don't give it a unit, mark it as such. A **slow accumulator** (odometer,
-  operating hours, power-cycle count, cumulative Ah/Wh) is the opposite problem: it
-  barely moves inside one session, so it reads as a *constant* byte to
-  `--corr`/`--discriminate`/`hunt`/`investigate` and to triage's `counter` class
-  (direction-blind, single-byte). Only its behaviour across the **whole history**
-  identifies it — it never decreases. `investigate [<ECU> [<PID>]] --counters` sweeps
-  1–4-byte windows × endianness and sorts hits into `accumulator`/`cycle`/`timer`, scored
-  in **bits** (one clean rise with no fall = 1 bit: read 3 bits as a lead, 300 as a
-  fact). Run it **unscoped** — the calendar horizon *is* the evidence, and a scope filter
-  understates the score — and with no positionals to sweep the whole car, the natural
-  discovery form since a counter is exactly what you have no decoded PID for.
+  operating hours, power-cycle count, cumulative Ah/Wh) reads as a *constant* byte inside one
+  session, so correlation tools miss it. Find it with `investigate [<ECU> [<PID>]] --counters`,
+  **unscoped** (the whole history is the evidence). Read 3 bits as a lead, 300 as a fact. See
+  `docs/concepts/analysis-techniques.md`.
 - **Constants / calibration** — never change across states ⇒ cal/identity block, not live
   data (`--stats` distinct = 1–2).
 
@@ -111,37 +98,26 @@ The levers that count as *evidence*:
   `--corr-transform delta`). `--method spearman` catches monotone-but-nonlinear/quantized
   links; `cramers_v`/`mutual_info` are for enum/mode references.
 - **Cross-ECU correlation is the fastest lever** — a signal on one ECU often mirrors a
-  *verified* one on another (speed on ESC/EPS/VCU/AAF, RPM on MCU/VCU). Order of attack
-  over a co-polled drive: `correlate --overlap` (which ECU:PID pairs actually share
-  time-aligned samples — **first**, don't guess a reference) → `investigate <ECU> <PID>`
-  (one-shot per-byte verdict: mapped?, state-separation F, best anchor + fit + unit
-  guess, triage class, physical band; omit positionals to sweep an ECU or the profile) →
-  `hunt --against ECU:PID:PARAM` ("which byte *is* this known signal?" — every byte ×
-  interpretation ranked by |r|, with the linear fit and a unit guess like `raw−40 °C`;
-  `--promote NAME` writes the winner into `ecus/`) → `correlate --state DRIVING` (rank
-  *every* strong relationship at once; `--gate '> 0'` restricts to a regime such as
-  while-moving, `--lag-scan N` reports the apparent lead/lag that maximises |r|). With no
-  on-bus anchor: `hunt --physical` (named physical bands, no reference needed),
-  `--against-file` (an external meter/GPS log on the captures' absolute clock),
-  `--control` / `investigate --independent-of` (regress out a dominant driver so a signal
-  hidden behind it appears). Widen `--join-tol` when a round-robin poll spreads the two
-  signals further apart than the default join window.
-- **Mirrors are the jackpot** (`decode --find-mirrors` intra-PID,
-  `correlate --find-mirrors` cross-ECU, `--bits` for bit level) — a mirror of an
-  already-**verified** signal decodes an unmapped byte at near-certainty with no new
-  capture and no physical reasoning, so sweep for mirrors *before* correlation or physics
-  when a PID is co-polled with well-mapped ECUs. Real mirrors are frequently not exact:
-  pass **`--allow-offset`** (same quantity at a different zero/scale —
-  `OBC:2101:B19 == AAF_OBC_TEMP + 100`, a raw 12 V byte at `× 12.8`) and leave
-  **`--mirror-match`** at its 0.9 default, since round-robin polling reads a drifting
-  signal on two ECUs seconds apart and they disagree by ±1 on a minority of rows
-  (demanding every row alone hides most real mirrors). Beware a small `--min-n`: noisy
-  low bits can match by chance. It cuts both ways — a "new" byte that merely mirrors a
-  mapped one is recorded with `ship: false`, not shipped twice.
+  *verified* one on another (speed on ESC/EPS/VCU/AAF, RPM on MCU/VCU). Over a co-polled
+  drive, run `correlate --overlap` **first** (which ECU:PID pairs share time-aligned
+  samples). Do not guess a reference. Then `investigate <ECU> <PID>`, then
+  `hunt --against ECU:PID:PARAM` (`--promote NAME` writes the winner into `ecus/`), then
+  `correlate --state DRIVING`. With no on-bus anchor, use `hunt --physical`, `--against-file`,
+  or `--control` / `investigate --independent-of` to regress out a dominant driver. Widen
+  `--join-tol` when a round-robin poll spreads two signals further apart than the join window.
+  Order and flags: `docs/concepts/analysis-commands.md`.
+- **Mirrors are the jackpot** (`decode --find-mirrors`, `correlate --find-mirrors`, `--bits`
+  for bits) — a mirror of an already-**verified** signal decodes an unmapped byte at
+  near-certainty with no new capture and no physical reasoning. Sweep for mirrors *before*
+  correlation or physics when a PID is co-polled with well-mapped ECUs. Pass
+  **`--allow-offset`** (real mirrors often differ in zero or scale) and leave
+  **`--mirror-match`** at 0.9 (`docs/concepts/analysis-techniques.md`). Beware a small
+  `--min-n`: noisy low bits match by chance. A "new" byte that merely mirrors a mapped one
+  is recorded with `ship: false`, not shipped twice.
 - **State discrimination** (`decode --discriminate state`, `--bytes`/`--bits`) — ranks by
   between-state vs within-state variance (F), surfacing thermal/mode/relay signals that
-  shift by *power state* rather than by a driving anchor (how the MCU inverter-temp byte
-  was confirmed: charging 22 °C vs driving 90 °C). `--discriminate ECU:PID:PARAM` groups
+  shift by *power state* rather than by a driving anchor (an inverter temperature: charging
+  22 °C vs driving 90 °C). `--discriminate ECU:PID:PARAM` groups
   by any cross-signal axis instead.
 - **Sweeps, transforms and fits** — try `u8/i8/u16/i16/…` × endianness (the physically
   plausible, smooth, correctly-signed reading is usually right; beware one that only
@@ -155,12 +131,10 @@ The levers that count as *evidence*:
   or a `--stats` min/max, print the candidate *next to* the reference and any mode/state
   column as one time-aligned table. **A single r or min/max flattens the *dynamics***: a
   signal with a non-zero **baseline** or **mode-dependent** behaviour can post a strong r
-  (or a tidy range) yet mean something quite different up close. Real case: HVAC 2201A2
-  B41 read as a clean "cooling power, 0 in heating" from `--stats` (min = 0) and was
-  written as `HVAC_COOL_POWER`; an `align` beside the HVAC heating power/`BATTERY_POWER`
-  showed a **~20 idle baseline in *both* modes** (only cooling elevates it, heating never
-  zeroes it) — correcting the mislabel to `HVAC_COOL_LOAD_B41` before it misled anyone.
-  Make it routine on any candidate with an offset or a per-mode story.
+  (or a tidy range) yet mean something quite different up close. A byte that reads "0 in
+  heating" from `--stats` may sit at a ~20 idle baseline in *both* modes, so it is a load
+  metric, not a mode-gated power. Make `align` routine on any candidate with an offset or a
+  per-mode story.
 
 ## Expect thematic grouping (but don't rely on it)
 
@@ -177,12 +151,12 @@ Existing definitions can be wrong — **even ones marked `verified: true`** (the
 records that *someone* checked once, possibly against one short drive or a cross-vehicle
 sheet). Watch for **offset-by-one / cross-vehicle drift** (Kia Soul/Niro sheets are 1
 byte off from the Ioniq), a **misclassified signal** (a "temperature" that is really a
-load/current metric — real examples here, later demoted to `ship: false`), the **right
+load/current metric), the **right
 byte with wrong scale/sign/endianness**, and a definition **stale after re-analysis** (a
 fuller corpus overturns a single-drive conclusion).
 
 Use existing PIDs as priors and correlation references, but **re-validate** when they
-contradict your data or physical reasoning. Finding a mistake in a `verified` param *is*
+contradict your data or physical reasoning. Finding a mistake in a `verified` signal *is*
 the finding: demote it (`--unverified` / `ship: false`), record the corrected
 reasoning in `notes:`, and open or adjust a `research:` lead rather than silently trusting
 it.
@@ -191,10 +165,10 @@ it.
 
 A decode that is correct in one operating band and off elsewhere is a **bit-width or sign
 error**, not a calibration error: a wrong scale is off proportionally everywhere, a wrong
-offset by a constant. Real case: BMS 2101 pack current was `((S15 << 8) | S17)/10`, which
-reads the *low* byte signed — every value whose low byte is ≥ 0x80 came out 25.6 A low.
-Only −25.6..0 A decoded right, which is exactly AC charging, so it "verified" against
-charging captures while driving power was a few kW out. Tells, each usable on its own:
+offset by a constant. Example: a pack current built as `((S15 << 8) | S17)/10` reads the
+*low* byte signed, so every value whose low byte is ≥ 0x80 comes out 25.6 A low. Only
+−25.6..0 A decodes right (AC charging), so it "verifies" against charging captures while
+driving power is far out. Tells, each usable on its own:
 
 - **The error is quantized at 2ⁿ × scale.** Residuals against a reference (or jumps
   between consecutive samples) clustering at ±256·scale or ±65536·scale mean a byte
@@ -202,22 +176,20 @@ charging captures while driving power was a few kW out. Tells, each usable on it
 - **The correct band lines up with 0x80/0x100 of a byte.** Ask which values decode right
   and whether that range is one half of a byte's span.
 - **A low byte that never uses half its range.** A continuous signal's low byte covers
-  0x00–0xFF about evenly; the BMS current had 0 of 618 positive samples with a low byte
-  ≥ 0x80. `decode --dump-bytes` shows it.
-- **A small enum next to a byte that wraps.** HVAC 2201A0 B06 read as a clean 0/1/2 "heat
-  mode" for months; one session with a slow ramp showed B07 falling 2 → 254 in the same poll
-  as B06 stepped 2 → 1, so `[B06:B07]` is one 16-bit word and B06 only its high byte.
-  Before you name an enum, look at its neighbour for a wrap at the same instant.
+  0x00–0xFF about evenly. `decode --dump-bytes` shows it.
+- **A small enum next to a byte that wraps.** A clean 0/1/2 "mode" byte whose neighbour
+  falls 2 → 254 in the same poll is the high byte of a 16-bit word. Before you name an
+  enum, look at its neighbour for a wrap at the same instant.
 - **An integral that misses its counter.** Integrate an instantaneous power/current over a
   drive and compare with the ECU's cumulative energy/charge counter (`investigate
-  --counters` finds those); the BMS drive integrals came out 2–3× low.
+  --counters` finds those).
 
-Hence: **verify a signed signal on both sides of zero**, and in any hand-built word only the
-top byte is `Sn` — every lower byte is `Bn`. `validate pids` rejects a signed lower byte
-(`src/canair/expression/lint.py`), so `pids upsert-param` reverts one.
+Hence: **verify a signed signal on both sides of zero**. In any hand-built word only the
+top byte is `Sn`, and every lower byte is `Bn`. `validate pids` rejects a signed lower byte,
+so `pids upsert-param` reverts one.
 
 ---
 
 Next: test the candidate expression without committing (`decode --try`/`--plot`), then
-define it with `canair pids upsert-param` — steps 7–8 in the skill body. Remember the
-PCI-boundary rule before you author a multi-byte range: check it with `canair bix`.
+define it with `canair pids upsert-param` (see `hypothesize-define.md`). Check a multi-byte
+range against the PCI-boundary rule with `canair bix`.

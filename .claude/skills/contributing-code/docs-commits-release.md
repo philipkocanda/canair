@@ -2,30 +2,22 @@
 
 Keeping docs/README current, commit messages, concurrent-agent commits, cutting a release.
 
-## Keep the docs and README current — non-negotiable
+## Docs, changelog and screenshots
 
-**User-facing docs are part of the change.** Anything that adds, removes, or alters a user-facing
-capability (subcommand, flag, default, setup step, workflow, profile field) MUST update the docs in
-the same change; if nothing user-facing changed, confirm that rather than assume. The README-vs-
-`docs/` split and the "point at the authoritative source instead of copying it" rule are in
-`AGENTS.md` → Keep docs & README current; strategy in
-`plans/2026-07-24-documentation-strategy.md`. Two things that section doesn't cover:
+The docs-and-README rule (user-facing change means a docs change, the README/`docs/` split,
+generated `docs/reference/cli/`, link checks) is in `AGENTS.md` → Keep docs & README current. Three
+things it does not cover:
 
-- **`docs/reference/cli/` is generated** from `--help` (`scripts/gen/gen_cli_reference.py`, CI-checked)
-  — never hand-edit it. `docs/development/` (not `contributing/`) is where an *engineering* workflow
-  change belongs.
+- **`docs/development/`** (not `contributing/`) is where an *engineering* workflow change belongs.
 - **`CHANGELOG.md` — do not edit it.** It's release-please output. The changelog equivalent of
   keeping docs current is **writing a good commit subject**; the only manual editing happens on the
   release PR.
-
-Verify internal links still resolve — a broken cross-link is a defect.
-
-**Screenshots are generated, not hand-made** from `docs/screenshots/shots.yaml` by
-`scripts/gen/gen_screenshots.py`, against the read-only bundled profile (device-free, PII-free). If your
-change alters a screenshotted command's output, re-render (`make screenshots`) and commit the asset;
-adding a shot means a `shots.yaml` entry. CI and the pre-push hook run `--check` (asset presence +
-command validity), so a renamed command/flag fails until you regenerate. Never screenshot views that
-surface free-text capture notes/labels.
+- **Screenshots are generated, not hand-made** from `docs/screenshots/shots.yaml` by
+  `scripts/gen/gen_screenshots.py`, against the read-only bundled profile (device-free, PII-free).
+  If your change alters a screenshotted command's output, re-render (`make screenshots`) and
+  commit the asset; adding a shot means a `shots.yaml` entry. CI and the pre-push hook run
+  `--check` (asset presence + command validity), so a renamed command/flag fails until you
+  regenerate. Never screenshot views that surface free-text capture notes/labels.
 
 ## Commit messages
 
@@ -41,9 +33,9 @@ machine-readable input (read `git log --oneline` for the house style of the *bod
   `BREAKING CHANGE:` footer) → major. Use `!` for an incompatible CLI/behaviour change or a
   profile/capture-schema break, matching `RELEASING.md`.
 - **A malformed subject fails silently** — an unrecognized type is dropped from the changelog
-  without complaint and a bare subject parses as nothing; the hook rejects both. Pre-v1.15.0 history
-  is full of free-form prefixes (`tui:`, `analysis:`, `captures:`, bare `plan`) — map them to a type
-  plus that area as the scope; never copy them.
+  without complaint and a bare subject parses as nothing; the hook rejects both. Never copy the
+  old free-form prefixes (`tui:`, `analysis:`, bare `plan`) from `git log`: use a type plus the
+  area as the scope.
 - **Fixing something that never shipped keeps the *original* commit's type** (`ci:` corrects `ci:`),
   so the entry stays out of the release notes. Reserve `fix:` for something a released version did
   wrong.
@@ -71,16 +63,6 @@ broad `git add` can commit files another agent is mid-edit on.
 
 ## Cutting a release
 
-**Releases are automated by release-please and `RELEASING.md` is authoritative** — follow it, don't
-duplicate it. In short: commit subjects drive the bump, a `chore(main): release X.Y.Z` PR stays open
-and current, and merging it tags and publishes. You never bump the version, edit `uv.lock`, write a
-`## [X.Y.Z]` heading, tag, or `gh release create` by hand; force a version with a `Release-As:`
-footer instead. Design record: `plans/2026-08-06-release-please.md`.
-
-**The one thing a human writes is the changelog prose.** Rewrite release-please's raw subjects into
-canair's voice **on the release PR's branch immediately before merging** — the branch is
-force-pushed whenever the notes change, so earlier edits are lost. Write for the *reader*: no
-internal scaffolding (reference the plan doc instead of stage numbers), keep the categorized shape
-of prior releases (Highlights → themed sections → Fixes & docs → compare link), expand the generated
-subjects from the commit bodies and `git log vPREV..HEAD`, and drop entries for defects that never
-shipped.
+Releases are automated by release-please and `RELEASING.md` is authoritative: follow it. Never bump
+the version, tag or create a release by hand. A human rewrites the changelog prose on the release
+PR's branch immediately before merging, as `RELEASING.md` describes.

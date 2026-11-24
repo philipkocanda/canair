@@ -6,7 +6,7 @@ integrating/shipping the result.
 ### 9. Verify — confirm against reality
 
 ```bash
-canair decode MCU 2102 --param MCU_MOTOR_RPM   # ranges for the one param you're verifying
+canair decode MCU 2102 --param MCU_MOTOR_RPM   # ranges for the one signal you're verifying
 canair decode MCU 2102 --stats --unverified    # distribution; validation focus
 canair coverage MCU 2102                       # any bytes still unmapped?
 canair validate pids                           # schema + PCI-boundary checks
@@ -15,10 +15,8 @@ canair pids upsert-param MCU 2102 MCU_MOTOR_RPM "[S10:S11]" --verified  # promot
 canair pids set-status MCU 2102 done --type decode                      # close the lead
 ```
 
-A parameter is `verified: true` only when validated against real data / known state
-(physical correlation, a matching scan tool, or a definitive constant). **No capture ⇒
-no proof ⇒ stays `--unverified`** — never promote on a plausible guess or an offset
-ported from another car.
+Promote to `--verified` only under the `verified` rule in `SKILL.md` (real data from this
+vehicle as proof).
 
 ### Always mark off a worked lead (do not leave it open)
 
@@ -27,7 +25,7 @@ ported from another car.
 scratch, wasting effort and risking re-probing the car.
 
 ```bash
-canair pids set-status <ECU> "<target>" done     --type decode  # decoded, a param exists
+canair pids set-status <ECU> "<target>" done     --type decode  # decoded, a signal exists
 canair pids set-status <ECU> "<target>" captured --type verify  # candidate awaiting live check
 canair pids set-status <ECU> "<target>" nrc      --type scan    # probed, ECU said no / silent
 ```
@@ -35,13 +33,13 @@ canair pids set-status <ECU> "<target>" nrc      --type scan    # probed, ECU sa
 Every outcome counts, not just success:
 
 - **Decoded / verified → `done`** (a real `parameters:` entry exists, promoted to
-  `verified` where possible).
+  `verified` where the rule allows).
 - **Candidate still needs a live check → keep it `captured`** (a `verify`-type item)
-  with the shipping, unverified param in place, noting exactly what to test. The live check
+  with the shipping, unverified signal in place, noting exactly what to test. The live check
   itself is a proposal to the user, never something to run on your own.
 - **"Nothing to decode here" is also a result → `done`.** If analysis proves the
   unmapped bytes are constants/padding, counters, checksums or exact mirrors of a mapped
-  param, record that finding *with its evidence* in the lead's notes and close it — the
+  signal, record that finding *with its evidence* in the lead's notes and close it — the
   negative result is the deliverable (e.g. MCU 2102 B52/B53 = counter/checksum, HVAC
   220100 FF-padding tail). Do NOT silently drop it.
 - **Only part done → keep it open with a follow-up**: update `notes`/`what_to_test` so

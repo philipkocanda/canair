@@ -80,8 +80,8 @@ Two behaviours worth knowing before designing a batching or pipelining scheme:
   commands in one frame do not work** — replies after the first are destroyed by the next command's
   `uart_flush_input`.
 - On mutex contention the router replies the literal text `"Terminal busy\n"` and returns `ESP_OK`
-  (`wican-fw/components/ws_server/ws_router.c:204-206`). **canair could parse that as a UDS
-  response.** Check `classify_response` in `src/canair/uds/response.py` against that exact string.
+  (`wican-fw/components/ws_server/ws_router.c:204-206`). `rg "Terminal busy" src/canair` finds
+  no match, so canair has no handling for that string.
 
 Monitor mode streams **SLCAN ASCII** built by `slcan_parse_frame` from `can_receive()`
 (`wican-fw/main/main.c:403-413`) — so on Pro under `auto_pid`/`elm327` it yields **nothing**,

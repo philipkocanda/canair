@@ -10,14 +10,8 @@ The ui_standards scanner and its baseline, the review checklist, and how to audi
 baseline (`uv run python -m tests.contracts.test_structure --write`, which only lowers). Never
 raise a ceiling to get green: fix the code, or ask the user.
 
-| Check | Finds | Allowed in |
-|---|---|---|
-| `raw_escapes` | an output escape sequence in a string | `render/ansi.py` |
-| `rich_console` | `Console(...)` | `render/console.py` |
-| `prompts` | `input(...)`, `sys.stdin.readline()` | `core/prompt.py`, `captures/metadata.py` |
-| `message_prefixes` | a string starting `Error:`, `ERROR`, `WARN:`, `Warning:`, `WARNING`, `Note:`, `NOTE:` | nowhere |
-| `stderr_gating` | stdout-gated `ansi.*` written to stderr | nowhere |
-| `tui_key_hints` | a key spelled out in a string under `tui/` | `tui/keys.py`, `tui/help.py` |
+The checks (raw escapes, Rich consoles, prompts, message prefixes, stderr gating, TUI key hints) and
+the one place each is allowed are listed in the `scripts/check/ui_standards.py` docstring.
 
 The same test checks that the definition-only commands print one JSON document under `--json`,
 and `tests/integration/test_ansi_gating.py` that a piped command prints no escape code.
@@ -43,7 +37,7 @@ Run it on a diff that touches output, a prompt or a TUI. Each line is a question
     (`tests/integration/test_ansi_gating.py`). Keys: the keymap contract. Prompts: a decline, a
     yes, and no terminal.
 12. Did a user-facing change update the docs, and the screenshots if output changed
-    (`contributing-code/docs-commits-release.md` → Keep the docs and README current)?
+    (`contributing-code/docs-commits-release.md` → Docs, changelog and screenshots)?
 
 ## Auditing for deviations
 
@@ -51,8 +45,7 @@ When you are asked to flag deviations, or you notice one while working:
 
 1. Run `uv run python scripts/check/ui_standards.py` for the mechanical ones, then read the
    command: press `?`, `esc`, `q` on every TUI screen and modal; run it with `NO_COLOR=1`, piped,
-   and with `--json | python -m json.tool`. Run a live command only against the loopback emulator
-   (`docs/development/offline-testing.md`), or against the car with the user's explicit approval.
+   and with `--json | python -m json.tool`. Live commands follow the rule in `SKILL.md`.
 2. Check it against the rules above, then against the plan's deviation report
    (`plans/2026-11-05-cli-tui-standards.md`). If it is listed, cite the item. If it is new, add
    it to the report under the severity it earns: **High** is a missing confirmation, a lost

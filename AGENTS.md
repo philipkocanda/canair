@@ -82,8 +82,8 @@ resort.
   the data. A save made *inside* the monitor TUI has its banner deferred to exit, since Textual owns
   stdout while the app is up.
 - **`monitor` records every poll (`--keep-all`) by default**, so a stored-row count measures the
-  polling rate. Much of the history is `keep:changes` (run-length, the previous default), where a
-  row count measures **volatility, not sampling**; `--keep-changes` still records that way. The
+  polling rate. Much of the history is `keep:changes` (run-length), where a row count measures
+  **volatility, not sampling**; `--keep-changes` still records that way. The
   keep-mode tradeoffs and the joins' forward fill are in the **reverse-engineer-signal** skill.
 - **The vehicle state is auto-suggested** from decoded values via the profile's
   `vehicle_states.yaml`; a `--save` segment with no explicit state is back-filled with the union of
@@ -168,7 +168,7 @@ assume.
 - **`README.md` stays compact and high-level** — the landing page: intro, connection diagram, the
   command *map* (one line per subcommand), a short quick-start, the bring-your-own-car arc,
   profile highlights, license, warning. **Detail does not belong here**; sections link into `docs/`.
-  It was deliberately trimmed (311→143 lines) — keep it lean.
+  Keep it lean.
 - **`docs/` carries the detail** — task-first, for new-car users and profile contributors:
   `getting-started/`, `bring-your-own-car/`, `concepts/`, `reference/`, `contributing/` (share a
   profile), `development/` (change the code). `docs/reference/cli/` is **generated** from `--help`,

@@ -1,6 +1,6 @@
 ---
 name: decode-bitfields
-description: Decode the UNKNOWN bits of a partially-decoded bitflag byte in a canair profile — finding bytes where only one or two bits are mapped, capturing narrated event data, and attributing the remaining bits with investigate --events/--dwell/--bits, discriminate --bits and --find-mirrors --bits. Load this when auditing bitfield coverage, working a "byte X has 3 of 8 bits decoded" gap, or decoding discrete body/status signals (doors, locks, lights, relays, latches). NOT for continuous analog bytes (use reverse-engineer-signal), pruning/renaming already-decoded params (use pid-cleanup), or submitting a profile upstream (use contributing-profiles).
+description: Decode the UNKNOWN bits of a partially-decoded bitflag byte in a canair profile — finding bytes where only one or two bits are mapped, capturing narrated event data, and attributing the remaining bits with investigate --events/--dwell/--bits, discriminate --bits and --find-mirrors --bits. Load this when auditing bitfield coverage, working a "byte X has 3 of 8 bits decoded" gap, or decoding discrete body/status signals (doors, locks, lights, relays, latches). NOT for continuous analog bytes (use reverse-engineer-signal), pruning/renaming already-decoded signals (use pid-cleanup), or submitting a profile upstream (use contributing-profiles).
 ---
 
 # Decoding the unknown bits of a bitflag byte
@@ -25,7 +25,6 @@ Always `uv run canair …` from the repo root. Edit definitions only via
 
 - **Step 3 talks to the car.** Propose the `monitor` command and the action sequence, and run it
   only after the user explicitly approves (`AGENTS.md` → The car).
-- Edit definitions only via `canair pids`, with `--profile NAME` on every mutation.
 - Author bits as the `Bn:k` accessor, **never** an `&`-mask on a partially-decoded byte: it claims
   the whole byte and the gap vanishes from `coverage --bitfields`.
 - Name a bit only after >=2 independent actuation->edge pairs; otherwise use `--unverified`.
@@ -35,21 +34,15 @@ Always `uv run canair …` from the repo root. Edit definitions only via
 
 ## Workflow
 
-1. Find the partially-decoded bytes (`coverage --bitfields`), check for support maps.
-2. Orient on the byte (`bix -a <payload> --ecu E --pid P`).
-3. Capture narrated event data (`monitor ... --save --notes`, one actuation at a time).
-4. Attribute the bits (`investigate --events/--dwell/--bits`, `discriminate --bits`,
-   `--find-mirrors --bits`).
-4.5. Triage: enumerate the byte's distinct values; rule out enums and analog bytes.
-5. Judge the evidence (mirrors, supersets, thresholds, unexercised bits).
-6. Define the bits via `canair pids upsert`, with notes as bare facts.
-7. Verify (`validate pids`, `coverage --bitfields`, `bix`): `have{}` grew, byte not vanished.
+Seven steps, in order (the table below maps each to its file): find the partly-decoded bytes,
+orient with `bix`, capture narrated events, attribute the bits (with an enum/analog triage),
+judge the evidence, define the bits, verify.
 
 ## Where to read next
 
 | When you are...                                                    | Read                                                  |
 |--------------------------------------------------------------------|-------------------------------------------------------|
-| Choosing one-param-per-bit vs `type: bitmask`                      | `.claude/skills/decode-bitfields/models.md`           |
+| Choosing one-signal-per-bit vs `type: bitmask`                      | `.claude/skills/decode-bitfields/models.md`           |
 | Step 1: finding partly-decoded bytes, support maps, blind spots    | `.claude/skills/decode-bitfields/find-bytes.md`       |
 | Steps 2-3: orienting with `bix` and capturing narrated events      | `.claude/skills/decode-bitfields/orient-capture.md`   |
 | Steps 4-4.5: attributing bits, enum/analog triage                  | `.claude/skills/decode-bitfields/attribute-triage.md` |

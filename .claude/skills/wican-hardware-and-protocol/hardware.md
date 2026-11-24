@@ -50,8 +50,7 @@ the firmware source** — they come from the chip. Firmware matches `VTVERS`'s r
 `wican-fw/main/elm327.c:2999-3002`, setting `device_type = 0x3624`.
 
 > `OBDLink MX` is the *emulator's* `ATI` string (`wican-fw/main/elm327.c:71`), which is not
-> compiled on Pro — never expect it from a WiCAN Pro. (canair's resync comment once claimed
-> otherwise; fixed in `src/canair/transport/elm327/terminal.py`.)
+> compiled on Pro — never expect it from a WiCAN Pro.
 
 ## CAN buses — three at the OBD connector, one driven by the ESP32, several in the car
 
@@ -92,13 +91,11 @@ at `wican-fw/main/can.c:81-83`.
 and `CAN_STDBY` is a single transceiver's standby line (driven low to enable at
 `wican-fw/main/can.c:174`, held high for sleep at `wican-fw/main/sleep_mode.c:813`).
 
-**Methodology warning — this is how this skill previously got the count wrong.** A grep across
-`wican-fw/` for `mcp2515|mcp2517|mcp251xfd|tcan4550|sja1000|CAN_FD|canfd|twai_fd` returns **zero
-matches**, and it is tempting to conclude "one CAN interface, no CAN-FD". It supports only the
-narrower claim that **the ESP32 firmware drives one classical-CAN controller**. A source grep is
-blind to hardware that is present but unsupported, and blind to names you did not think to search —
-`SWCAN`, `MS_CAN` and `LIN` were in the tree the whole time. For a *hardware* question read the
-schematic; for a *firmware* question read the source.
+**Methodology warning.** A grep across `wican-fw/` for `mcp2515|mcp2517|mcp251xfd|tcan4550|sja1000|
+CAN_FD|canfd|twai_fd` returns zero matches. That supports only the claim that **the ESP32 firmware
+drives one classical-CAN controller**. A source grep cannot prove hardware is absent: it is blind to
+hardware that is present but unsupported, and to names you did not search for. For a *hardware*
+question read the schematic. For a *firmware* question read the source.
 
 The undriven interfaces do leave traces, all of them stubs:
 

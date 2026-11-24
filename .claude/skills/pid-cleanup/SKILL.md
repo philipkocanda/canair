@@ -1,16 +1,16 @@
 ---
 name: pid-cleanup
-description: Guidelines for cleaning up already-defined PIDs/params in a canair vehicle profile — pruning dead signals, tightening notes to bare facts, and keeping names honest about what is actually known. Load this when asked to "clean up" PIDs/params (as done for the HVAC ECU), audit an ECU's existing definitions, or reconcile stale/speculative names and notes against the current evidence. NOT for discovering/decoding new signals (use reverse-engineer-signal) or submitting a profile upstream (use contributing-profiles).
+description: Guidelines for cleaning up already-defined PIDs/signals in a canair vehicle profile — pruning dead signals, tightening notes to bare facts, and keeping names honest about what is actually known. Load this when asked to "clean up" PIDs/signals (as done for the HVAC ECU), audit an ECU's existing definitions, or reconcile stale/speculative names and notes against the current evidence. NOT for discovering/decoding new signals (use reverse-engineer-signal) or submitting a profile upstream (use contributing-profiles).
 ---
 
-# Cleaning up PIDs / params
+# Cleaning up PIDs / signals
 
-This is the *maintenance* pass over params that already exist in a profile's
+This is the *maintenance* pass over signals that already exist in a profile's
 `ecus/` — not new reverse-engineering. The goal is a profile whose definitions
 state **only what the evidence proves, as of the newest evidence**: dead signals
 gone, notes reduced to facts, names honest about the unknowns.
 
-Always run `canair` as `uv run canair …` from the repo root. Edit params **only
+Always run `canair` as `uv run canair …` from the repo root. Edit signals **only
 via `canair pids`** (surgical, validated, auto-reverted on failure) — never
 hand-edit `ecus/` YAML. Pass `--profile NAME` explicitly on every mutation so
 you clean up the car you mean, not whatever `default_profile` resolves to.
@@ -19,20 +19,11 @@ you clean up the car you mean, not whatever `default_profile` resolves to.
 
 ### 1. Newest evidence wins
 
-When two findings conflict (an old note vs a fresh capture, an old label vs a
-newer session), the **most recent** evidence is authoritative. Establish
-recency with **git**, not vibes — check when a claim was committed:
-
-```
-git log --follow -p profiles/<profile>/ecus/<ecu>.yaml
-git log -1 --format=%ci <commit>     # contribution date of a specific change
-```
-
-and check the age/coverage of the backing data with `canair captures uds
---sessions` / `canair decode … --stats`. A note that says "0x02 = PTC" written
-months ago loses to a session last week that shows the byte is a 3-state enum.
-When you supersede an old finding, **replace** it — don't stack a correction on
-top of the stale claim.
+When two findings conflict (an old note vs a fresh capture, an old label vs a newer session),
+the **most recent** evidence is authoritative. Establish recency with **git**
+(`git log --follow -p profiles/<profile>/ecus/<ecu>.yaml`), and check the age and coverage of
+the backing data with `canair captures uds --sessions` / `canair decode … --stats`. When you
+supersede an old finding, **replace** it. Do not stack a correction on top of the stale claim.
 
 ### 2. Notes state facts only — no speculation
 
@@ -46,8 +37,8 @@ next person down a false trail.
 - **Cut:** "possibly", "likely", "maybe", "could be", guesses about meaning,
   narrative of how you found it, TODO musings, restating the expression in
   prose. Speculation about *untested* regimes belongs in a `research:` entry
-  (via `canair pids add-research`), not the param note.
-- **Cut what repeats.** A note that recurs on many of a page's params (the source, how
+  (via `canair pids add-research`), not the signal note.
+- **Cut what repeats.** A note that recurs on many of a page's signals (the source, how
   it was checked, a byte order, a description restating the name) belongs once in the
   PID note (`set-pid-notes`), or nowhere.
 - If a fact is genuinely uncertain, the *name* carries the uncertainty (rule 4)
@@ -59,7 +50,7 @@ paragraph of maybes.
 
 ### 3. Prune signals proven static
 
-A **param** (an individual signal — not a whole PID/DID) that is **constant
+A **signal** (an individual field, not a whole PID/DID) that is **constant
 across a large, varied dataset** carries no information and should be
 **removed** (`canair pids rm-param ECU PID NAME`). The bar is real coverage,
 not a handful of captures:
@@ -73,7 +64,7 @@ not a handful of captures:
   byte triaged `constant` across a wide `--state` spread is a removal
   candidate.
 - A **support map** settles it faster: `canair investigate ECU --support-map`
-  names the bytes (or bits, or parameters) the map leaves unmarked. On this unit
+  names the bytes (or bits, or fields) the map leaves unmarked. On this unit
   they are filler, so a signal defined there is a removal candidate, and
   `coverage` reports it as `OUTSIDE MAP` once the map is declared. Check the
   map's verdict first: a `REJECTED`/`BROKEN` fit, or a documented exception like
@@ -86,16 +77,16 @@ Removing it would just re-hide a signal. Only prune what the data has genuinely
 exercised.
 
 Do **not** delete a whole PID/DID for being static — an identity/placeholder
-PID is fine. This rule is about individual params.
+PID is fine. This rule is about individual signals.
 
 ### 4. Names reflect only what is known — minimise speculation
 
-The param name is a claim. Keep it honest:
+The signal name is a claim. Keep it honest:
 
 - **Known meaning** → name it (`HVAC_COMPRESSOR_POWER`, `HVAC_HEAT_PUMP_ON`).
 - **Meaning verified in one regime only** → name only what the test covered.
-  `HVAC_COMPRESSOR_ON` was verified against heat-pump heating, then read 0 under
-  A/C with the compressor running; it is now `HVAC_HEAT_PUMP_ON`.
+  A flag verified only against heat-pump heating is `HVAC_HEAT_PUMP_ON`, not
+  `HVAC_COMPRESSOR_ON`.
 - **Known byte, unknown meaning** → say so explicitly with the byte in the
   name, e.g. `HVAC_UNKNOWN_B19` (match the ECU's existing convention and be consistent within a
   file; add the page, e.g. `HVAC_A0_UNKNOWN_B23`, where the same byte number recurs across
@@ -113,43 +104,34 @@ guess from the note (rule 2).
 
 ## Workflow
 
-1. **Scope** — pick the ECU/PID(s). `canair ecu <ECU> pids` for the current
-   state, `canair coverage <ECU>` for gaps/constants, `canair investigate <ECU>`
-   (PID optional) for a per-byte triage — a bare ECU sweeps every captured PID as
-   a ranked summary, so you can eyeball a whole ECU's decodability before drilling
-   into one PID with `canair investigate <ECU> <PID>`.
-2. **Gather evidence** — `canair decode ECU:PID --stats --group-by state`,
-   `canair captures uds --sessions` for state coverage, and `git log --follow`
-   for the provenance/date of each existing claim (rule 1). Before trusting a
-   range or correlation, check payload lengths per PID: a legacy capture with
-   a dropped or duplicated ISO-TP frame shifts every later byte, and such rows
-   produced fake "0x00/0xFF fault" readings in the HVAC notes. Also re-derive
-   any byte number a note cites with `canair bix -a` — older notes mix WiCAN
-   and ISO-TP numbering.
-3. **Decide per param** — remove (proven static, rule 3), rename (dishonest or
-   superseded name, rule 4), and/or rewrite the note to bare facts (rule 2).
-   Move any speculation worth keeping into a `research:` lead.
-4. **Apply via `canair pids`** — `rm-param` / `rename-param` / `upsert-param`
-   (with `--notes`, `--type`/`--value`/`--bit`), `add-research`, and
-   `set-pid-notes <ECU> <PID> "…"` for the **PID-level** header note (omit the
-   text to clear it) — that note ages fastest of anything in the file, since it
-   describes what the page *is* while the decode underneath keeps changing.
-   Never hand-edit YAML. Watch the `upsert-param` decoded-range echo as a sanity
-   check on the offset. Run `canair pids hoist-defaults <ECU> --dry-run` to find
-   `unit`/`min`/`max`/`verified`/`source`/`source_links` repeated across a page's
-   params; drop the `--dry-run` to state them once on the PID (params without their own value
-   inherit it; nothing resolves differently).
-5. **Fix cross-references** — after any rename, grep the profile and update
-   expressions, notes, and research targets that named the old param.
-6. **Validate** — `canair validate pids` (also catches duplicate shipped param
-   names) and `canair coverage` to confirm nothing regressed. Commit with a
-   message that states what was pruned/renamed and the evidence date.
+1. **Scope** — pick the ECU/PID(s). `canair ecu <ECU> pids` for the current state, `canair
+   coverage <ECU>` for gaps/constants, `canair investigate <ECU>` (a bare ECU ranks every
+   captured PID) for a per-byte triage.
+2. **Gather evidence** — `canair decode ECU:PID --stats --group-by state`, `canair captures uds
+   --sessions` for state coverage, and `git log --follow` for the date of each existing claim
+   (rule 1). Check payload lengths per PID before you trust a range or correlation: a legacy
+   capture with a dropped or duplicated ISO-TP frame shifts every later byte. Re-derive any byte
+   number a note cites with `canair bix -a`, since older notes mix WiCAN and ISO-TP numbering.
+3. **Decide per signal** — remove (rule 3), rename (rule 4), and/or rewrite the note (rule 2).
+   Move speculation worth keeping into a `research:` lead.
+4. **Apply via `canair pids`** — `rm-param` / `rename-param` / `upsert-param`, `add-research`,
+   and `set-pid-notes <ECU> <PID> "…"` for the PID-level note (omit the text to clear it). That
+   note ages fastest, since it describes what the page *is* while the decode underneath keeps
+   changing. Watch the `upsert-param` decoded-range echo as a check on the offset. Run `canair
+   pids hoist-defaults <ECU> --dry-run` to find `unit`/`min`/`max`/`verified`/`source`/
+   `source_links` repeated across a page's signals. Drop `--dry-run` to state them once on the
+   PID (nothing resolves differently).
+5. **Fix cross-references** — after any rename, grep the profile and update expressions, notes
+   and research targets that named the old signal.
+6. **Validate** — `canair validate pids` (also catches duplicate shipped names) and `canair
+   coverage` to confirm nothing regressed. Commit with a message that states what was
+   pruned/renamed and the evidence date.
 
 ## Definition of done
 
-- Every remaining param's note is a bare fact or absent — zero speculation.
-- No param that is proven-static across a well-varied dataset survives.
+- Every remaining signal's note is a bare fact or absent — zero speculation.
+- No signal that is proven-static across a well-varied dataset survives.
 - No name implies knowledge the evidence doesn't support; unknowns say `UNKNOWN_B<n>`.
-- No dangling references to renamed/removed params.
+- No dangling references to renamed/removed signals.
 - `canair validate pids` passes; docs/bundled-profile index regenerated if the
   cleanup changed shipped (verified, not `ship: false`) signals.

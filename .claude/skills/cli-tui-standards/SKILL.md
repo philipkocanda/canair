@@ -9,7 +9,7 @@ How every canair command prints and every TUI behaves. canair has 40-odd command
 Textual apps, and they should feel like one tool. Read this before you write a line that a user
 sees, and again when you review one.
 
-The decisions and the history are in `plans/2026-11-05-cli-tui-standards.md`. The rules below are
+The decisions are in `plans/2026-11-05-cli-tui-standards.md`. The rules below are
 enforced, not advisory: `tests/contracts/test_ui_standards.py` fails on a new deviation (see
 `.claude/skills/cli-tui-standards/enforcement-review-audit.md`). A few deviations are still in
 its baseline; do not copy one as precedent.
@@ -32,12 +32,12 @@ authoritative in `canair <cmd> --help` and `src/canair/tui/keys.py`. Do not copy
   `esc` backs out without quitting; `?` opens help; an overlay is a `ModalScreen`.
 - A destructive TUI action goes through `ConfirmModal` and never fires on a single key.
 - Never raise a `ui_standards` baseline ceiling to get green: fix the code, or ask the user.
-- Run a live command only against the loopback emulator, or against the car with the user's
-  explicit approval.
+- Never run a live command against the car without approval (`AGENTS.md` → The car). Use the
+  loopback emulator (`docs/development/offline-testing.md`).
 - Say "signal", not "param". Name bare protocol bytes shown as hex from the registries.
-- Layering: only `cli/` imports `argparse`, only `tui/` imports `textual`; `expression/`, `uds/`,
-  `config/`, `core/`, `safety/`, `device/` and `install/` may not import `render/` (they return
-  text or raise a typed error).
+- Layering is enforced (`docs/development/architecture.md`): only `cli/` imports `argparse`, only
+  `tui/` imports `textual`. Code that may not import `render/` (`expression/`, `uds/`, `config/`,
+  `core/`, `safety/`, `device/`, `install/`) returns text or raises a typed error.
 
 ## Workflow
 

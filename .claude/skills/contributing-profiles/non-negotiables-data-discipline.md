@@ -10,6 +10,8 @@ The full data-edition rules (edit via tool, validate, honesty) and generated-art
    `canair ecu` editors. Captures are *only* recorded (`--save`) or imported
    (`canair import`), never typed by hand. Hand-editing *data* silently breaks
    schema, formatting, or invariants a reviewer can't see.
+   If a field can't be reached by a tool, that's a canair-code bug to raise (see
+   `contributing-code`), not a licence to hand-edit data.
    **The one exception is YAML comments** — the `#` explanatory lines carry no
    schema meaning and no tool edits them (the editors only *preserve* them), so
    editing/adding/removing a comment by hand is fine. Touch only the comment
@@ -30,14 +32,8 @@ The full data-edition rules (edit via tool, validate, honesty) and generated-art
 
 ## Data & generated artifacts — the discipline
 
-- **`profiles/*/ecus/`** is the source of truth — parameters, research,
-  identity, addressing, buses, wake rituals. Edit the *data* *only* via
-  `canair pids` / `canair ecu` / `canair states` / `canair signals` (validated,
-  comment-preserving). If a field can't be reached by a tool, that's a
-  canair-code bug to raise (see `contributing-code`), not a licence to hand-edit
-  data. YAML **comments** are the exception — they carry no schema meaning and no
-  tool edits them, so hand-editing a `#` comment is fine (leave the data keys
-  alone and re-validate).
+- **`profiles/*/ecus/`** is the source of truth — signals, research, identity, addressing, buses,
+  wake rituals. Rule 0 applies: edit through the tools.
 - **`profiles/*/captures/*.json`** are append-only session logs — recorded via
   `--save` or `canair import`, edited/removed via `canair captures uds --delete`,
   never hand-written. Pass `--label`/`--state`/`--notes` when recording.
@@ -52,7 +48,5 @@ The full data-edition rules (edit via tool, validate, honesty) and generated-art
   unlicensed corpora stay fetch-on-demand) — see
   `docs/concepts/broadcast-frames.md`.
 - Schemas are tool-owned in `src/canair/schema/`; `canair validate` is the gate.
-- **`captures/*.json`, `captures/can/` logs, `out/` and `uv.lock` are hidden from agent file
-  tools** (`opencode.json`, `.claude/settings.json`, `.ignore`). A refused or empty `Read`/`Grep`
-  there is deliberate, not a missing file: use `canair captures`, `canair search` and
-  `canair wican autopid show`. The table of commands is in `contributing-code`.
+- Captures, `out/` and `uv.lock` are hidden from agent file tools: see `AGENTS.md` ("Prefer
+  canair's built-in tooling").

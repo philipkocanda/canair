@@ -1,8 +1,5 @@
 # Analysis (read-only — never touches the device)
 
-> **Method lives in the skills.** *How* to choose and read these tools is the
-> **reverse-engineer-signal** skill and `docs/concepts/analysis-commands.md`.
-
 - **`captures`** (alias `cap`) — Query captured data. `captures uds` (domain A; a bare
   `canair captures BMS 2102` is shorthand) has the views `--diff`, `--step`, `--latest`,
   `--summary`, `--sessions` and the mutating modes. `captures can` (domain B) lists imported frame

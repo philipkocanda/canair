@@ -9,20 +9,13 @@ uv run canair --profile hyundai-ioniq-ae-ev bix -a 62BC030AFF00000000 --ecu IGPM
 ```
 
 ```
-  subfunction: 2-byte DID — derived from --pid 22BC03 (override with -1/-2)
-    B10 | 0x00 |   0x07 |        | [DOOR_RL_OPEN:0] [DOOR_LOCK_RL:1] … [TRUNK_OPEN:7]
-    B11 | 0x00 |   0x08 |        | [HOOD_OPEN:0] [SEATBELT_FL:1] [SEATBELT_FR?:2] [ACC2_IGN_ON:5] [IGN2_SWITCH?:6]
+    B10 |   0x07 ‖ 0x00 |   0 |        | [DOOR_RL_OPEN:0] [DOOR_LOCK_RL:1] … [TRUNK_OPEN:7]
+    B11 |   0x08 ‖ 0x00 |   0 |        | [HOOD_OPEN:0] [SEATBELT_FL:1] [SEATBELT_FR?:2] … [IGN2_SWITCH:6]
 ```
 
-The fastest per-bit "what's already claimed here" view (`?` suffix =
-unverified). B11's gaps at bits 3, 4, 7 are visible at a glance.
-
-> **Subfunction width.** `--pid` derives it (`22xxxx` → 2 bytes, else 1) and says
-> so in the header, so the overlay form above needs no `-2`. An explicit `-1`/`-2`
-> still wins and is warned about when it contradicts the PID. **Without `--pid`**
-> the 1-byte default applies — annotating a `22xxxx` payload bare still needs
-> `-2`, or the second DID-echo byte is mislabelled as a data byte and every role
-> after it shifts (verified: B03 reads `PID`, B04 becomes a data byte).
+The fastest per-bit "what's already claimed here" view (`?` suffix = unverified). B11's gaps
+at bits 3 and 7 are visible at a glance. Without `--pid`, `bix` reads the header layout from
+the payload's own SID.
 
 ## Step 3 — capture data that can attribute a bit
 

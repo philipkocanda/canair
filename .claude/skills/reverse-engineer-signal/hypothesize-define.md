@@ -1,32 +1,22 @@
 # Steps 6–8: Hypothesize, test, define
 
 Scope: forming an expression, testing it without committing, writing it to `ecus/`, and
-seeding from third-party definitions. The "Reference below" / "byte-index reference below"
-mentioned in this text is `.claude/skills/reverse-engineer-signal/byte-indexing-expressions.md`.
+seeding from third-party definitions. Byte-index and PCI rules are in
+`.claude/skills/reverse-engineer-signal/byte-indexing-expressions.md`.
 
 ### 6. Hypothesize — form an expression
 
-Hypothesizing is not guessing a byte offset — it is reasoning from *domain knowledge*
-about what a signal must physically be, then confirming it in the data. The full
-reasoning toolkit is the sibling [`signal-reasoning.md`](signal-reasoning.md) — **load
-it for this step**:
-
-- **Let the ECU narrow the search space** — what a BMS/MCU/VCU/OBC/HVAC/body module must
-  measure, and why a body PID is bitfields rather than analog.
-- **Typed signals** — a mode/flag/date byte gets a param `type:` + `values:`/`bits:` map
-  and *categorical* stats, never Pearson (`docs/concepts/typed-signals.md`).
-- **Physics / EE** — thermal mass (the most useful lever), signed symmetry, conservation
-  checks, rate limits.
-- **Computer science** — enums, bitfields, fast counters vs slow accumulators, constants.
-- **Statistics** — distribution shape, correlation (cross-ECU is the fastest lever),
-  mirrors (the jackpot), state discrimination, sweeps/transforms/fits, and eyeballing the
-  raw series before trusting an r.
-- **Thematic grouping** as a lead only, and **trust-but-verify** on existing `verified`
-  params — they can be wrong.
+Hypothesizing is not guessing a byte offset. Reason from *domain knowledge* about what the
+signal must physically be, then confirm it in the data. **Load
+[`signal-reasoning.md`](signal-reasoning.md) for this step.** It covers the ECU's job, typed
+signals, physics/EE, computer science, statistics and thematic grouping. Typed signals (mode,
+flag and date bytes) get a `type:` plus `values:`/`bits:` map and categorical stats, never
+Pearson (`docs/concepts/typed-signals.md`). Existing `verified` signals can be wrong, so
+re-check them.
 
 Cross-reference external signal maps for this car or a close relative (Ioniq: the Kia
 Soul/Niro sheets in `profiles/hyundai-ioniq-ae-ev/references/`), and mind the PCI-boundary rule
-when a value spans a frame (see Reference below).
+when a value spans a frame (`byte-indexing-expressions.md`).
 
 ### 7. Test the expression WITHOUT committing
 
@@ -52,15 +42,11 @@ state` contrasts segments and `--compact --changes-only` collapses stationary ru
 Iterate until the range is physical, the distribution makes sense (constant? enum?
 continuous?), and — where a relationship should exist — the correlation confirms it.
 
-**`canair decode <ECU> <PID> --plot`** is the fastest way to *find* a signal when you
-have no candidate expression yet; it works even on a not-yet-defined PID (raw payloads
-only). A Textual TUI that sweeps byte offsets × interpretation type (`u8 … f64`) ×
-endianness with post-transforms, zooms/pans, lists the captures behind the view (`i`),
-switches PID in place (`p`), annotates/renames via `canair pids` (`e`/`N`) and overlays
-a `--corr` reference with live Pearson r — press **`?`** for the keymap. Crucially it
-shows the **equivalent WiCAN expression** for the current interpretation (copy straight
-into step 8), whether that byte is **already mapped**, and a warning when a multi-byte
-read crosses a PCI byte.
+**`canair decode <ECU> <PID> --plot`** is the fastest way to *find* a signal when you have no
+candidate expression yet. It works on a not-yet-defined PID (raw payloads only). It sweeps byte
+offsets × interpretation type × endianness, and shows the **equivalent WiCAN expression** for
+the current view (copy it into step 8). It also shows whether the byte is **already mapped** and
+warns when a multi-byte read crosses a PCI byte. Press `?` for the keymap.
 
 ### 8. Define — write it to ecus/
 
@@ -79,12 +65,12 @@ auto-filled into `notes`. After a write, `upsert-param` echoes the new expressio
 decoded **range across existing captures** — a `constant` where you expected variation
 usually means the offset landed on a PCI byte.
 
-New params start **`--unverified` and shipping** (the default): a shipping, unverified
+New signals start **`--unverified` and shipping** (the default): a shipping, unverified
 candidate goes into the WiCAN profile with `--include-unverified` and streams live, so it
 is easy to test against reality — the whole point of a candidate. Only use `--no-ship` when a
 byte is *proven* bogus or redundant and you're keeping it for the research trail
-(padding, a counter, an exact mirror of a mapped param). **Keep `--notes` terse and
-factual**: byte offset, observed range/per-state values, the one key piece of evidence.
+(padding, a counter, an exact mirror of a mapped signal). Write `--notes` as bare facts
+(`pid-cleanup` rule 2): byte offset, observed range/per-state values, the evidence.
 
 #### Seeding from third-party definitions (OBDb, OVMS, Torque sheets)
 
@@ -93,7 +79,7 @@ reads as if each page were written by hand, once:
 
 1. **Convert offsets with the framing in mind.** OBDb `bix` and Torque letters count from the
    first data byte after the DID echo (`src/canair/uds/byteindex.py`); the WiCAN index then depends
-   on whether the reply is single- or multi-frame (see the byte-index reference below). Take the
+   on whether the reply is single- or multi-frame (see `byte-indexing-expressions.md`). Take the
    reply length from a recorded response, never a guess. Multi-byte values that straddle a frame
    boundary need shift-and-or expressions; OBDb's `blsb` means little-endian.
 2. **Check every expression against recorded replies before writing anything.** OBDb's
@@ -115,5 +101,3 @@ reads as if each page were written by hand, once:
    that disagree become a `research:` entry instead of a guess. Take facts (DIDs, offsets,
    scalings) only — never copy a source's recorded payloads into `captures/` unless its licence
    allows it and you know which car (variant) they came from.
-
-

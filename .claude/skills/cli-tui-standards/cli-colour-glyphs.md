@@ -34,21 +34,8 @@ that legend in its help.
 
 ## Glyphs
 
-Import them from `render/glyphs.py`.
-
-| Glyph | Meaning |
-|---|---|
-| `✓` | success, verified |
-| `✗` | failure (never `✖`) |
-| `⚠` | warning, always yellow |
-| `→` | "the result is at" (saved path, rename target) |
-| `▶` | cursor (never `▸`) |
-| `·` | separator |
-| `—` | empty cell |
-| `…` | truncation (one character, never `...`) |
-| `█` `░` | the done and the remaining part of a progress bar |
-| `!!` | the start of a danger prompt |
-
-A new glyph needs a new meaning. Do not reuse one for a second meaning. In scan and sweep output
-`+` is a positive reply, `~` an NRC that proves the id exists, `-` nothing there and `!` a failed
-probe; `?` is only ever "unverified".
+Import them from `render/glyphs.py`, which says what each one means. Never use `✖` for failure
+(it is `✗`), `▸` for the cursor (it is `▶`), or `...` for truncation (it is the one character
+`…`). `⚠` is always yellow. A new glyph needs a new meaning. Do not reuse one for a second
+meaning. In scan and sweep output `+` is a positive reply, `~` an NRC that proves the id exists,
+`-` nothing there and `!` a failed probe; `?` is only ever "unverified".

@@ -19,18 +19,6 @@ Related skills — load the right one for the job:
 - **`profile-variants`** — whether a car needs its own profile, and how to name
   (or rename) one. Settle that before contributing a new profile.
 
-Always run `canair` as `uv run canair …` from the repo root (never a
-globally-installed bare `canair`). See `AGENTS.md` for why.
-
-## First principle — describe intent, not specifics that will drift
-
-**Avoid baking concrete code, flag lists, or byte offsets into this skill.**
-Command flags, schema fields, and PII-detector internals go stale silently.
-Point at where to look now (`canair contribute --help`, `src/canair/contribute/pii.py`, the
-schemas in `src/canair/schema/`) and verify against the tree — a path is cheap to
-re-check, a copied specific rots invisibly. If this skill has drifted, fix it
-(Boy Scout rule). This applies to the skill itself: keep it intent-level.
-
 ## Critical rules (one-line summaries — details in the files below)
 
 - **Never hand-edit profile data** — use `canair pids`/`signals`/`states`/`ecu` editors;
@@ -48,9 +36,10 @@ re-check, a copied specific rots invisibly. If this skill has drifted, fix it
 ## Workflow
 
 1. Do the RE work first (other skills), settle naming with `profile-variants`.
-2. Prepare: validate, source/verify params, set `car_model`, pick representative captures.
+2. Prepare: validate, source/verify signals, set `car_model`, pick representative captures.
 3. Scrub: check captures, labels, notes for PII and security-key material.
-4. Preview: `uv run canair contribute --diff` shows the diff and stops. Read it.
+4. Preview: `uv run canair contribute --diff` shows the diff and stops. Read it for PII and
+   security-key material: the reviewer (you) is the backstop.
 5. Submit: `uv run canair contribute --profile NAME` (or a hand-rolled PR).
 
 ## Routing
@@ -63,16 +52,7 @@ re-check, a copied specific rots invisibly. If this skill has drifted, fix it
 | Scrubbing captures/labels for PII or location data           | `.claude/skills/contributing-profiles/pii-location.md`                    |
 | Anything touching `0x27` SecurityAccess keys/seeds           | `.claude/skills/contributing-profiles/security-keys.md`                   |
 
-## Before you submit
-
-```bash
-uv run canair validate all          # must pass — schema + checks
-uv run canair contribute --diff     # show the diff that would be submitted, then stop
-```
-
-Then read the diff for the PII/security classes above (the reviewer is the
-backstop), confirm `car_model` is precise, and submit with
-`uv run canair contribute` (or a hand-rolled PR under `profiles/<your-car>/`).
+## Licence
 
 Contributions under `profiles/` are licensed CC BY 4.0 (`profiles/LICENSE`), like
 the rest of the profile data; code is MIT. Only submit material you have the right

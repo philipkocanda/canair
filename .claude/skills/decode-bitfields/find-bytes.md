@@ -9,21 +9,18 @@ uv run canair --profile hyundai-ioniq-ae-ev coverage --bitfields
 ```
 
 ```
-  IGPM 22BC03 (18p, 15 verified)  11 data bytes, 2026-04-15
-      UNMAPPED B5,B6,B7,B13,B14,B15,B17
-      BITS B11 have{0,1,2,5,6} missing{3,4,7}
-      BITS B12 have{2,3,4,5} missing{0,1,6,7}
-  VCU 2101 (…)
-      BITS B10 have{0,1,2,3} missing{4,5,6,7} (also read whole)
+  IGPM 22BC03 (20p, 16 verified)  8 data bytes, 2026-11-22
+      MAP FD EE 3C 73 (bit) B5,B6,B7,B9
+      BITS B13 have{1,2,3} missing{6,7} (+3 not signals)
 ```
 
 A `BITS` line is exactly this skill's work item: `have{}` = bit indices some
-param reads (0 = LSB), `missing{}` = the unknowns. A byte is listed when (a) ≥1
-param reads it bit-wise (`Bn:k`/`Sn:k`) **or** a `type: bitmask` param labels
+signal reads (0 = LSB), `missing{}` = the unknowns. A byte is listed when (a) ≥1
+signal reads it bit-wise (`Bn:k`/`Sn:k`) **or** a `type: bitmask` signal labels
 some of its bits, (b) it is a real data byte (PCI/SID/DID echo excluded), and
 (c) fewer than 8 bits are covered (`src/canair/cli/commands/coverage/analysis.py::analyze_pid`).
 
-**`(also read whole)`** means some param *additionally* reads the byte as a
+**`(also read whole)`** means some signal *additionally* reads the byte as a
 whole (`Bn`), the `DEBUG_*_FLAGS` convention. That is not a decoding of the
 individual bits, so the gap still counts — the flag just tells you the raw byte
 is already exposed, and warns that on a byte which is really a discrete *code*
@@ -56,21 +53,8 @@ uv run canair --profile hyundai-ioniq-ae-ev investigate IGPM --support-map
 - A *defined* bit outside the map (`OUTSIDE MAP` in `coverage`) deserves a second look. BCM
   `22B005`'s light-stalk bits are the documented exception, backed by a deliberate test.
 
-### Coverage's remaining blind spot
+### Coverage's blind spot
 
-`coverage --bitfields` used to under-report badly; two of the three historical
-gaps are now fixed (a whole-byte read no longer suppresses the finding, and
-`Sn:k` + `type: bitmask` maps are counted). One remains — cross-check before
-concluding a byte is done:
-
-**Mask-style expressions are invisible to it.** `(B09 & 0x04)` yields no bit
-references at all, so a byte read only that way reports no gap even though seven
-bits are undecoded. Always author bits as the `Bn:k` accessor, never an `&`
-mask.
-
-> Historical note, in case you meet an old profile or doc: before 2026-08-06 a
-> byte vanished from this report entirely if *any* param read it whole. That hid
-> the two most-captured bitfields in the bundled profile — VCU 2101 B10 (the
-> PRND byte, 6365 captures) and BMS 2101 B14 (5997) — because both follow the
-> `DEBUG_*_FLAGS` "raw byte + individual bits below" convention. See
-> `plans/2026-08-06-bitfield-audit-and-gear-state.md`.
+**Mask-style expressions are invisible to it.** `(B09 & 0x04)` yields no bit references, so a
+byte read only that way reports no gap even though seven bits are undecoded. Always author bits
+as the `Bn:k` accessor, never an `&` mask.

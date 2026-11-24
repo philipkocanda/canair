@@ -32,11 +32,11 @@ deleting it in a new commit does not erase history.
 jurisdictions and dangerous.** It gates the services that reflash or reprogram an ECU, and defeating
 it is exactly what manufacturers restrict to authorized dealers and licensed repairers.
 
-**canair deliberately ships no key-cracking / seed→key solver.** One existed and was removed; do not
-re-add it, nor a per-marque algorithm bank or a seed:key pair identifier. An explicitly selected,
-user-supplied external provider may supply a response for one SecurityAccess exchange: it runs
-only by user request, with confirmation and without disclosing or storing the exchange. The design
-and safeguards are in `plans/2026-11-21-external-security-access.md`.
+**canair deliberately ships no key-cracking / seed→key solver.** Do not add one, nor a
+per-marque algorithm bank or a seed:key pair identifier. An explicitly selected, user-supplied
+external provider may supply a response for one SecurityAccess exchange: it runs only by user
+request, with confirmation and without disclosing or storing the exchange. The design and
+safeguards are in `plans/2026-11-21-external-security-access.md`.
 
 **Forbidden everywhere (code, data, captures, docs, tests, commit messages, history):** keys,
 seed→key pairs, recorded successful-unlock exchanges; seed→key transforms, PINs, passwords,
@@ -46,4 +46,5 @@ ECU's seed/key.
 
 **Practices:** tests use invented seeds and responses only, with an inert provider that is not a
 solver. Do not source, derive, embed or share an ECU key in the public tree. Key material already
-in the tree is a **security incident**: flag it (history purge, key rotation), don't delete-and-move-on.
+in the tree is a **security incident**: flag it (history purge, key rotation), don't
+delete-and-move-on.

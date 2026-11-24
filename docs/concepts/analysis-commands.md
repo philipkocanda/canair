@@ -98,10 +98,6 @@ flowchart LR
     O -.-> E
 ```
 
-In words: you orient, discover, capture, inspect, hypothesize, define and verify, in that order.
-`correlate --overlap` helps while you inspect and hypothesize, because it shows which signals canair
-polled at the same time.
-
 ## `align` vs the correlation tools
 
 Both use the *same* nearest-timestamp join, but they differ in what they emit:
@@ -147,23 +143,5 @@ All of these commands share the scope flags (`--since`/`--until`/`--date`, `--st
 [Captures & states](captures-and-states.md). The natural unit is usually a `--state` (for example
 `--state charging`) or a single session.
 
-!!! note "keep-mode caveats"
-    The monitor records **every poll** by default (`--keep-all`), so a stored row is a real
-    sample. canair folds repeated payloads on disk, so this costs little space (see
-    [Capture file format](capture-format.md)). Two dedup modes appear in older captures:
-
-    - `keep:changes` (`--keep-changes`, still available) is **run-length**. It stores every
-      genuine value transition, so `A→B→A` survives and you can recover dwell durations from
-      timestamps. It collapses only immediate repeats.
-    - The retired `keep:unique` was **global** dedup. Return-to-previous transitions and
-      durations are therefore absent.
-
-    `align`/`decode`/`correlate`/`investigate` print a `note:` on stderr when `keep:changes`
-    sessions are in scope, because a **stored-row count then measures volatility, not sampling**.
-    An ECU that canair polls every cycle but that rarely changes looks "barely polled".
-    `keep:unique` gets no blanket note (many historical captures use it). The commands flag it
-    only where it changes a reading: the `investigate --events` dwell classes, the
-    `--transform`/`--lag-scan` time-gap warnings and a forced `--fill hold`. Rate and `delta`
-    analysis is unreliable on either mode.
-    Record with the default keep-all when you need the real sampling cadence.
-
+Recording modes (`keep:changes`, legacy `keep:unique`) change what a stored row means. See
+[Forward fill](analysis-techniques.md#forward-fill-a-run-length-row-is-a-segment-not-a-sample).

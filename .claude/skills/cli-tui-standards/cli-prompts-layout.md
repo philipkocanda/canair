@@ -42,7 +42,6 @@ Use `canair.core.prompt`. Never call `input()` or `sys.stdin.readline()` for a y
   `saved_banner`. All name the full path.
 - Progress and `\r` status lines go to stderr, only on a terminal, and are cleared when done
   (`render/progress.py`).
-- Say "signal", not "parameter" or "param" (`AGENTS.md` → Vocabulary).
 - **Name bare bytes.** When a CLI or TUI shows a request, a service id, a sub-function, a DID, an
   NRC or another protocol code as hex, show its meaning next to it, e.g. `3E00` →
   `TesterPresent (zeroSubFunction)`. Look the name up in the existing registries

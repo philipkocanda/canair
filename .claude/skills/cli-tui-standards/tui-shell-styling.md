@@ -29,4 +29,3 @@ these rules.
   table above. A view that uses colour for meaning sets `HELP_LEGEND`.
 - Sentence case for titles, labels and buttons. Buttons are verbs: `Save`, `Delete`, `Cancel`.
 - Key notation in text: `esc`, `enter`, `tab`, `space`, `ctrl+s`, `↑/↓`, `pgup/pgdn`.
-- Say "signal", not "param".

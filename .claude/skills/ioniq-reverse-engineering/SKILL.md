@@ -17,26 +17,11 @@ a finished profile. Other skills own the rest:
 - `contributing-profiles`, `profile-variants`, `pid-cleanup`: profile data and its upkeep.
 - `AGENTS.md`, `docs/reference/cli/` and `canair <cmd> --help`: commands, flags, config.
 
-## Safety (non-negotiable)
+## Safety
 
-The rules are in `AGENTS.md` (section "The car") and in the `reverse-engineer-signal` skill
-(section "Safety first"). In short:
-
-- Never touch the car, the dongle or the bus without the user's explicit "yes" for that exact
-  action. Propose the exact commands, then wait.
-- Never open a programming session (`10 02`, `10 05`) or write firmware. This car cannot be
-  un-bricked.
-- One canair connection at a time. Never reboot the WiCAN without asking.
-
-
-## Critical gotchas (details in the sub-files)
-
-- The OBD-II port is gateway-isolated: passive `canair sniff` sees almost nothing; use UDS.
-- `canair io --poll` can actuate relays and solenoids (release `2F{DID}00` every 3 s).
-- The SKM ACC relay closes only with the fob nearby; BMS and MCU answer only while IG3 is on.
-- OBC: never send `99`, or `30 06/07` / `31 00/01` in session 0x90.
-- Ignition-line wiring is US-market; treat fuse names and pins as hypotheses for this EU car.
-- AutoPID goes stale when the 12 V battery hits `sleep_volt`, though the WiCAN stays reachable.
+The rules are in `AGENTS.md` (section "The car") and in `reverse-engineer-signal` (section "Safety
+first"). Ioniq-specific: never open a programming session (`10 02`, `10 05`) or write firmware.
+This car cannot be un-bricked.
 
 ## Orientation
 

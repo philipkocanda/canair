@@ -4,37 +4,30 @@ Transports, the two data domains, WiCAN replaceability, and where code lives (la
 
 ## Transports — the most important architectural rule
 
-canair reaches the bus through one **explicitly selected** transport, registered as a
-`TransportSpec` in `src/canair/transport/config.py::TRANSPORTS` (precedence and the current list:
-`AGENTS.md` → WiCAN access and transports). The designs that span the transports are pages in
-`docs/development/`: `frame-counts.md` and `link-health.md` (fallback, reconnect, desync
-recovery). Two families sit behind one surface:
+The transport list, precedence and the rules a transport change must keep are in `AGENTS.md` →
+WiCAN access and transports. The designs that span transports are `docs/development/frame-counts.md`
+and `link-health.md`. Two families sit behind one surface: **raw** (`slcan-tcp`, python-can +
+client-side ISO-TP in `RawTerminal`) and **ELM327** (`wican-ws`, `elm327-tcp`, device-side ISO-TP
+in the shared `Elm327Terminal` engine over a swappable `Channel`).
 
-| Family | Transports | How bytes move |
-|---|---|---|
-| raw | `slcan-tcp` (default) | python-can + **client-side ISO-TP** (`RawTerminal`) |
-| ELM327 | `wican-ws`, `elm327-tcp` | device-side ISO-TP via the shared `Elm327Terminal` engine over a swappable `Channel` |
-
-All backends satisfy the `Terminal` protocol (`src/canair/transport/protocol.py`) and live commands
-run through the **single shared** `src/canair/live/session.py::run_session_guarded`, called by both the
+All backends satisfy the `Terminal` protocol (`src/canair/transport/protocol.py`). Live commands run
+through the **single shared** `src/canair/live/session.py::run_session_guarded`, called by both the
 ELM path (`cli/live/runtime.py::async_main`) and the raw path (`live/read/raw_ops.py::run_raw`).
 
 **The design contract:**
 
 - Write mode handlers against the `Terminal` surface **only**. A command that goes through
-  `run_session_guarded` and uses just those methods works on every transport for free — that's how `dtc`,
-  `identity`, `scan`, `routines` get multi-transport support from one implementation.
+  `run_session_guarded` and uses just those methods works on every transport for free.
 - **Do not** open your own WebSocket, python-can bus, or socket, and do not branch on
   `transport.type` inside a mode. If you think you must, add the method to *all* terminal
   implementations instead so the mode stays transport-agnostic (matching signatures, identical
   returned dict shape — everything funnels through `src/canair/uds/parse.py::parse_uds_response`).
 - A genuinely transport-specific optimization (e.g. the pipelined `raw_monitor` fast path) must
   *optimize* an already-working shared path, and the shared path must still work everywhere.
-- A new ELM327 wire is a new `Channel`, not a duplicated engine.
 
 ## Two data domains — diagnostics *and* raw CAN frames
 
-Diagnostics (request/response UDS/KWP2000, decoded via `ecus/` params) is mature; the raw broadcast
+Diagnostics (request/response UDS/KWP2000, decoded via `ecus/` signals) is mature; the raw broadcast
 domain (`canair sniff`/`import can`/`correlate can`, `signals/<bus>.yaml`, `captures/can/`) is
 younger but **parallel, not bolted on**. `SlcanTcpBus` (`transport/raw/slcan_tcp.py`) is a clean,
 vehicle-neutral `can.BusABC` — the seam to build on. Keep the domains symmetric:
@@ -43,7 +36,7 @@ vehicle-neutral `can.BusABC` — the seam to build on. Keep the domains symmetri
   schema-validated, journaled), not a second bespoke path.
 - **Analysis parity** — a broadcast signal flows into the existing
   `decode`/`correlate`/`hunt`/`align` tools, not a bespoke analyzer.
-- **Definition parity** — a broadcast signal map is the frame-domain analogue of a PID's params:
+- **Definition parity** — a broadcast signal map is the frame-domain analogue of a PID's signals:
   modelled in the profile with the same edit-via-tool/schema-validated discipline
   (`canair signals`).
 - **Shared primitives, separate concerns** — frame parsing lives in its own module (mirroring
@@ -78,18 +71,10 @@ If it works "only with edits to the command", push the device-specific part into
 and the migration are `plans/2026-11-04-package-layout-and-layering.md`. Read the page rather
 than trusting a list copied here.
 
-**Placing new code**
-
-1. Find the package in the placement table. If two fit, take the lower layer.
-2. Read that package's `__init__.py` docstring (its charter: *Belongs / Not here / Imports*). If
-   the code does not fit the charter, stop and ask rather than stretching the package.
-3. Write the code, and its tests in the directory that mirrors it.
-4. Run `make structure` (`uv run lint-imports` and `tests/contracts/`).
-5. **If a gate fails, change the structure, not the gate.** Never add an `ignore_imports` entry or
-   raise a number in `tests/contracts/baseline.json` to get green — move the function down, pass
-   the value in, or split the module. If that cannot be done, tell the user what the edge is and
-   why. The same holds for `long_modules`: a file qualifies only when it lists many items of one
-   kind, and the user decides.
+**Placing new code**: follow `AGENTS.md` → Code structure and `make structure`. Read the target
+package's `__init__.py` charter (*Belongs / Not here / Imports*) first, and if the code does not fit
+it, ask rather than stretch the package. If a gate fails, change the structure, not the gate.
+Never add a function-level import whose only purpose is to hide a cycle.
 
 **Moving code** (one package per commit, mechanical, nothing else in the commit)
 
@@ -107,7 +92,3 @@ than trusting a list copied here.
 6. A codemod drops the alias of `from canair import module as alias` and skips the files it moves,
    so read the `ruff` output after `--fix` for undefined names, and watch the ceilings: an import
    that lands in its own isort group adds a line.
-
-Never reintroduce: a loose module at the root, `argparse` or `textual` outside the interface, a
-library module importing up into `commands`, `live` or `cli`, or a function-level import whose
-only purpose is to hide a cycle.

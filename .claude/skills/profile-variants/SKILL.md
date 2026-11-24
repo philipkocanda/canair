@@ -95,48 +95,32 @@ variant before new profile.
   purpose. Ask the user, or ask for approval to run `canair identity ECU` (it names the matching
   revision; it talks to the car), and pin it (`profile use NAME --pin ECU=ID`, or
   `--revision ECU=ID` once). A seeded revision's definitions stay `verified: false`.
-- **Evidence belongs to a revision.** A definition's own `verified` and `response_frames` speak
-  for its reference revision (the first it applies to); never assume a signal verified there holds
-  on another. Record a difference with `pids upsert-param … --revision R` (it writes
-  `per_revision.R`; a new signal is gated to `[R]`), and mark it verified only from a capture of
-  that revision. Ported or seeded definitions stay `verified: false`.
+- **Evidence belongs to a revision.** Never assume a signal verified on one revision holds on
+  another. Mark a revision's difference verified only from a capture of that revision. Ported or
+  seeded definitions stay `verified: false`. The mechanics (`per_revision`,
+  `pids upsert-param --revision`) are in `docs/development/variants-and-revisions.md`.
 - Edit with `canair ecu revisions ECU …` (its `rename` rewrites gates, variants and capture
-  tags), never by hand. `docs/concepts/variants.md#ecu-revisions` has the model; the synthetic
+  tags), never by hand. `docs/concepts/variants.md#ecu-revisions` has the model and
+  `docs/development/variants-and-revisions.md` the design; the synthetic
   fixture `tests/fixtures/profiles/variants/` shows every case.
 
-## Choosing the car you're working on
+## Choosing the car, and tagging captures
 
 On a profile with several variants, canair refuses to talk to the car, record or generate the
-AutoPID profile until a variant is named — and there is no default, by design. Name it with
-`canair profile use NAME --variant ID` (remembered per profile) or the global `--variant` for one
-command; `docs/concepts/variants.md` has the precedence.
+AutoPID profile until a variant is named. Choosing and tagging are in `docs/concepts/variants.md`
+(sections "Choosing your car" and "Tagging captures with the car"); the design is in
+`docs/development/variants-and-revisions.md`. The judgement rules:
 
 - **Never pick a variant to make a refusal go away.** Ask the user which car they have, or ask
   for approval to run `discover`/`identity` (allowed without a choice, but only without `--save`;
   both talk to the car) and read the evidence. A wrong choice tags every recording with the wrong
   car.
-- **An old profile name may imply a variant** (`ioniq-2017` is the 28 kWh car). Those tags are
-  attributed `alias` and shown as unconfirmed; replace them with an explicit choice when the user
-  confirms.
-
-## Tagging captures with the car they came from
-
-A capture is evidence about one car, so on a profile with several variants every session should
-say which: its `variant` tag, set by the global `--variant ID` flag (see
-`docs/concepts/variants.md` for the mechanics).
-
-- **Every recording is tagged with the chosen car**, so the choice above is what makes the tag
-  right.
-- **Every import names the car on the command line.** A forum paste or a third-party log is
-  someone else's car; `import uds`/`import can` refuse without the global `--variant`, and
-  `CANAIR_VARIANT` doesn't count. Never pick a variant just to make the command run: if the
-  source doesn't say which car it was, ask, or don't import it into a multi-variant profile.
+- **Never pick a variant just to make an import run.** If the source doesn't say which car it
+  was, ask, or don't import it into a multi-variant profile.
 - **Tag existing history only from evidence** about where it came from (a capture's notes, who
-  recorded it, a battery size readable in the data). `captures migrate-variants ID`, scoped by
-  date and label, stamps sessions as `migrated`; leave a profile's history untagged rather than
-  guess.
-- **Fix a wrong tag with `captures uds --set-variant`**, never by hand. Renaming a variant goes
-  through `canair variants rename`, which retags everything.
+  recorded it, a battery size readable in the data). Leave a profile's history untagged rather
+  than guess.
+- **Fix a wrong tag with `captures uds --set-variant`**, never by hand.
 
 ## Naming a profile
 
@@ -149,16 +133,14 @@ say which: its `variant` tag, set by the global `--variant ID` flag (see
 | code | the maker's model code for this generation | `ae`, `ne`, `os`, `ze1`, `f30` |
 | drivetrain | one of `ev`, `erev`, `phev`, `hev`, `ice`, `fcev` | `ev` |
 
-- **Never a year.** A year was wrong for most of the cars it named; that is why the bundled
-  profiles were renamed.
+- **Never a year.**
 - **Never drop the code or the drivetrain** because the model "only has one". Both change during
   a model's life (a successor generation; an EREV added part-way through a generation), and the
   name then has to change too.
 - **Finding the model code:** start with the car itself. ECUs often report it in their identity
   strings (`canair search` over the captures, or `canair identity` with the user's approval) — the
   Ioniq Electric's BMS answers `AEEV__ BMS`, which is the model code `AEEV` (Ioniq `AE`, `EV`).
-  Then the maker's
-  documentation, then a well-sourced reference, and record where it came from.
+  Then the maker's documentation, then a well-sourced reference, and record where it came from.
 - The rule and its pattern live once, in `src/canair/profile/names.py`; `canair validate` enforces
   them for bundled profiles, and `canair profile create` notes a non-conforming name.
 
@@ -182,7 +164,5 @@ scripts, and capture overlays under `~/.config/canair/profiles/<old name>/`.
 4. `uv run canair --profile <new> validate all`, and check the old name still resolves:
    `uv run canair --profile <old> profile show`.
 
-How the old name resolves — and why a real directory of the old name (an adopted copy) always
-wins — is in `docs/concepts/profiles.md` under *Renamed profiles*. Never write a migration that
-rewrites a user's config or renames their directories: a config is often shared by canair
-checkouts of different ages, and an older one would no longer find the profile.
+How the old name resolves is in `docs/concepts/profiles.md` under *Renamed profiles*. Never write a
+migration that rewrites a user's config or renames their directories.

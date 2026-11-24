@@ -9,7 +9,7 @@ Scope: the car, dongle and bus basics, AutoPID staleness, and Ioniq-specific ope
   pre-facelift model. The 28 kWh is air-cooled (fan); the 38 kWh facelift (2019-06 on) has a
   liquid-cooled battery and a different BMS. The profile
   describes both as variants (`variants.yaml`: `28kwh`, `38kwh`); this car is the 28 kWh.
-- **Dongle:** WiCAN Pro (MeatPi), MAC `9888e006734d`.
+- **Dongle:** WiCAN Pro (MeatPi).
 - **CAN:** ISO 15765-4 (11-bit, 500 kbps) — ELM327 protocol `6`.
 - **AT init** (`profile.yaml`): `ATSP6;ATS0;ATAL;ATST96;`, plus
   `response_timeout_ms: 614` (ECUs respond slowly; the first request after idle

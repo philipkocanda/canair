@@ -60,43 +60,23 @@ Two cheap checks that decide whether the "bits" are flags **at all**. Do these
 *before* reasoning about meaning — each one can invalidate a whole byte's worth
 of candidates.
 
-**Enumerate the byte's distinct values.** A real bitfield's bits combine freely,
-so an exercised byte shows many values. A byte with a handful of values whose
-bits never move independently is an **enum**, not a bitfield:
+**Enumerate the byte's distinct values.** A real bitfield's bits combine freely, so an exercised
+byte shows many values. A byte with a handful of values whose bits never move independently is
+an **enum**, not a bitfield. List the values with `decode <ECU> <PID> --dump-bytes` (add
+`--json` to script it: `{ecu, pid, columns, offsets, rows}`, each row `{time, date,
+vehicle_states, bytes}`).
 
-```
-uv run canair --profile hyundai-ioniq-ae-ev decode BCM 22B004 --dump-bytes --json \
-  | uv run python -c "import json,sys,collections; \
-rows=json.load(sys.stdin)['rows']; \
-c=collections.Counter(int(r['bytes']['B10']) for r in rows if 'B10' in r['bytes']); \
-print({f'{k} (0b{k:08b})': n for k,n in sorted(c.items())})"
-```
-
-```
-{'0 (0b00000000)': 861, '14 (0b00001110)': 30, '192 (0b11000000)': 2}
-```
-
-(`--dump-bytes --json` emits `{ecu, pid, columns, offsets, rows}`; each row is
-`{time, date, vehicle_states, bytes}` — a CSV is the default without `--json`.)
-
-`BCM 22B004 B10` returns only `{0, 14, 192}` over 893 captures — bits 1/2/3 only
-ever appear together (as `14`), and 6/7 together (as `192`). Those are **not five
-flags**; they are one state code, and defining them per-bit would misrepresent
-it. Model the byte as `type: enum` instead.
-
-This settles enum-vs-bitfield outright, so run it **before** the
-"find a session where they diverge" hunt below — a byte with 3 distinct values
-has no diverging session to find.
+If bits only ever appear together, they are one state code, not separate flags. Defining them
+per bit would misrepresent it. Model the byte as `type: enum` instead. Run this check **before**
+you hunt for a session where the bits diverge: a byte with three distinct values has none.
 
 **Sanity-check the episode count.** `--dwell`'s `episodes` column separates flags
 from bits of an *analog* byte. A flag toggles with discrete events (single or
 double-digit episodes). A bit toggling hundreds of times is the low bit of a
-continuously-varying value or a counter:
+continuously-varying value or a counter.
 
-```
-    B14:3   sustained   1143 episodes   2288 trans   10.4s    <- analog byte's low bit
-    B23:4   sustained      4 episodes      9 trans  245603s   <- a real flag
-```
+An analog byte's low bit shows as `B14:3 sustained 1143 episodes`. A real flag shows as
+`B23:4 sustained 4 episodes`.
 
 Discard the high-count rows before ranking; a multi-byte analog value's bits will
 otherwise dominate every `--bits` sweep on a powertrain PID. Cross-check by
