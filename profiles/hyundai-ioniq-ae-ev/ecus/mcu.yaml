@@ -350,7 +350,13 @@ MCU:
             Inverter temperature sensor A, 2 °C per count, signed. Firmware: the variable the
             P0AEE/P0AEF/P0AF0 circuit checks test; a filtered copy feeds P0A3C and P0A93. Mirrors
             AAF:2181:HEATSINK_TEMP: r=+0.990 over 1973 co-polled rows, reading 1 °C below it
-            (median).
+            (median). The record drops the half-degree fraction toward zero, so a positive value
+            reads up to 2 °C low and a negative one up to 2 °C high. Cold-end bias: on cold-soaked
+            starts it reads 4 to 6 °C below the coolant sensor and below the outside air (2026-11-22
+            08:55: -4 here, -5 on AAF:2181:HEATSINK_TEMP, against HVAC_AAT 1.5, BMS BATTERY_MIN_TEMP
+            3, MCU_COOLANT_TEMP 0). The decoding is not at fault: the raw byte B19 is 254 and
+            AAF:2181:HEATSINK_TEMP agrees. Probably a sensor or look-up-table offset in the
+            inverter; treat absolute values below about 10 °C as low by roughly 5 °C.
           verified: false
         MCU_MOTOR_TEMP:
           expression: S18*2
@@ -362,7 +368,13 @@ MCU:
             sensor voltage the P0A2C/P0A2D checks test and whose filtered value the P0A2F stages
             (170/180 °C) test; capped at 213 °C, 215 °C on a sensor fault. Heats most under load: 16
             to 54 °C over the 2026-08-08 10:02-11:41 drive (cycle mean 43 °C, against 36 °C for
-            MCU_HEATSINK_TEMP), and cools while parked or DC charging.
+            MCU_HEATSINK_TEMP), and cools while parked or DC charging. The record drops the
+            half-degree fraction toward zero, so a positive value reads up to 2 °C low and a
+            negative one up to 2 °C high. Cold-end bias: on 2026-11-22 it started at 0 °C, matching
+            MCU_COOLANT_TEMP, but fell to -4 °C within ten minutes while parked in READY, with
+            HVAC_AAT at 1.5 and BMS BATTERY_MIN_TEMP at 3. That is below the outside air, so values
+            under about 5 °C are probably low by a few degrees. Cause not established; raw byte B18
+            decodes as signed.
           verified: false
           source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 11.2)
         MCU_POWER_MODULE_TEMP_EST:
