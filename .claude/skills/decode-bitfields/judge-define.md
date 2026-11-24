@@ -76,7 +76,7 @@ uv run canair --profile hyundai-ioniq-ae-ev pids upsert-param IGPM 22BC03 HOOD_O
   reads `constant 0` across captures means the offset or bit index is wrong.
 - **Naming honesty** (same bar as `pid-cleanup` rule 4): known meaning → name
   it; known bit, unknown meaning → put the position in the name
-  (`UNKNOWN_B10_6`, matching the file's existing convention); a guess → suffix
+  (`<ECU>_UNKNOWN_B10_6`; match the file's existing convention); a guess → suffix
   `?` in the name or leave it `--unverified`. A confirmed-but-unexplained bit
   is still worth defining as a placeholder — it stops the next person
   re-deriving it and makes the gap visible.

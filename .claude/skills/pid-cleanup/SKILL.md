@@ -97,9 +97,8 @@ The param name is a claim. Keep it honest:
   `HVAC_COMPRESSOR_ON` was verified against heat-pump heating, then read 0 under
   A/C with the compressor running; it is now `HVAC_HEAT_PUMP_ON`.
 - **Known byte, unknown meaning** → say so explicitly with the byte in the
-  name, e.g. `HVAC_B19_UNKN` (or match the ECU's existing convention —
-  `HVAC_UNKNOWN_B17` is also in use; be consistent within a file, and add the
-  page, e.g. `HVAC_A0_UNKNOWN_B23`, where the same byte number recurs across
+  name, e.g. `HVAC_UNKNOWN_B19` (match the ECU's existing convention and be consistent within a
+  file; add the page, e.g. `HVAC_A0_UNKNOWN_B23`, where the same byte number recurs across
   PIDs). The name must not imply a meaning you can't back.
 - **A guessed meaning that later proves wrong** → rename
   (`canair pids rename-param ECU PID OLD NEW`) and **fix every cross-reference**
@@ -109,7 +108,7 @@ The param name is a claim. Keep it honest:
   (`HVAC_AAT_MIRROR_B17`, `HVAC_HEAT_PUMP_ON_MIRROR_B18`) so it's clear which
   byte a name is about.
 
-When you demote a name from a guess to `_UNKN`, also strip the now-unsupported
+When you demote a name from a guess to an `_UNKNOWN_B<n>` name, also strip the now-unsupported
 guess from the note (rule 2).
 
 ## Workflow
@@ -150,7 +149,7 @@ guess from the note (rule 2).
 
 - Every remaining param's note is a bare fact or absent — zero speculation.
 - No param that is proven-static across a well-varied dataset survives.
-- No name implies knowledge the evidence doesn't support; unknowns say `_UNKN`.
+- No name implies knowledge the evidence doesn't support; unknowns say `UNKNOWN_B<n>`.
 - No dangling references to renamed/removed params.
 - `canair validate pids` passes; docs/bundled-profile index regenerated if the
   cleanup changed shipped (verified, not `ship: false`) signals.

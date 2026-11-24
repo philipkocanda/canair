@@ -46,4 +46,5 @@ data itself is **`contributing-profiles`**.
   | a dependency version | `uv tree --depth 1`, `uv pip show NAME` |
 
   `captures uds` lists and `--sessions` keep the latest 50 (`--limit`), and `research` the top
-  20, and each says what it hid. Start `research` and `coverage` from `--summary` or `--ecu`.
+  20, and each says what it hid. Start `research` from `--summary` or `--ecu`, and narrow
+  `coverage` with its positional ECU.

@@ -112,8 +112,9 @@ AutoPID profile until a variant is named — and there is no default, by design.
 command; `docs/concepts/variants.md` has the precedence.
 
 - **Never pick a variant to make a refusal go away.** Ask the user which car they have, or ask
-  for approval to run `discover`/`identity` (allowed without a choice; both talk to the car) and
-  read the evidence. A wrong choice tags every recording with the wrong car.
+  for approval to run `discover`/`identity` (allowed without a choice, but only without `--save`;
+  both talk to the car) and read the evidence. A wrong choice tags every recording with the wrong
+  car.
 - **An old profile name may imply a variant** (`ioniq-2017` is the 28 kWh car). Those tags are
   attributed `alias` and shown as unconfirmed; replace them with an explicit choice when the user
   confirms.

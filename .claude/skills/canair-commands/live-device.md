@@ -1,7 +1,7 @@
 # Live device
 
-**Every command in this file except `lock` and `logs` talks to the car: run none without the
-user's explicit approval.**
+**Every command in this file talks to the car, except `lock`, `logs` and `dtc log`: run none of
+the others without the user's explicit approval.**
 
 - **`read`** (alias `query`) — Custom CAN/UDS requests. **Prefer positional query steps**
   (`canair read BMS:2101`; `query/` handles sessions, wake and keepalives). **Bind each PID to its
@@ -10,8 +10,9 @@ user's explicit approval.**
   `@group` expands to a saved selector set. A token picks PIDs by prefix *or* suffix (`VCU:22`);
   an undefined token is inferred or refused, never guessed (`query/__init__.py::inferred_request`);
   OBD-II is `BMS:01/0D`. TesterPresent keepalives are automatic. `--reboot` restores AutoPID.
-- **`monitor`** (alias `mon`) — Live view; same steps as `read`. Recording (`--save`/`--label`/
-  `--state`/`--notes`) and the keep-modes live **here, not on `read`**. Bare `monitor` on a TTY
+- **`monitor`** (alias `mon`) — Live view; same steps as `read`. The keep-modes
+  (`--keep-all`/`--keep-changes`/`--keep N`) live **here, not on `read`**; `--save` and its
+  `--label`/`--state`/`--notes` work on every device-reading command. Bare `monitor` on a TTY
   opens a picker. Polling is per-PID with backoff. Design: `live/monitor/`.
 - **`scan`** — Kinds `range` (bare `scan <ECU>`), `sessions`, `routines`, `iocontrol`, `memory`.
   All are **safe probes** except a KWP `0x30` sweep and a `range` of an actuating service, which

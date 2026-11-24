@@ -5,9 +5,9 @@ Scope: the car, dongle and bus basics, AutoPID staleness, and Ioniq-specific ope
 ## Vehicle
 
 - **Car:** Hyundai Ioniq Electric AE EV 2017 (28 kWh, Premium trim, NL market).
-  Not the HEV/PHEV. The 2017 model year (2016–2019) has a different CAN layout
-  and fewer PIDs than the 2020+ facelift. The 28 kWh is air-cooled (fan); the
-  38 kWh has a liquid-cooled battery, different BMS, and more cell-voltage PIDs. The profile
+  Not the HEV/PHEV. The 28 kWh car (production 2016 to 2019-05) is the
+  pre-facelift model. The 28 kWh is air-cooled (fan); the 38 kWh facelift (2019-06 on) has a
+  liquid-cooled battery and a different BMS. The profile
   describes both as variants (`variants.yaml`: `28kwh`, `38kwh`); this car is the 28 kWh.
 - **Dongle:** WiCAN Pro (MeatPi), MAC `9888e006734d`.
 - **CAN:** ISO 15765-4 (11-bit, 500 kbps) — ELM327 protocol `6`.

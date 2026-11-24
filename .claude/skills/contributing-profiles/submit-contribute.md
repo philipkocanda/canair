@@ -45,7 +45,8 @@ fork/clone/branch/push, and it works regardless of where the profile is stored
    rather than an error.
 
 Useful modes (verify against `--help`): `--no-captures` (definitions-only PR),
-`--dry-run` (prepare branch+commit, no push/PR, prints the generated PR body),
+`--diff` (show the diff that would be submitted, then stop),
+`--dry-run` (prepare the branch and commit locally; no push or PR),
 `--no-logs` (leave out the scrubbed `canair logs` excerpt the PR body carries by default),
 `--discard-local` (drop the changes the PR holds from your canair checkout once it is open),
 `--yes` (non-interactive, for agents/CI), `--json` (emit the PR URL + findings), `--profile NAME`

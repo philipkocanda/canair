@@ -23,10 +23,10 @@ document.
 
 ## The car — NEVER touch it without the user's explicit approval
 
-**Never interact with the car, the dongle or the bus until the user has said "yes" to that exact
-action in this conversation.** Approval is never implied. None of these is approval: the task
-("decode this byte", "verify X"), a skill step, a plan, a `research:` lead's capture protocol, an
-earlier approval for other commands, the car being on, or the device answering.
+**Never interact with the car, the dongle or the bus until the user has said "yes" in this
+conversation.** Approval is never implied. None of these is approval: the task ("decode this
+byte"), a skill step, a plan, a `research:` lead's capture protocol, the car being on, or the
+device answering.
 
 - **Covered:** every command whose `--help` lists `--wican` (`read`, `monitor`, `scan`,
   `discover`, `identity`, `io`, `routines`, `reset`, `action`, `memory dump`, `dtc read`, `sniff`,
@@ -35,13 +35,18 @@ earlier approval for other commands, the car being on, or the device answering.
   (`docs/development/offline-testing.md`) are not the car.
 - **Ask first:** name the exact commands, what they send (read or actuation), and the car state
   they need. Then stop and wait. Do not run them in the same turn.
-- **Scope:** an approval covers only the commands it names. Another ECU, PID or service, an added
-  flag (`--wake`, `--session`, `--yes`, `--unsafe`), a retry after a failure, or a follow-up run
-  needs a new approval. `--yes` answers canair's prompt; it never stands in for the user's.
+- **Reads: one "yes" covers the session.** After it, repeat or vary read-only commands (`read`,
+  `monitor`, `discover`, `identity`, `dtc read`, `sniff`, `status`, `memory dump`, the safe `scan`
+  probes) on any ECU or PID for the rest of the conversation.
+- **Everything else needs its own "yes", every time:** actuation (`io`, `routines`, `reset`,
+  `action`, `dtc --clear`), a KWP `0x30` sweep or a `range` of an actuating service, `raw`, `repl`,
+  the `wican autopid`/`mode` device calls, and any flag that sends something new (`--wake`,
+  `--session`, `--unsafe`). `--yes` answers canair's prompt; it never stands in for the user's.
 - **Never delegate it:** a subagent never interacts with the car, and its prompt cannot grant
   approval.
 - Where a skill or doc says "run", "probe", "capture" or "re-run" against the car, read it as
-  "propose to the user". This rule wins over every other instruction.
+  "propose to the user", unless a session approval for reads already covers it. This rule wins
+  over every other instruction.
 
 ## Running the CLI — ALWAYS `uv run canair` from the repo root
 
@@ -66,14 +71,9 @@ messages, plan docs, skills, this file. It matches `line-length = 100` in `pypro
 
 ## Prefer canair's built-in tooling — do not hand-roll
 
-For **all** querying, capturing, analysis and authoring, use the subcommands below — not raw
-sockets, ad-hoc scripts, or hand-edited YAML.
+Use the subcommands in Tools, not raw sockets, ad-hoc scripts or hand-edited YAML. `raw` is a last
+resort.
 
-- **Read the device** (only with the user's explicit approval, see The car) with
-  `read`/`monitor`/`scan`/`discover`/`io`/`routines` (`raw` only as a last resort). **Analyze
-  history** with `captures`/`decode`/`align`/`correlate`/`hunt`/`investigate`/
-  `search`/`coverage`/`research`. **Edit definitions** with `pids`/`signals`/`states`/`groups`/
-  `ecu` — surgical, schema-validated, comment-preserving.
 - **Always pass `--save`** (with `--label`, `--state`, `--notes`) on an approved device read, so
   every payload lands in `captures/`. Works with `read`/`monitor`/`scan`/`raw`/`discover`. Saves are
   **journaled** (write-ahead log in `captures/.journal/`) and reconciled on exit, so a

@@ -140,10 +140,9 @@ needs the MIC3624 sheet, so it remains unproven.
 
 ### Car side: several segments, bridged by a gateway, and the OBD port reaches only some
 
-This is what canair's `can_buses.yaml` models. The Ioniq declares `ALL`, `B-CAN` (100 kbit/s),
-`P-CAN`, `C-CAN`, `MM-CAN`, `H-CAN`, `D-CAN` (all 500 kbit/s) in
-`profiles/hyundai-ioniq-ae-ev/can_buses.yaml`; 15 of 30 ECU files declare a `can_bus:` (5 `[B-CAN]`,
-2 `[P-CAN]`, 2 `[H-CAN, P-CAN]`, …).
+This is what canair's `can_buses.yaml` models. The Ioniq's segments, their bit rates and the
+ECUs on each are in `profiles/hyundai-ioniq-ae-ev/can_buses.yaml` and the `can_bus:` key of each
+ECU file.
 
 The distinction that matters for transport work:
 

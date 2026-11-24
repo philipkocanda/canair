@@ -16,7 +16,7 @@ renames an entry with `yaml_edit.ruamel_ops` (a bare `del` loses the comments).
   for `notes`; they are formatted for you.
 - **`signals`** — The domain-B analogue: the broadcast sidecar `signals/<bus>.yaml`. **Never
   hand-edit `signals/`.**
-- **`ecu`** — Inspect the registry; `ecu add TX …` registers an ECU offline; `ecu <ECU> rename NEW`
+- **`ecu`** — Inspect the registry; `ecu add TX …` registers an ECU offline; `ecu rename ECU NEW`
   renames it everywhere; `ecu revisions`/`set-variants` edit revisions and presence. `ecu <ECU>
   edit` opens `$EDITOR` and is **TTY-only — agents use `pids …`/`ecu add`**.
 - **`states`** — The state vocabulary. **Never hand-edit `vehicle_states.yaml`**: the editors also

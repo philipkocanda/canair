@@ -36,9 +36,9 @@ Before submitting, make the profile clean and honest:
   inherit them. A note true of the whole page goes in the PID note (`set-pid-notes`), not on
   every signal.
 - **`car_model` pins down the vehicle** — model / year / market / battery — so
-  another owner can tell whether the profile matches *their* car. Set it via the
-  profile scaffold or `canair config`/profile tooling, not by hand-editing if a
-  tool reaches it.
+  another owner can tell whether the profile matches *their* car. It is a `profile.yaml`
+  field checked by `profile_schema.json`. No editor command sets it, so edit that one field by
+  hand and run `canair validate all`.
 - **Include representative captures as evidence, not everything.** Captures back
   up the decode, but they can be large — a representative subset is enough.
   `canair contribute --no-captures` ships definitions only when the evidence is

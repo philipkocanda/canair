@@ -50,7 +50,7 @@ re-check, a copied specific rots invisibly. If this skill has drifted, fix it
 1. Do the RE work first (other skills), settle naming with `profile-variants`.
 2. Prepare: validate, source/verify params, set `car_model`, pick representative captures.
 3. Scrub: check captures, labels, notes for PII and security-key material.
-4. Dry-run: `uv run canair contribute --dry-run` and eyeball the diff.
+4. Preview: `uv run canair contribute --diff` shows the diff and stops. Read it.
 5. Submit: `uv run canair contribute --profile NAME` (or a hand-rolled PR).
 
 ## Routing
@@ -67,10 +67,10 @@ re-check, a copied specific rots invisibly. If this skill has drifted, fix it
 
 ```bash
 uv run canair validate all          # must pass — schema + checks
-uv run canair contribute --dry-run  # prepare branch+commit locally; preview the PII pre-flight & diff
+uv run canair contribute --diff     # show the diff that would be submitted, then stop
 ```
 
-Then eyeball the diff for the PII/security classes above (the reviewer is the
+Then read the diff for the PII/security classes above (the reviewer is the
 backstop), confirm `car_model` is precise, and submit with
 `uv run canair contribute` (or a hand-rolled PR under `profiles/<your-car>/`).
 

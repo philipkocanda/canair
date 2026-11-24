@@ -66,7 +66,7 @@ concluding a byte is done:
 **Mask-style expressions are invisible to it.** `(B09 & 0x04)` yields no bit
 references at all, so a byte read only that way reports no gap even though seven
 bits are undecoded. Always author bits as the `Bn:k` accessor, never an `&`
-mask. (Zero `&` expressions exist in bundled profiles today; keep it that way.)
+mask.
 
 > Historical note, in case you meet an old profile or doc: before 2026-08-06 a
 > byte vanished from this report entirely if *any* param read it whole. That hid

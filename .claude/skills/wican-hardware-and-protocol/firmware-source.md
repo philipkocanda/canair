@@ -20,7 +20,7 @@ A `v6.*` tag here means you are reading the other firmware generation — see Tr
 
 | | `main` | `wican-pro` |
 |---|---|---|
-| `HARDWARE_VER` | `WICAN_V300` | `WICAN_PRO` (`wican-fw/CMakeLists.txt:48`) |
+| `HARDWARE_VER` | `WICAN_V300` | `WICAN_PRO` (`wican-fw/CMakeLists.txt:49`) |
 | SoC | `esp32c3` | `esp32s3` (`wican-fw/sdkconfig:650`) |
 | Tag suffix | `v4.21` | `p` suffix — `v4.50p`, `v4.51p_beta-01` |
 | ELM327 | **software emulation** | **proxied to a hardware chip** |
@@ -52,7 +52,7 @@ The two are near-identical and **differ by ~40 lines in numbering**, so a wrong 
 real-looking line. Check with:
 
 ```
-rtk grep -rn ws_router wican-fw/main/CMakeLists.txt      # must return nothing
+grep -rn ws_router wican-fw/main/CMakeLists.txt      # must return nothing
 ```
 
 ## Trap 3: the checked-out tag is not necessarily the running firmware
