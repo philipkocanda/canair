@@ -92,8 +92,9 @@ you are building toward for your own car.
   and body controls (locks, trunk, lights, indicators).
 
 The VCU's previous-cycle `21F2` record also includes unverified mean-power and integrated-energy
-candidates for two climate inputs. The integral conversion assumes a 100 ms accumulator tick and
-still needs confirmation.
+candidates for two climate inputs. Their integral conversion follows the firmware's fixed-point
+accumulator (10 ms updates with a /11 scale) and remains unverified against an independent energy
+measurement.
 
 The BMS previous-cycle `21F2` record has an unverified cycle-class candidate based on three
 observed `B117` values. Its labels are provisional.

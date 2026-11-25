@@ -801,16 +801,16 @@ VCU:
             Candidate: not cross-checked against the climate frame on this car.
           ship: false
         VCU_21F2_CLIMATE_A_ENERGY:
-          expression: (((B28<<24)|(B27<<16)|(B26<<8)|B25)/3600)
+          expression: (((B28<<24)|(B27<<16)|(B26<<8)|B25)*11/36000)
           unit: Wh
           min: "0"
           source: VCU firmware FUN_00204028 (research/VCU_FIRMWARE_FINDINGS.md §27.8)
           verified: false
           notes: >-
-            Integral of the previous READY cycle climate field 0x5F6 bits 54-63. The 10 W/count
-            source and paired-record integral/mean ratios support a 100 ms accumulator tick; /3600
-            converts the summed 10 W samples to Wh if that tick is correct. Tick period is inferred,
-            not yet traced in firmware. Candidate only.
+            Integral of the previous READY cycle climate field 0x5F6 bits 54-63. Firmware
+            accumulates every 10 ms as value*0x5D35 >>18 (approximately value/11); source value is
+            10 W/count. Therefore raw sum*11/36000 estimates Wh, with per-tick fixed-point
+            truncation. Candidate; not checked against an independent energy measurement.
           ship: false
         VCU_21F2_CLIMATE_B_MEAN_POWER:
           expression: ((B30<<8)|B29)*10
@@ -825,16 +825,17 @@ VCU:
             cross-checked against the climate frame on this car.
           ship: false
         VCU_21F2_CLIMATE_B_ENERGY:
-          expression: (((B35<<24)|(B34<<16)|(B33<<8)|B31)/3600)
+          expression: (((B35<<24)|(B34<<16)|(B33<<8)|B31)*11/36000)
           unit: Wh
           min: "0"
           source: VCU firmware FUN_00204028 (research/VCU_FIRMWARE_FINDINGS.md §27.8)
           verified: false
           notes: >-
             Integral of the previous READY cycle climate field 0x5F5 bits 14-23; B32 is an ISO-TP
-            PCI byte. The 10 W/count source and paired-record integral/mean ratios support a 100 ms
-            accumulator tick; /3600 converts the summed 10 W samples to Wh if that tick is correct.
-            Tick period is inferred, not yet traced in firmware. Candidate only.
+            PCI byte. Firmware accumulates every 10 ms as value*0x5D35 >>18 (approximately
+            value/11); source value is 10 W/count. Therefore raw sum*11/36000 estimates Wh, with
+            per-tick fixed-point truncation. Candidate; not checked against an independent energy
+            measurement.
           ship: false
 
 
@@ -1486,10 +1487,11 @@ VCU:
         97-100); B19/B20 range samples; B21 range loss; and B38/B39 plus B41-B44 newest
         charge-history efficiency and distance. Added unverified climate means and integral
         candidates: B22:B23 and B25:B28 map 0x5F6 field A; B29:B30 and B31/B33:B35 map 0x5F5 field
-        B. Means use 10 W/count. Integral/mean ratios agree across both fields (2623/2627 ticks on
-        Oct 30), supporting but not proving a 100 ms accumulator and /3600 Wh conversion. B36/B37
-        remain unknown; B73/B74 stay 91/0, B75/B76 are scheduling-chart counters, and B77-B94 are
-        zero in stored replies.
+        B. Means use 10 W/count. Firmware accumulates each 10 ms as value*0x5D35 >>18 (about
+        value/11); the /11-scaled sums imply Wh candidates of sum*11/36000. On Oct 30, integral/mean
+        ratios 2623/2627 imply about 289 s of READY, consistent across both fields. B36/B37 remain
+        unknown; B73/B74 stay 91/0, B75/B76 are scheduling-chart counters, and B77-B94 are zero in
+        stored replies.
       notes: >-
         Unknown fields of the VCU 21F2 previous-cycle record: (B11<<8)|B10 /256 (97-106), B21
         (0-22), B29-B34, B36/B37, B38-B44 (change after charging), B45/B47/B54 (sum to about 100:
