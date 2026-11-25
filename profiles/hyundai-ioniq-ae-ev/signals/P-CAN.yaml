@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=https://philipkocanda.github.io/canair/schema/signals.json
+messages:
+  '0x584':
+    name: AAF11
+    tx_ecu: AAF
+    length: 8
+    signals:
+      CF_Aaf_ActFlapStatus:
+        start_bit: 0
+        length: 2
+        byte_order: little
+        min: 0.0
+        max: 3.0
+        verified: false
+        source: opendbc Hyundai CAN DBC (commaai, MIT)
+      CF_Aaf_ModeStatus:
+        start_bit: 2
+        length: 3
+        byte_order: little
+        min: 0.0
+        max: 7.0
+        verified: false
+        source: opendbc Hyundai CAN DBC (commaai, MIT)
+      CF_Aaf_WrnLamp:
+        start_bit: 5
+        length: 1
+        byte_order: little
+        min: 0.0
+        max: 1.0
+        verified: false
+        source: opendbc Hyundai CAN DBC (commaai, MIT)
+      CF_Aaf_ErrStatus:
+        start_bit: 6
+        length: 10
+        byte_order: little
+        min: 0.0
+        max: 1023.0
+        verified: false
+        source: opendbc Hyundai CAN DBC (commaai, MIT)
+      CF_Aaf_OpenRqSysAct:
+        start_bit: 16
+        length: 8
+        byte_order: little
+        min: 0.0
+        max: 255.0
+        verified: false
+        source: opendbc Hyundai CAN DBC (commaai, MIT)
+      CF_Aaf_PStatus:
+        start_bit: 24
+        length: 8
+        byte_order: little
+        min: 0.0
+        max: 100.0
+        unit: '%'
+        verified: false
+        source: opendbc Hyundai CAN DBC (commaai, MIT)
+      CF_Aaf_OpenRqSysSol:
+        start_bit: 32
+        length: 8
+        byte_order: little
+        min: 0.0
+        max: 255.0
+        verified: false
+        source: opendbc Hyundai CAN DBC (commaai, MIT)
+      CF_Aaf_SolFlapStatus:
+        start_bit: 40
+        length: 2
+        byte_order: little
+        min: 0.0
+        max: 3.0
+        verified: false
+        source: opendbc Hyundai CAN DBC (commaai, MIT)
+      CF_Aaf_MilOnReq:
+        start_bit: 42
+        length: 1
+        byte_order: little
+        min: 0.0
+        max: 1.0
+        verified: false
+        source: opendbc Hyundai CAN DBC (commaai, MIT)

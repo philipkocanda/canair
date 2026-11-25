@@ -99,6 +99,9 @@ measurement.
 The BMS previous-cycle `21F2` record has unverified cycle-class and cycle-data-presence candidates
 based on three observed `B117` values and `B39`. Their labels are provisional.
 
+The P-CAN AAF11 frame (`0x584`) now has unverified flap, mode, warning and request signals from
+the MIT-licensed Hyundai CAN DBC. No P-CAN capture from this car has confirmed them.
+
 The AAF thermal-mode candidate's value `7` is not a charging indicator: it also appears with the
 car unplugged. Its meaning remains unknown.
 
