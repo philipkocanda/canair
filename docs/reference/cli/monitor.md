@@ -31,7 +31,7 @@ options:
   --schedule {dynamic,fixed}
                         dynamic (default): poll each PID at its own profile
                         `period:`, falling back to --interval; fixed: poll
-                        every PID every cycle, --interval apart
+                        every pending PID each cycle, --interval apart
   --no-backoff          Keep polling a PID that times out or is answered
                         slowly at its normal rate (default: poll it less often
                         until it recovers, so it can't hold up the rest)
@@ -111,7 +111,7 @@ examples:
   canair monitor                            Pick ECUs, then PIDs, interactively (TTY only)
   canair monitor BMS:2101                   Monitor BMS PID 2101 at twice its profile rate
   canair monitor BMS:2101 --interval 2      PIDs without a profile period refresh every 2s
-  canair monitor BMS:2101 --schedule fixed --interval 1   Every PID every 1s
+  canair monitor BMS:2101 --schedule fixed --interval 1   Poll every 1s
   canair monitor "VCU:2101 BMS:2101"        Cross-ECU monitor
   canair monitor @charging                  Monitor a saved group (see `canair groups`)
   canair monitor @driving CLU:220B          A group plus an extra selector
@@ -121,8 +121,12 @@ examples:
 
 Polling: by default each PID is read every half of its own `period:` from the profile
 (the period is the WiCAN AutoPID cadence; set one with `canair pids set-pid-period`), and a
-PID without one every --interval seconds. --schedule fixed reads every PID on every cycle,
+PID without one every --interval seconds. --schedule fixed reads every pending PID each cycle,
 --interval apart.
+
+PIDs marked `monitor_once` are retried until one positive response, then retained without
+further polling for this monitor run, even with --schedule fixed. A new saved segment does
+not restart them. Set the mark with `canair pids set-monitor-once`.
 
 A PID that stops answering or is answered very slowly holds up every other PID's next
 poll, so it is polled 2x, 4x, then up to 32x less often until it answers promptly again

@@ -38,6 +38,49 @@ class TestDeclaredPeriod:
         assert declared_period_ms({"period": True}) is None
 
 
+class TestMonitorOnce:
+    @pytest.mark.parametrize("mode", ["dynamic", "fixed"])
+    def test_retries_until_success_then_stops_even_after_wake_and_toggle(self, mode):
+        scheduler = PollScheduler(mode, interval=1.0)
+        plan = [("21F2", {"monitor_once": True, "period": 1000}, False)]
+        for now in (0.0, 1.0):
+            scheduler.begin_tick(now)
+            assert scheduler.take_due("BMS", plan) == plan
+            scheduler.end_tick()
+        scheduler.note_success("BMS", "21F2")
+        scheduler.forget("BMS", "21F2")
+        scheduler.toggle()
+        scheduler.begin_tick(1000.0)
+        assert scheduler.take_due("BMS", plan) == []
+        scheduler.end_tick()
+        assert scheduler.seconds_until_due(1000.0) > 0
+
+    def test_retirement_is_per_ecu_and_a_new_run_starts_fresh(self):
+        scheduler = PollScheduler("fixed", interval=1.0)
+        plan = [("21F2", {"monitor_once": True}, False)]
+        scheduler.begin_tick(0.0)
+        assert scheduler.take_due("BMS", plan) == plan
+        assert scheduler.take_due("VCU", plan) == plan
+        scheduler.note_success("BMS", "21F2")
+        scheduler.end_tick()
+        scheduler.begin_tick(1.0)
+        assert not scheduler.take_due("BMS", plan)
+        assert scheduler.take_due("VCU", plan) == plan
+        fresh = PollScheduler("fixed")
+        fresh.begin_tick(0.0)
+        assert fresh.take_due("BMS", plan) == plan
+
+    def test_a_cleared_policy_restores_polling(self):
+        scheduler = PollScheduler("dynamic", interval=1.0)
+        plan = [("21F2", {"monitor_once": True}, False)]
+        scheduler.begin_tick(0.0)
+        scheduler.take_due("BMS", plan)
+        scheduler.note_success("BMS", "21F2")
+        scheduler.end_tick()
+        scheduler.begin_tick(1.0)
+        assert scheduler.take_due("BMS", [("21F2", {}, False)])
+
+
 class TestFixedSchedule:
     def test_every_pid_is_due_every_tick(self):
         s = PollScheduler("fixed", interval=2.0)

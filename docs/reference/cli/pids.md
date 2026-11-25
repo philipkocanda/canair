@@ -4,12 +4,12 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing,set-isotp} ...
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-monitor-once,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing,set-isotp} ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing,set-isotp}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-monitor-once,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing,set-isotp}
     upsert-param        Add or update a signal
     rename-param        Rename a signal (key only; fields preserved)
     rm-param            Remove a signal
@@ -29,6 +29,7 @@ positional arguments:
     set-pid-variable-length
                         Flag a PID as returning legitimately variable-length
                         responses
+    set-monitor-once    Read a PID once successfully per monitor run
     set-snapshot-only   Mark a DID as served only inside a DTC snapshot
                         (decoded by canair dtc)
     set-sensitive       Mark a PID or signal as sensitive: masked on screen,
@@ -472,6 +473,28 @@ options:
   --no-validate  Skip the post-edit schema validation gate
 ```
 
+## `canair pids set-monitor-once`
+
+```
+usage: canair pids set-monitor-once [-h] [--dir DIR] [--no-validate]
+                                    ecu pid {true,false}
+
+After the first positive response, monitor retains the value without polling
+it again for the rest of the run, even on a fixed schedule. Failed reads retry
+at the normal rate. This does not affect read or the WiCAN AutoPID cadence.
+
+positional arguments:
+  ecu            ECU name (a key in ecus/)
+  pid            PID code, hex (e.g. 2101, 22B002); a memory read is
+                 23/ADDRESS+SIZE
+  {true,false}   true = once; false = clear
+
+options:
+  -h, --help     show this help message and exit
+  --dir DIR      ecus/ directory (default: active profile)
+  --no-validate  Skip the post-edit schema validation gate
+```
+
 ## `canair pids set-snapshot-only`
 
 ```
@@ -573,9 +596,9 @@ usage: canair pids set-pid-period [-h] [--dir DIR] [--no-validate]
                                   ecu pid MS|clear
 
 Set the PID's AutoPID polling interval in milliseconds. It applies only to the
-profile shipped to the device (`wican autopid write`); `monitor` and `read`
-poll every selector once per cycle regardless. 0 is refused because the
-firmware treats it as unset and substitutes a default.
+profile shipped to the device (`wican autopid write`) and dynamic `monitor`
+uses half this interval. `read` ignores it. 0 is refused because the firmware
+treats it as unset and substitutes a default.
 
 positional arguments:
   ecu            ECU name (a key in ecus/)

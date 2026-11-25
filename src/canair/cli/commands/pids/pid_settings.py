@@ -17,6 +17,7 @@ from canair.yaml_edit.echo import echo_edit
 from canair.yaml_edit.pids import (
     find_ecu_file,
     hoist_defaults,
+    set_monitor_once,
     set_pid_defaults,
     set_pid_notes,
     set_pid_period,
@@ -55,6 +56,21 @@ def add_parsers(sub) -> None:
     )
     add_edit_args(spv)
     spv.set_defaults(_pids_func=cmd_set_pid_variable_length)
+
+    smo = sub.add_parser(
+        "set-monitor-once",
+        help="Read a PID once successfully per monitor run",
+        description=(
+            "After the first positive response, monitor retains the value without polling it "
+            "again for the rest of the run, even on a fixed schedule. Failed reads retry at "
+            "the normal rate. This does not affect read or the WiCAN AutoPID cadence."
+        ),
+    )
+    smo.add_argument("ecu", help=ECU_HELP)
+    smo.add_argument("pid", help=PID_HELP)
+    smo.add_argument("value", choices=["true", "false"], help="true = once; false = clear")
+    add_edit_args(smo)
+    smo.set_defaults(_pids_func=cmd_set_monitor_once)
 
     sso = sub.add_parser(
         "set-snapshot-only",
@@ -136,8 +152,8 @@ def add_parsers(sub) -> None:
         help="Set how often the WiCAN AutoPID re-polls a PID (ms)",
         description=(
             "Set the PID's AutoPID polling interval in milliseconds. It applies only to "
-            "the profile shipped to the device (`wican autopid write`); `monitor` and "
-            "`read` poll every selector once per cycle regardless. 0 is refused because "
+            "the profile shipped to the device (`wican autopid write`) and dynamic `monitor` "
+            "uses half this interval. `read` ignores it. 0 is refused because "
             "the firmware treats it as unset and substitutes a default."
         ),
     )
@@ -349,6 +365,17 @@ def cmd_set_support_map(args: argparse.Namespace) -> int:
             args.ecu, args.pid, decl, pids_dir=args.dir, profile=target_profile(args)
         ),
         f"{args.ecu} {args.pid} support_map -> {state}",
+        args=args,
+    )
+
+
+def cmd_set_monitor_once(args: argparse.Namespace) -> int:
+    value = args.value == "true"
+    return run_edit(
+        lambda: set_monitor_once(
+            args.ecu, args.pid, value, pids_dir=args.dir, profile=target_profile(args)
+        ),
+        f"{args.ecu} {args.pid} monitor_once -> {value}",
         args=args,
     )
 

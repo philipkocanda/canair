@@ -765,6 +765,7 @@ BMS:
           expression: "B44*0.02"
 
     21F2:
+      monitor_once: true
       status: slow
       period: 300000
       revisions: [KWP]

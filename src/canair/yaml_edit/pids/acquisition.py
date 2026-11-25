@@ -1,4 +1,4 @@
-"""Editor for a PID's ``snapshot_only:`` flag and ``snapshot_length:`` (see :mod:`canair.dtc.snapshot`).
+"""Edit how a PID is acquired: monitor cadence and snapshot-only records.
 
 Same discipline as the other PID-level editors: a surgical text edit, a YAML re-parse, and a
 restore on any failure — the rest of the file is byte-for-byte untouched.
@@ -14,6 +14,21 @@ from canair.yaml_edit.text import PidsEditError, edit_pid, set_scalar
 
 ONLY_FIELD = "snapshot_only"
 LENGTH_FIELD = "snapshot_length"
+
+
+def set_monitor_once(
+    ecu_name: str, pid: str, value: bool, *, pids_dir: Path | None = None, profile: Profile
+) -> Path:
+    """Set or clear the monitor-only one-success-per-run scheduling policy."""
+
+    def edit(block: str) -> str:
+        return set_scalar(block, "monitor_once", "monitor_once: true" if value else None)
+
+    def check(pdef: dict) -> None:
+        if bool(pdef.get("monitor_once", False)) != value:
+            raise PidsEditError("monitor_once mismatch after edit")
+
+    return edit_pid(ecu_name, pid, edit, check, pids_dir=pids_dir, profile=profile)
 
 
 def set_snapshot_only(

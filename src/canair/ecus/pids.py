@@ -83,13 +83,13 @@ def _inherit_dtc_fields(ecus: dict[str, Any]) -> None:
 class PidIndexEntry(TypedDict):
     """One PID's entry in a :func:`build_ecu_index` result.
 
-    ``shipped``/``swept`` are derived from ``status`` and ``snapshot_only`` (single
-    source of truth) so callers never re-implement the lifecycle rules — see
+    ``shipped``/``swept`` derive from ``status`` and ``snapshot_only``; see
     ``PID_STATUSES``, :func:`pid_ships` and :func:`pid_swept`.
     """
 
     parameters: dict[str, Any]
     period: int | None  # the PID's declared poll period (ms); None when it declares none
+    monitor_once: bool  # stop monitoring after the first positive response
     status: PidStatus
     shipped: bool  # include in the generated WiCAN device profile (see pid_ships)
     swept: bool  # include in a bare-ECU sweep (see pid_swept)
@@ -595,8 +595,7 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
         address = resolve_ecu_address(pids_data, ecu_def)
         entry: EcuIndexEntry = {
             "tx_id": tx_id,
-            # Resolved CAN response address (explicit rx_id → profile offset →
-            # default +8), so the raw transport doesn't recompute tx+8.
+            # Resolve rx_id → profile offset → default +8 for the raw transport.
             "rx_id": address.rx_id,
             # Addressing mode (per-ECU → profile → 11-bit): the raw transport
             # builds the ISO-TP stack for this ECU from it.
@@ -623,6 +622,7 @@ def build_ecu_index(pids_data: dict) -> dict[str, EcuIndexEntry]:
             entry["pids"][str(pid_code).upper()] = {
                 "parameters": pid_def.get("parameters", {}),
                 "period": pid_def.get("period"),
+                "monitor_once": pid_def.get("monitor_once") is True,
                 "status": status,
                 # Derived visibility flags (single source: `status` and
                 # `snapshot_only`) so callers never re-implement the lifecycle rules:

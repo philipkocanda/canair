@@ -558,8 +558,8 @@ def set_pid_period(
 ) -> Path:
     """Set (or clear) a PID's AutoPID ``period:`` in milliseconds.
 
-    The interval at which the WiCAN device re-polls the PID. ``canair monitor`` and
-    ``canair read`` ignore it. Zero is refused: the firmware reads ``0`` as "unset"
+    The interval at which the WiCAN device re-polls the PID. Dynamic ``canair monitor``
+    also uses it; ``canair read`` ignores it. Zero is refused: the firmware reads ``0`` as "unset"
     and substitutes its own default (5 s, 10 s or the global cycle by config path),
     never "do not poll". Passing ``None`` removes the field, which ships at 5000.
     An existing field is rewritten in place, a new one goes after the PID header;

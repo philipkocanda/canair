@@ -8,8 +8,11 @@ so it must not pull in :mod:`canair.live`). Two schedules:
   falling back to ``--interval`` for a PID that declares none. A fast PID refreshes
   quickly while a slow per-cycle record is read only as often as it can change, so
   bus time goes where it is useful.
-- ``fixed`` polls every PID on every tick, ``--interval`` apart — the behaviour the
+- ``fixed`` polls every pending PID on every tick, ``--interval`` apart — the behaviour the
   monitor had before per-PID scheduling.
+
+PIDs marked ``monitor_once`` stop after their first positive response in either schedule.
+Failures remain on the ordinary schedule. This is per monitor run, not per saved segment.
 
 Each PID keeps its own phase anchor and advances along a fixed grid
 (``anchor + k * period``), so PIDs whose periods are multiples of one another stay
@@ -99,6 +102,8 @@ class PollScheduler:
         self._skip: dict[Key, int] = {}
         self._anchor: dict[Key, float] = {}
         self._period_ms: dict[Key, int | None] = {}
+        self._once: set[Key] = set()
+        self._completed: set[Key] = set()
         self._due_count: dict[Key, int] = {}
         self._ecu_ticks: dict[str, int] = {}
         self._live: set[Key] = set()
@@ -128,6 +133,13 @@ class PollScheduler:
             key = (ecu, entry[0])
             self._period_ms[key] = declared_period_ms(entry[1])
             self._live.add(key)
+            if (entry[1] or {}).get("monitor_once") is True:
+                self._once.add(key)
+                if key in self._completed:
+                    continue
+            else:
+                self._once.discard(key)
+                self._completed.discard(key)
             if self.schedule == "fixed":
                 if self._sits_out(key):
                     continue
@@ -155,11 +167,11 @@ class PollScheduler:
         if self.schedule == "fixed":
             anchor = self._anchor.get(_ROUND)
             return 0.0 if anchor is None else max(0.0, anchor + self.interval - now)
-        if not self._live:
-            # Nothing pollable (every selector resolved to no PID): idle at the
-            # fallback cadence instead of spinning.
+        pending = self._live - self._completed
+        if not pending:
+            # No pollable PIDs, or all one-shot PIDs completed: idle instead of spinning.
             return max(0.0, self._now + self.interval / self.rate - now)
-        nxt = min(self._next_due(key) for key in self._live)
+        nxt = min(self._next_due(key) for key in pending)
         return max(0.0, nxt - now)
 
     def wake(self) -> None:
@@ -167,8 +179,14 @@ class PollScheduler:
         self._woken = True
 
     def forget(self, ecu: str, pid: str) -> None:
-        """Drop a PID's phase, so re-adding it later polls it straight away."""
+        """Drop a PID's phase, so re-adding a pending PID polls it straight away."""
         self._anchor.pop((ecu, pid), None)
+
+    def note_success(self, ecu: str, pid: str) -> None:
+        """Retire a one-shot PID only after a positive response was received."""
+        key = (ecu, pid)
+        if key in self._once:
+            self._completed.add(key)
 
     # -- the per-signal clock ----------------------------------------------
 

@@ -17,6 +17,7 @@ from canair.yaml_edit.pids import (
     PidsEditError,
     find_ecu_file,
     promote_discovery,
+    set_monitor_once,
     set_pid_notes,
     set_pid_period,
     set_pid_variable_length,
@@ -84,6 +85,13 @@ def tmp_pids_dir(tmp_path: Path) -> Path:
     d.mkdir()
     (d / "test.yaml").write_text(FIXTURE_YAML)
     return d
+
+
+def test_monitor_once_editor_sets_and_clears(tmp_pids_dir):
+    path = set_monitor_once("TEST", "2200", True, pids_dir=tmp_pids_dir, profile=active())
+    assert yaml.safe_load(path.read_text())["TEST"]["pids"][2200]["monitor_once"] is True
+    set_monitor_once("TEST", "2200", False, pids_dir=tmp_pids_dir, profile=active())
+    assert "monitor_once" not in yaml.safe_load(path.read_text())["TEST"]["pids"][2200]
 
 
 def _reload(path: Path) -> dict:

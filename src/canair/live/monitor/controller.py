@@ -12,7 +12,7 @@ Usage (via canair monitor):
     canair monitor "query BMS:2101" --interval 2.0
     canair monitor "session IGPM --wake" "query IGPM:BC03,BC06"
 
-Every 'query' step in the pipeline is polled repeatedly: by default each PID at its
+Every 'query' step in the pipeline is polled repeatedly: by default each pending PID at its
 own profile ``period:`` (:mod:`canair.live.monitor.schedule`), or every PID on
 every cycle with ``--schedule fixed``.
 
@@ -305,7 +305,7 @@ class MonitorController:
     async def poll_once(self) -> None:
         """Run one tick: read every PID that is due, updating live state.
 
-        On the fixed schedule that is every PID; on the per-PID schedule only the
+        On the fixed schedule that is every pending PID; on the per-PID schedule only the
         ones whose period has elapsed (the rest keep showing their last value).
         Sets ``disconnected``.
         """
@@ -372,6 +372,8 @@ class MonitorController:
         mid-cycle pending fallback can hold the row's place even for a PID that
         never returns data.
         """
+        if entry.get("raw_hex") and not entry.get("stale") and not is_nrc(entry):
+            self.schedule.note_success(label_ecu(key[0]), key[1])
         shown = self._decide_display(key, entry)
         self._last_shown[key] = shown
         if answered(entry):

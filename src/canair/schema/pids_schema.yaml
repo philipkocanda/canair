@@ -522,6 +522,12 @@ definitions:
         description: >-
           Polling interval in ms (default 5000). Not 0: the firmware reads 0 as unset and
           substitutes a default.
+      monitor_once:
+        type: boolean
+        description: >-
+          Monitor until the first positive response, then retain it without polling again for the
+          rest of the monitor run. Failed reads are retried. Does not change read or AutoPID.
+          Edit with canair pids set-monitor-once.
       variable_length:
         type: boolean
         description: >-

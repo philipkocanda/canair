@@ -56,6 +56,22 @@ class TestBuildParamIndex:
 
 
 class TestBuildEcuIndex:
+    def test_monitor_once_is_preserved_in_the_query_index(self):
+        data = {
+            "ecus": {
+                "TEST": {
+                    "tx_id": 0x700,
+                    "pids": {
+                        "21F2": {"status": "slow", "period": 300000, "monitor_once": True},
+                        "2101": {"status": "active"},
+                    },
+                }
+            }
+        }
+        index = build_ecu_index(data)["TEST"]["pids"]
+        assert index["21F2"]["monitor_once"] is True
+        assert index["2101"]["monitor_once"] is False
+
     def test_returns_populated_index(self, pids_data):
         idx = build_ecu_index(pids_data)
         assert len(idx) >= 5  # BMS, VCU, IGPM, BCM, etc.

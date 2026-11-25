@@ -509,6 +509,7 @@ MCU:
       parameters: {}
 
     21F2:
+      monitor_once: true
       status: slow
       period: 300000
       response_frames: 10

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 
 from canair.cli.profile_context import active
+from canair.ecus.pids import build_ecu_index
 from canair.live.monitor.backoff import (
     ESCALATE_AFTER,
     MAX_SLOWDOWN,
@@ -350,3 +351,47 @@ class TestOnlyTheDeadPidIsSlowed:
         dead = next(line for line in rows if "22BC04" in line)
         assert "slow (not answering) · polled 2× less often" in dead
         assert not any("polled" in line for line in rows if "22BC03" in line)
+
+
+class TestMonitorOnceTransports:
+    @staticmethod
+    def index():
+        return build_ecu_index(
+            {"ecus": {"IGPM": {"tx_id": 0x770, "pids": {"22BC03": {"monitor_once": True}}}}}
+        )
+
+    def test_elm_retries_nrc_then_retains_positive(self):
+        terminal = _ElmTerminal({"22BC03": nrc(0x22, "conditions not correct")})
+        c = _igpm_controller(terminal)
+        c._ecu_index = self.index()
+        asyncio.run(c.poll_once())
+        terminal.responses["22BC03"] = ok("62BC0301")
+        asyncio.run(c.poll_once())
+        asyncio.run(c.poll_once())
+        assert terminal.sent.count("22BC03") == 2
+        assert c._last_good[("IGPM (0x770)", "22BC03")]["raw_hex"] == "62BC0301"
+        assert c.last_queries[0][1][0]["raw_hex"] == "62BC0301"
+
+    def test_raw_retries_timeout_then_retains_positive(self):
+        from tests.support.raw_monitor import FakeRawClient
+
+        req = bytes.fromhex("22BC03")
+        client = FakeRawClient({})
+        c = make_controller(
+            None,
+            [{"ecu": "IGPM", "pids": ["BC03"]}],
+            {},
+            verbose=False,
+            raw_client=client,
+            schedule="fixed",
+        )
+        c._ecu_index = self.index()
+        asyncio.run(c.poll_once())
+        assert ("IGPM", "22BC03") in c.health.poll_costs
+        client.table[("IGPM", req)] = bytes.fromhex("62BC0301")
+        asyncio.run(c.poll_once())
+        assert ("IGPM", "22BC03") in c.health.poll_costs
+        asyncio.run(c.poll_once())
+        assert ("IGPM", "22BC03") not in c.health.poll_costs
+        assert c._last_good[("IGPM (0x770)", "22BC03")]["raw_hex"] == "62BC0301"
+        assert c.last_queries[0][1][0]["raw_hex"] == "62BC0301"

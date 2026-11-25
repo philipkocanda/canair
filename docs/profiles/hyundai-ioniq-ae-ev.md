@@ -91,6 +91,22 @@ you are building toward for your own car.
   conditioning (HVAC)), tyre pressures and temperatures (tire pressure monitoring system (TPMS)),
   and body controls (locks, trunk, lights, indicators).
 
+## IG3 baseline capture
+
+For the 28 kWh car, `@ig3` combines the body, battery and charger pages with VCU, MCU and AAF
+temperature pages and the BMS, VCU and MCU previous-session `21F2` pages. It is useful for a
+parked, ignition-off baseline while IG3 is already powered:
+
+```bash
+canair monitor @ig3 --save --label "IG3 baseline" --state IG3
+```
+
+The group does not itself turn on IG3. The three large `21F2` pages are polled until each has one
+positive reply, then retained without another read for the rest of the monitor run. This also
+applies when monitoring those PIDs outside `@ig3`. Starting a new saved segment does not restart
+them. The broad IGPM and BCM selectors lengthen the poll cycle; use explicit ECU/PID selectors
+instead when timing a transition matters.
+
 ## IOControl actuators
 
 Never send `0x30` to the OBC. On the OBC, `0x30` is the factory sensor calibration, and it drives

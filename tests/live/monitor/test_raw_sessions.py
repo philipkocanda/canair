@@ -102,3 +102,18 @@ def test_a_session_on_an_ecu_that_is_not_polled_gets_its_stack_first():
     ctrl, client = _ready([{"type": "session", "target": "SKM"}])
     assert client.ensured and client.ensured[0] == ("SKM", 0x7A5)
     assert ctrl.sessions.active_modes() == {"SKM": "03"}
+
+
+def test_warmup_skips_one_shot_pages():
+    ctrl = make_controller(None, [{"ecu": "BMS", "pids": ["21F2", "2101"]}], PIDS)
+    info = {
+        "tx_id": 0x7E4,
+        "pids": {
+            "21F2": {"monitor_once": True, "parameters": {}},
+            "2101": {"parameters": {}},
+        },
+    }
+    ctrl._ecu_index = {"BMS": info}
+    assert ctrl.sessions.warmup_reads() == [("BMS", info, "2101")]
+    ctrl.query_steps = [{"ecu": "BMS", "pids": ["21F2"]}]
+    assert ctrl.sessions.warmup_reads() == []
