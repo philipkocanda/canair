@@ -39,6 +39,12 @@ EPB:
       status: captured
       priority: P2
       vehicle_states: [ACC]
+      result: >-
+        Offline review of 13 saved replies (2 unique payloads) found only B9 toggling by one count
+        (0xBD/0xBE). Hunts against ESC 22C101 BRAKE_PRESSURE and GEAR_SELECTOR had only 13 joins
+        across 3709 ESC samples even with a 30 s window; no byte cleared the minimum-n threshold. No
+        new signal is justified from this corpus. The planned co-polled braking, driving and
+        parking-brake capture remains necessary.
       notes: >-
         7D5's only live-data DID (27 B). Compare its structure with ESC 22C101; capture while
         braking, driving and applying the parking brake.
