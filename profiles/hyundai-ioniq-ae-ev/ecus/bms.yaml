@@ -1009,10 +1009,25 @@ BMS:
           verified: false
           notes: >-
             Observed values: 0 (32 records) appears on drive-dominated cycles; 0x11 (9) accompanies
-            zero or very short cycles with zero cycle energy; 0x40 (9) appears on charge-involved
-            cycles. Bits 0 and 4 in 0x11 never separate, so this is modeled as an enum rather than
-            independent flags. Inferred from same-record fields, not event-by-event proof; keep
-            unverified.
+            zero or very short cycles with no energy; 0x40 (9) appears on charge-involved cycles.
+            Same-record cross-tab: B108 is 0 for 0x00 and 2 for 0x11/0x40; B39 is 0 only for 0x11.
+            Bits 0 and 4 in 0x11 never separate, so this is an enum, not independent flags.
+            Inferred, not event-by-event proof; keep unverified.
+          ship: false
+        BMS_21F2_CYCLE_DATA_PRESENT:
+          expression: B39
+          type: enum
+          values:
+            0: no_activity
+            1: cycle_data
+          source: canair same-record analysis, BMS 21F2 (50 captures)
+          verified: false
+          notes: >-
+            B39 is 0 in the same 9 records as B117=0x11 and 1 in the 41 drive/charge-class records.
+            B108 is 2 for both short/empty and charge classes, separating them only when combined
+            with B39. The B39=0 group has zero or very short duration and no charged energy.
+            Candidate for whether this record contains cycle activity; not event-by-event proof, and
+            stale energy start/end fields mean “valid” is not established.
           ship: false
     220101:
       status: active
@@ -1223,19 +1238,20 @@ BMS:
       created: "2026-10-21"
       updated: "2026-10-21"
       result: >-
-        Same-record analysis of 50 replies shows only three B117 values: 0 (32 records,
-        drive/other), 0x11 (9, zero or short cycle with no energy) and 0x40 (9, charge-involved).
-        Bits 0 and 4 in 0x11 never separate, so BMS_21F2_CYCLE_CLASS is an unverified enum
-        candidate, not a bitfield. Strict hunts (--fill none, 46 matches) also find B119 tracks
-        charged energy (r=0.998; raw fit 0.0024*Wh - 0.11) and B122 tracks discharged energy
-        (r=0.999; raw fit 0.0027*Wh - 0.35); these may be coarse/redundant tallies. Other listed
-        bytes remain open.
+        Same-record analysis of 50 replies shows three B117 values: 0 (32 drive/other), 0x11 (9
+        short/empty) and 0x40 (9 charge-involved); bits 0 and 4 in 0x11 never separate, so
+        BMS_21F2_CYCLE_CLASS is an unverified enum. B108 is 0 for class 0 and 2 for classes
+        0x11/0x40; B39 is 0 only for 0x11 and 1 for the other classes. This supports the provisional
+        classes; no event-by-event proof. Strict hunts (--fill none, 46 matches) also find B119
+        tracks charged energy (r=0.998; fit 0.0024*Wh - 0.11) and B122 tracks discharged energy
+        (r=0.999; fit 0.0027*Wh - 0.35); these may be coarse/redundant tallies. Other listed bytes
+        remain open.
       notes: >-
-        Undecoded: B39 (0/1), B42 (137 and 92 after drives, 5 after an AC charge; not the sampled
-        peak current), B53 (11-13), B108 (0/2), B117 (0x00 after drives, 0x11 after short or
-        zero-length cycles, 0x40 after charges), B118:B119 (1-2 after drives, 3-22 after charges),
-        B122 (4, 18, 46 after drives), B127, B129. LAST_CYCLE_ENERGY_START/END meaning unconfirmed.
-        Temperature-band thresholds unknown.
+        Still undecoded: B42 (137 and 92 after drives, 5 after an AC charge; not the sampled peak
+        current), B53 (11-13), B108 (0/2; a companion to the provisional cycle class, but its
+        meaning is open), B118:B119 (1-2 after drives, 3-22 after charges), B122 (4, 18, 46 after
+        drives; correlated with energy discharged but exact meaning is unknown), B127 and B129.
+        LAST_CYCLE_ENERGY_START/END meaning is unconfirmed. Temperature-band thresholds are unknown.
       sources:
         - canair 21F2 cross-check vs live data 2026-10-21
       what_to_test:

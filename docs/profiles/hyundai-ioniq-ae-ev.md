@@ -96,8 +96,8 @@ candidates for two climate inputs. Their integral conversion follows the firmwar
 accumulator (10 ms updates with a /11 scale) and remains unverified against an independent energy
 measurement.
 
-The BMS previous-cycle `21F2` record has an unverified cycle-class candidate based on three
-observed `B117` values. Its labels are provisional.
+The BMS previous-cycle `21F2` record has unverified cycle-class and cycle-data-presence candidates
+based on three observed `B117` values and `B39`. Their labels are provisional.
 
 The AAF thermal-mode candidate's value `7` is not a charging indicator: it also appears with the
 car unplugged. Its meaning remains unknown.
