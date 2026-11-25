@@ -998,6 +998,22 @@ BMS:
           min: "0"
           max: "255"
           notes: Minutes of the previous cycle spent at 0-10 % SOC.
+        BMS_21F2_CYCLE_CLASS:
+          expression: B117
+          type: enum
+          values:
+            0: drive_or_other
+            17: short_or_empty
+            64: charge_involved
+          source: canair same-record analysis, BMS 21F2 (50 captures)
+          verified: false
+          notes: >-
+            Observed values: 0 (32 records) appears on drive-dominated cycles; 0x11 (9) accompanies
+            zero or very short cycles with zero cycle energy; 0x40 (9) appears on charge-involved
+            cycles. Bits 0 and 4 in 0x11 never separate, so this is modeled as an enum rather than
+            independent flags. Inferred from same-record fields, not event-by-event proof; keep
+            unverified.
+          ship: false
     220101:
       status: active
       revisions: [UDS]
@@ -1207,12 +1223,13 @@ BMS:
       created: "2026-10-21"
       updated: "2026-10-21"
       result: >-
-        With strict same-record alignment (--fill none, 46 matches), B119 tracks
-        LAST_CYCLE_ENERGY_CHARGED (r=0.998; raw fit 0.0024*Wh - 0.11) and B122 tracks
-        LAST_CYCLE_ENERGY_DISCHARGED (r=0.999; raw fit 0.0027*Wh - 0.35). Likely coarse/redundant
-        tallies; meanings remain open. B117 is 0x00/0x11/0x40; bits 0 and 4 accompany 0x11, bit 6
-        accompanies 0x40, but cycle-type meaning is unproven. B39, B42, B53, B108, B127 and B129
-        remain open.
+        Same-record analysis of 50 replies shows only three B117 values: 0 (32 records,
+        drive/other), 0x11 (9, zero or short cycle with no energy) and 0x40 (9, charge-involved).
+        Bits 0 and 4 in 0x11 never separate, so BMS_21F2_CYCLE_CLASS is an unverified enum
+        candidate, not a bitfield. Strict hunts (--fill none, 46 matches) also find B119 tracks
+        charged energy (r=0.998; raw fit 0.0024*Wh - 0.11) and B122 tracks discharged energy
+        (r=0.999; raw fit 0.0027*Wh - 0.35); these may be coarse/redundant tallies. Other listed
+        bytes remain open.
       notes: >-
         Undecoded: B39 (0/1), B42 (137 and 92 after drives, 5 after an AC charge; not the sampled
         peak current), B53 (11-13), B108 (0/2), B117 (0x00 after drives, 0x11 after short or

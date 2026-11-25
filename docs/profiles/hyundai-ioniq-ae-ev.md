@@ -95,6 +95,9 @@ The VCU's previous-cycle `21F2` record also includes unverified mean-power and i
 candidates for two climate inputs. The integral conversion assumes a 100 ms accumulator tick and
 still needs confirmation.
 
+The BMS previous-cycle `21F2` record has an unverified cycle-class candidate based on three
+observed `B117` values. Its labels are provisional.
+
 The AAF thermal-mode candidate's value `7` is not a charging indicator: it also appears with the
 car unplugged. Its meaning remains unknown.
 
