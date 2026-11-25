@@ -145,15 +145,17 @@ AAF:
             2: heat_pump
             5: ptc
             6: idle
-            7: charging
+            7: unknown
           source: 2026-08-08 DCFC byte-diff; HVAC heat-source cross-tab 2026-11-07
           notes: >-
-            Thermal mode as the AAF sees it, time-joined against the HVAC heat-pump, compressor and
-            PTC signals (all sessions to 2026-11-07): 0 in 427 rows, 386 with the compressor running
-            and the heat pump off (A/C); 2 in 281 rows, all with HVAC_HEAT_PUMP_ON at 1; 1 in 8
-            rows, all heat pump, only on 2026-11-07; 5 in 59 rows, 54 with only the PTC running; 6
-            in 403 rows with neither running; 7 in every charging capture, AC and DC. Fits a 3-bit
-            mode (opendbc AAF11 CF_Aaf_ModeStatus).
+            Thermal mode candidate (opendbc AAF11 CF_Aaf_ModeStatus). Time-joined with HVAC signals
+            through 2026-11-07: 0 in 427 rows, 386 with compressor on and heat pump off; 2 in 281
+            rows, all with heat pump on; 1 in 8 rows, all heat pump; 5 in 59 rows, 54 PTC-only; 6 in
+            403 rows with neither running. Value 7 appears unplugged and not charging with IG3 on
+            and ignition off on 2026-11-20 and 2026-11-25, so it does not mean charging. One 7 at
+            10:08:15 on 2026-11-22 was followed 2.1 s later by IGN1 and IGN2 both on; poll skew and
+            transitions leave its exact meaning unresolved.
+          verified: false
         AAF_2181_B15:
           expression: B15
           type: numeric
@@ -272,24 +274,24 @@ AAF:
         silence there does not show whether 23 exists. Not tried: any other address.
     - type: decode
       target: 2181 B27 thermal-mode label, B14/B26 constants, B28/B29 self-mirror
-      status: pending
+      status: captured
       priority: P3
       vehicle_states: [CHARGING, READY, "OFF"]
       created: "2026-11-20"
-      updated: "2026-11-20"
+      updated: "2026-11-25"
       result: >-
-        AAF_2181_B27's '7: charging' label is too narrow: 7 marks the charge-side powered with the
-        ignition OFF, not charging specifically.
+        Value 7 does not mean charging: it was observed unplugged and not charging with IG3 on and
+        ignition off on 2026-11-20 and 2026-11-25. Its exact meaning is unresolved; the enum now
+        labels it unknown.
       notes: >-
-        Per-state (canair decode AAF:2181 --param AAF_2181_B27 --stats --group-by state, whole
-        corpus): [CHARGING,OFF,PARKED] 983 rows all 7; [PLUGGED,PARKED,IG3] 57 all 7;
-        [CHARGING,PARKED] 2371/2480 = 7; but [CHARGING,ON,PARKED] 268/270 = 6 and
-        [PLUGGED,ON,PARKED,IG3] 22 all 6. The recovered 2026-11-15 AC-charging session reads 7
-        throughout, and the 2026-11-20 OFF capture with IG3 forced on via IOControl BC44 (unplugged,
-        not charging) also reads 7. So 7 tracks 'charge-side/IG3 powered, key off', not charging.
-        Value 1 (seen with the heat pump) has no enum entry. B14 and B26 are constant in every
-        capture (0 and 19). B28 == B29 in every row (self-mirror, 110-155) and rises with coolant
-        temperature.
+        Per-state to 2026-11-20: CHARGING,OFF,PARKED 983 rows all 7; PLUGGED,PARKED,IG3 57 all 7;
+        CHARGING,PARKED 2371 of 2480 were 7; CHARGING,ON,PARKED 268 of 270 were 6;
+        PLUGGED,ON,PARKED,IG3 22 all 6. The 2026-11-15 AC-charging session reads 7 throughout, and
+        the 2026-11-20 and 2026-11-25 unplugged IG3-only captures also read 7. On 2026-11-22 at
+        10:08:15.808 the AAF reported 7; IGPM reported IGN1 and IGN2 on at 10:08:17.895, 2.1 s
+        later. Poll skew and a possible transition prevent a definitive claim about ignition state.
+        Value 1, seen with the heat pump, has no enum entry. B14 and B26 were constant in the
+        earlier corpus (0 and 19); B28 equalled B29 (110-155) and rose with coolant temperature.
       sources:
         - canair decode/correlate over the 2026-11-15 and 2026-11-20 captures, 2026-11-20
       what_to_test:
