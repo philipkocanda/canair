@@ -788,6 +788,54 @@ VCU:
             Distance of the newest entry of the per-charge driving history, in units of about 1 mm
             (an entry closes after 17.5 km). 20-119 km in the stored replies. The unit is read from
             the firmware, not measured.
+        VCU_21F2_CLIMATE_A_MEAN_POWER:
+          expression: ((B23<<8)|B22)*10
+          unit: W
+          min: "0"
+          max: "10230"
+          source: VCU firmware FUN_00204028 (research/VCU_FIRMWARE_FINDINGS.md §27.8)
+          verified: false
+          notes: >-
+            Mean of the previous READY cycle climate field 0x5F6 bits 54-63. Firmware gives the
+            source field in 10 W/count. Captured raw means 49 and 589 decode to 490 and 5890 W.
+            Candidate: not cross-checked against the climate frame on this car.
+          ship: false
+        VCU_21F2_CLIMATE_A_ENERGY:
+          expression: (((B28<<24)|(B27<<16)|(B26<<8)|B25)/3600)
+          unit: Wh
+          min: "0"
+          source: VCU firmware FUN_00204028 (research/VCU_FIRMWARE_FINDINGS.md §27.8)
+          verified: false
+          notes: >-
+            Integral of the previous READY cycle climate field 0x5F6 bits 54-63. The 10 W/count
+            source and paired-record integral/mean ratios support a 100 ms accumulator tick; /3600
+            converts the summed 10 W samples to Wh if that tick is correct. Tick period is inferred,
+            not yet traced in firmware. Candidate only.
+          ship: false
+        VCU_21F2_CLIMATE_B_MEAN_POWER:
+          expression: ((B30<<8)|B29)*10
+          unit: W
+          min: "0"
+          max: "10230"
+          source: VCU firmware FUN_00204028 (research/VCU_FIRMWARE_FINDINGS.md §27.8)
+          verified: false
+          notes: >-
+            Mean of the previous READY cycle climate field 0x5F5 bits 14-23. Firmware gives the
+            source field in 10 W/count. Captured raw means 101-1022 when active. Candidate: not
+            cross-checked against the climate frame on this car.
+          ship: false
+        VCU_21F2_CLIMATE_B_ENERGY:
+          expression: (((B35<<24)|(B34<<16)|(B33<<8)|B31)/3600)
+          unit: Wh
+          min: "0"
+          source: VCU firmware FUN_00204028 (research/VCU_FIRMWARE_FINDINGS.md §27.8)
+          verified: false
+          notes: >-
+            Integral of the previous READY cycle climate field 0x5F5 bits 14-23; B32 is an ISO-TP
+            PCI byte. The 10 W/count source and paired-record integral/mean ratios support a 100 ms
+            accumulator tick; /3600 converts the summed 10 W samples to Wh if that tick is correct.
+            Tick period is inferred, not yet traced in firmware. Candidate only.
+          ship: false
 
 
       vehicle_states: [CHARGING, READY]
@@ -1434,18 +1482,14 @@ VCU:
       created: "2026-10-21"
       updated: "2026-11-08"
       result: >-
-        Decoded from the firmware producer FUN_00204028, which builds 21F2 once, at power-off
-        (research/VCU_FIRMWARE_FINDINGS.md sections 13.4 and 27.8). B10/B11 is the 12 V supply word
-        (VCU_21F2_SUPPLY_VOLTAGE). B45-B71 are twelve 16-bit shares of the cycle's time per drive
-        mode and regen level (VCU_21F2_SHARE_MODEm_REGENr), which sum to 97-100. B19/B20 are the low
-        bytes of the range estimate at 2 s into READY and at READY end, and B21 is the range lost
-        beyond the distance driven (VCU_21F2_RANGE_LOSS). B38/B39 and B41-B44 are the newest entry
-        of a 20-deep per-charge efficiency history (VCU_21F2_EFFICIENCY_NEWEST,
-        VCU_21F2_DISTANCE_NEWEST). Not defined yet: B22/B23 and B25-B28 (mean and integral of
-        climate field A, 0x5F6 bits 54-63, x10), B29/B30 and B31-B35 (the same for field B, 0x5F5
-        bits 14-23), B36/B37 (a small estimate at the same two moments, meaning unknown), and
-        B73-B76 (lifetime counts of entries into two scheduling-chart states; B75/B76 is
-        VCU_21F2_EVENT_COUNT, B73/B74 reads 91 throughout). B77-B94 are constant 0.
+        Firmware FUN_00204028 maps B10/B11 supply; B45-B71 twelve drive-mode/regen shares (sum
+        97-100); B19/B20 range samples; B21 range loss; and B38/B39 plus B41-B44 newest
+        charge-history efficiency and distance. Added unverified climate means and integral
+        candidates: B22:B23 and B25:B28 map 0x5F6 field A; B29:B30 and B31/B33:B35 map 0x5F5 field
+        B. Means use 10 W/count. Integral/mean ratios agree across both fields (2623/2627 ticks on
+        Oct 30), supporting but not proving a 100 ms accumulator and /3600 Wh conversion. B36/B37
+        remain unknown; B73/B74 stay 91/0, B75/B76 are scheduling-chart counters, and B77-B94 are
+        zero in stored replies.
       notes: >-
         Unknown fields of the VCU 21F2 previous-cycle record: (B11<<8)|B10 /256 (97-106), B21
         (0-22), B29-B34, B36/B37, B38-B44 (change after charging), B45/B47/B54 (sum to about 100:

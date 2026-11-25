@@ -1206,6 +1206,13 @@ BMS:
       priority: P3
       created: "2026-10-21"
       updated: "2026-10-21"
+      result: >-
+        With strict same-record alignment (--fill none, 46 matches), B119 tracks
+        LAST_CYCLE_ENERGY_CHARGED (r=0.998; raw fit 0.0024*Wh - 0.11) and B122 tracks
+        LAST_CYCLE_ENERGY_DISCHARGED (r=0.999; raw fit 0.0027*Wh - 0.35). Likely coarse/redundant
+        tallies; meanings remain open. B117 is 0x00/0x11/0x40; bits 0 and 4 accompany 0x11, bit 6
+        accompanies 0x40, but cycle-type meaning is unproven. B39, B42, B53, B108, B127 and B129
+        remain open.
       notes: >-
         Undecoded: B39 (0/1), B42 (137 and 92 after drives, 5 after an AC charge; not the sampled
         peak current), B53 (11-13), B108 (0/2), B117 (0x00 after drives, 0x11 after short or

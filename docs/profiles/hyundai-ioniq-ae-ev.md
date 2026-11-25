@@ -91,6 +91,10 @@ you are building toward for your own car.
   conditioning (HVAC)), tyre pressures and temperatures (tire pressure monitoring system (TPMS)),
   and body controls (locks, trunk, lights, indicators).
 
+The VCU's previous-cycle `21F2` record also includes unverified mean-power and integrated-energy
+candidates for two climate inputs. The integral conversion assumes a 100 ms accumulator tick and
+still needs confirmation.
+
 The AAF thermal-mode candidate's value `7` is not a charging indicator: it also appears with the
 car unplugged. Its meaning remains unknown.
 
