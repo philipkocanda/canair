@@ -222,14 +222,15 @@ VCU:
           notes: >-
             The VCU power-state machine, valid only while VCU_IG3_ON is 1: 305 rows keep the last
             value for up to 84 s after it falls. Seen on this car: 4 drive-ready (READY), 7 charging
-            (AC, DC and plugged-in preconditioning), 6 at entry to and exit from a charge, 1 standby
-            (ignition on but not READY, the parked 12 V top-up and the 3 min after a top-up ends). 2
-            appears only in the JejuSoul US Ioniq logs at power-off, with B11 = 0xD0, and fits HV up
-            with the start-ready flag B11:6 set. Values 0, 3, 5 and 8-11 never occur in this car's
-            stored rows, and their names come from the firmware. 8 is a fault latched until
-            power-off (crash, BMS or MCU fault flags); it reads 8 in the uhi22 EPCU bench log, where
-            the VCU stores no-communication DTCs for the BMS, gateway and HVAC. Sent in 0x200 bits
-            24-27.
+            (AC, DC and plugged-in preconditioning), 6 at entry to and exit from a charge and with
+            IG3 closed by IGPM BC44 with the cable plugged in (2026-11-06), 1 standby (ignition on
+            but not READY, the parked 12 V top-up, the 3 min after a top-up ends, and IG3 closed by
+            IGPM BC44 with no cable: all 524 rows on 2026-11-22, 11-25 and 11-26). 2 appears only in
+            the JejuSoul US Ioniq logs at power-off, with B11 = 0xD0, and fits HV up with the
+            start-ready flag B11:6 set. Values 0, 3, 5 and 8-11 never occur in this car's stored
+            rows, and their names come from the firmware. 8 is a fault latched until power-off
+            (crash, BMS or MCU fault flags); it reads 8 in the uhi22 EPCU bench log, where the VCU
+            stores no-communication DTCs for the BMS, gateway and HVAC. Sent in 0x200 bits 24-27.
           type: enum
           values:
             0: inactive
@@ -592,7 +593,8 @@ VCU:
           source: canair 21F2 cross-check 2026-10-21
           notes: >-
             SOC at the end of the previous cycle, 8.8 fixed point. Equals BMS:21F2
-            LAST_CYCLE_SOC_END in all 6 co-read records.
+            LAST_CYCLE_SOC_END in 6 of 7 co-read records; on 2026-11-26 it read 67.4 % against 67.6
+            %.
         VCU_21F2_RANGE_START:
           expression: B19
           notes: >-
@@ -754,8 +756,10 @@ VCU:
           source: VCU firmware EAEEO5L-NS7-D060 (21F2 producer FUN_00204028, counters FUN_001B7C68; research/VCU_FIRMWARE_FINDINGS.md section 13)
           verified: false
           notes: >-
-            12 V supply voltage at the VCU when the record was built at power-off: the same internal
-            word and scale as 2101 VCU_SUPPLY_VOLTAGE. Reads 11.9-13.1 V in the stored replies.
+            12 V supply voltage at the VCU at its last power-off: the same internal word and scale
+            as 2101 VCU_SUPPLY_VOLTAGE. Rewritten at every power-off, IG3-only included: 12.51 V
+            before and 12.42 V after the 2026-11-22 13:20-13:24 IGPM BC44 cycle, while every other
+            byte of the record held. Reads 11.7-13.0 V in the stored replies.
         VCU_21F2_RANGE_LOSS:
           expression: B21
           unit: km
@@ -796,9 +800,13 @@ VCU:
           source: VCU firmware FUN_00204028 (research/VCU_FIRMWARE_FINDINGS.md §27.8)
           verified: false
           notes: >-
-            Mean of the previous READY cycle climate field 0x5F6 bits 54-63. Firmware gives the
-            source field in 10 W/count. Captured raw means 49 and 589 decode to 490 and 5890 W.
-            Candidate: not cross-checked against the climate frame on this car.
+            Mean over the previous cycle of the climate field the firmware reads from 0x5F6 bits
+            54-63, at the firmware's 10 W per count. That scale does not fit this car: the A and B
+            energies exceed the whole pack discharge (BMS:21F2:LAST_CYCLE_ENERGY_DISCHARGED) in
+            three of six matched cycles, 2195 against 659 Wh on 2026-10-21, 649 against 236 Wh on
+            2026-10-30 and 1220 against 375 Wh on 2026-11-26, so the true scale is at most 0.3 times
+            this one. Raw means 49, 589 and 1101; 1101 (2026-11-26) is more than a 10-bit field
+            holds.
           ship: false
         VCU_21F2_CLIMATE_A_ENERGY:
           expression: (((B28<<24)|(B27<<16)|(B26<<8)|B25)*11/36000)
@@ -807,10 +815,11 @@ VCU:
           source: VCU firmware FUN_00204028 (research/VCU_FIRMWARE_FINDINGS.md §27.8)
           verified: false
           notes: >-
-            Integral of the previous READY cycle climate field 0x5F6 bits 54-63. Firmware
-            accumulates every 10 ms as value*0x5D35 >>18 (approximately value/11); source value is
-            10 W/count. Therefore raw sum*11/36000 estimates Wh, with per-tick fixed-point
-            truncation. Candidate; not checked against an independent energy measurement.
+            Integral of the same field over the previous cycle. Firmware accumulates every 10 ms as
+            value*0x5D35 >>18 (approximately value/11), so raw sum*11/36000 is Wh at the firmware's
+            10 W per count. Divided by VCU_21F2_CLIMATE_A_MEAN_POWER it gives the BMS cycle duration
+            within 2 %: 1424 against 1397 s, 289 against 287 s and 281 against 280 s. The absolute
+            scale is too large: see VCU_21F2_CLIMATE_A_MEAN_POWER.
           ship: false
         VCU_21F2_CLIMATE_B_MEAN_POWER:
           expression: ((B30<<8)|B29)*10
@@ -820,9 +829,10 @@ VCU:
           source: VCU firmware FUN_00204028 (research/VCU_FIRMWARE_FINDINGS.md §27.8)
           verified: false
           notes: >-
-            Mean of the previous READY cycle climate field 0x5F5 bits 14-23. Firmware gives the
-            source field in 10 W/count. Captured raw means 101-1022 when active. Candidate: not
-            cross-checked against the climate frame on this car.
+            Mean over the previous cycle of the climate field 0x5F5 bits 14-23, at the firmware's 10
+            W per count. Raw means 1-1022 when active. The scale is too large: on 2026-10-21 the B
+            energy alone was 2001 Wh against a 659 Wh pack discharge; see
+            VCU_21F2_CLIMATE_A_MEAN_POWER.
           ship: false
         VCU_21F2_CLIMATE_B_ENERGY:
           expression: (((B35<<24)|(B34<<16)|(B33<<8)|B31)*11/36000)
@@ -831,19 +841,23 @@ VCU:
           source: VCU firmware FUN_00204028 (research/VCU_FIRMWARE_FINDINGS.md §27.8)
           verified: false
           notes: >-
-            Integral of the previous READY cycle climate field 0x5F5 bits 14-23; B32 is an ISO-TP
-            PCI byte. Firmware accumulates every 10 ms as value*0x5D35 >>18 (approximately
-            value/11); source value is 10 W/count. Therefore raw sum*11/36000 estimates Wh, with
-            per-tick fixed-point truncation. Candidate; not checked against an independent energy
-            measurement.
+            Integral of the same field over the previous cycle; B32 is an ISO-TP PCI byte. Firmware
+            accumulates every 10 ms as value*0x5D35 >>18 (approximately value/11), so raw
+            sum*11/36000 is Wh at the firmware's 10 W per count. Divided by
+            VCU_21F2_CLIMATE_B_MEAN_POWER it gives the BMS cycle duration within 1 % in six matched
+            cycles (2026-08-02 to 2026-11-26). The absolute scale is too large: see
+            VCU_21F2_CLIMATE_A_MEAN_POWER.
           ship: false
 
 
-      vehicle_states: [CHARGING, READY]
+      vehicle_states: [IG3]
       notes: >-
         About 86 bytes. A previous-cycle record like BMS 21F2: odometer, end SOC, range at start and
         end, an event count and fields that change after a drive or charge (B38-B44 after charging),
-        plus the ASCII tag 6000 at B95-B99. See the 21F2 research entries.
+        plus the ASCII tag 6000 at B95-B99. Describes the same cycle as BMS 21F2: climate energy
+        divided by its mean gives the BMS cycle duration within 2 % in six matched cycles. An
+        IG3-only cycle (IGPM BC44, 2026-11-22 13:20-13:24) changed only VCU_21F2_SUPPLY_VOLTAGE. See
+        the 21F2 research entries.
     1A90:
       status: static
       response_frames: 3

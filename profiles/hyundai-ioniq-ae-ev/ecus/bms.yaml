@@ -770,12 +770,13 @@ BMS:
       period: 300000
       revisions: [KWP]
       response_frames: 18
-      vehicle_states: [READY]
+      vehicle_states: [IG3]
       notes: >-
         121 data bytes: a record of the previous drive or charge cycle (duration, SOC and
         temperature histograms, start/end SOC, cell and pack voltage extremes, energy in/out, peak
         powers, average temperature), updated when a cycle ends, plus the constant ASCII tag '4064'
-        at B9-B12.
+        at B9-B12. An IG3-only cycle does not replace it: four reads during and after the 2026-11-22
+        13:20-13:24 IGPM BC44 cycle all kept the 27-min drive before it.
       source: canair 21F2 cross-check vs BMS:2101 live data 2026-10-21
       verified: false
       parameters:
@@ -958,16 +959,17 @@ BMS:
           min: "0"
           max: "65535"
           notes: >-
-            Seconds of the previous cycle in battery-temperature band 1 of 5. Never non-zero in
-            captures; thresholds unknown. The five bands sum to LAST_CYCLE_DURATION.
+            Seconds of the previous cycle in battery-temperature band 1 of 5, the coldest. The five
+            bands sum to LAST_CYCLE_DURATION. Used only in the 2026-11-26 record: 280 s, the whole
+            cycle, at an average battery temperature of 0 °C.
         LAST_CYCLE_SECONDS_TEMP_BAND_2:
           expression: "[B66:B67]"
           unit: s
           min: "0"
           max: "65535"
           notes: >-
-            Seconds of the previous cycle in battery-temperature band 2 of 5. Never non-zero in
-            captures.
+            Seconds of the previous cycle in battery-temperature band 2 of 5. Used only in the
+            2026-11-22 record: 1667 s, the whole cycle, at an average battery temperature of 9 °C.
         LAST_CYCLE_SECONDS_TEMP_BAND_3:
           expression: "[B68:B69]"
           unit: s
@@ -975,7 +977,7 @@ BMS:
           max: "65535"
           notes: >-
             Seconds of the previous cycle in battery-temperature band 3 of 5. In use at an average
-            battery temperature of 16-20 °C.
+            battery temperature of 12-20 °C (2026-10-21 and 2026-10-30 at 12 °C).
         LAST_CYCLE_SECONDS_TEMP_BAND_4:
           expression: "[B70:B71]"
           unit: s

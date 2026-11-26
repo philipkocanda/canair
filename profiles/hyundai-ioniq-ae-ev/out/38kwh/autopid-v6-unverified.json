@@ -30,7 +30,7 @@
           "max": 150
         },
         {
-          "name": "COMPRESSOR_TEMP",
+          "name": "AAF_MOTOR_TEMP",
           "expression": "B21-40",
           "unit": "\u00b0C",
           "class": "temperature",

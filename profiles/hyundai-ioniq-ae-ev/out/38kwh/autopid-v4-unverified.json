@@ -10,7 +10,7 @@
       "parameters": {
         "AMBIENT_TEMP": "(B18-80)/2",
         "HEATSINK_TEMP": "B20-40",
-        "COMPRESSOR_TEMP": "B21-40",
+        "AAF_MOTOR_TEMP": "B21-40",
         "AAF_COOLANT_TEMP_B25": "B25-100"
       }
     },

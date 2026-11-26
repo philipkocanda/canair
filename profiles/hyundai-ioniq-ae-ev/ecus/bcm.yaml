@@ -609,8 +609,11 @@ BCM:
             cabin °C, r=-0.97, rmse 4.7 counts, n=1739, cabin 9-38.5 °C (2026-07-28 to 2026-11-07).
             Lags the cabin air: on 2026-11-07 it fell 200 to 192 while the cabin heated 9.5 to 21 °C
             in 4 min. Settled values at a steady cabin temperature: 137 at 36 °C (2026-07-28), 194
-            at 15 °C (2026-10-24), 196 at 17 °C (2026-10-25), 203 at about 10 °C (2026-11-07).
-            Isolated single-sample drops to 62 (22 of 3676). Sensor location unknown.
+            at 15 °C (2026-10-24), 196 at 17 °C (2026-10-25), 203 at about 10 °C (2026-11-07). The
+            highest values in the corpus come from cold-soaked mornings with no cabin reading:
+            216-217 at 0.5 °C ambient (2026-11-25) and 219-220 at -1.5 °C ambient (2026-11-26),
+            where the line above gives 8 °C. Isolated single-sample drops to 62 (22 of 3676). Sensor
+            location unknown.
         BCM_IGN_SUPPLY_V_B23:
           expression: B23*0.08
           unit: V

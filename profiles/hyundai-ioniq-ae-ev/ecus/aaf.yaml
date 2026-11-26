@@ -50,13 +50,20 @@ AAF:
           expression: "B20-40"
           max: "150"
           source: "ITStromer community PID sheet (VMCU heat sink = o-40)"
-          notes: Range 9-70 °C.
+          notes: >-
+            Range -7 to 70 °C. Cold-soaked on 2026-11-26 it read -6 to -5 °C against -1.5 °C
+            ambient, 0 °C on every BMS module and -3 to 0 °C on the coolant sensors (VCU_LDC_TEMP,
+            MOTOR_COOLANT_TEMP, MCU_COOLANT_TEMP), like MCU:2102:MCU_HEATSINK_TEMP.
 
-        COMPRESSOR_TEMP:
+        AAF_MOTOR_TEMP:
           expression: "B21-40"
           max: "120"
-          source: "ITStromer community PID sheet (compressor = p-40)"
-          notes: About ambient with the A/C off; range 12-66 °C.
+          source: "canair hunt vs MCU:2102:MCU_MOTOR_TEMP 2026-11-26 (ITStromer: compressor)"
+          notes: >-
+            Drive-motor temperature: the same value as MCU:2102:MCU_MOTOR_TEMP, r=+0.999 over 5519
+            rows joined within 5 s, B21 = motor °C + 39.6. Not a compressor temperature: 20-22 °C at
+            7 °C ambient with the A/C off (2026-11-22), and -6 to -5 °C cold-soaked at -1.5 °C
+            ambient (2026-11-26). Range -7 to 66 °C.
 
         AAF_COOLANT_TEMP_B25:
           expression: B25-100
@@ -69,7 +76,7 @@ AAF:
       response_frames: 4
       status: draft
       period: 10000
-      vehicle_states: [CHARGING]
+      vehicle_states: [IG3]
       notes: >-
         25 bytes, same layout as 2180 with extra populated bytes (B19, B22, B23, B24); answers in
         ON.
@@ -145,16 +152,17 @@ AAF:
             2: heat_pump
             5: ptc
             6: idle
-            7: unknown
+            7: ignition_off
           source: 2026-08-08 DCFC byte-diff; HVAC heat-source cross-tab 2026-11-07
           notes: >-
             Thermal mode candidate (opendbc AAF11 CF_Aaf_ModeStatus). Time-joined with HVAC signals
             through 2026-11-07: 0 in 427 rows, 386 with compressor on and heat pump off; 2 in 281
             rows, all with heat pump on; 1 in 8 rows, all heat pump; 5 in 59 rows, 54 PTC-only; 6 in
-            403 rows with neither running. Value 7 appears unplugged and not charging with IG3 on
-            and ignition off on 2026-11-20 and 2026-11-25, so it does not mean charging. One 7 at
-            10:08:15 on 2026-11-22 was followed 2.1 s later by IGN1 and IGN2 both on; poll skew and
-            transitions leave its exact meaning unresolved.
+            403 rows with neither running. 7 with IG3 on and the ignition off, whether charging or
+            not: 3299 of 3405 rows in CHARGING+OFF sessions and 309 of 310 in OFF+IG3 sessions (IGPM
+            BC44, 2026-11-22, 11-25, 11-26), never in a READY, ON or DRIVING session. Charging with
+            the ignition on reads 6 (268 of 270). One 7 at 10:08:15 on 2026-11-22 came 2.1 s before
+            IGPM IGN1 and IGN2 read on.
           verified: false
         AAF_2181_B15:
           expression: B15
@@ -280,9 +288,9 @@ AAF:
       created: "2026-11-20"
       updated: "2026-11-25"
       result: >-
-        Value 7 does not mean charging: it was observed unplugged and not charging with IG3 on and
-        ignition off on 2026-11-20 and 2026-11-25. Its exact meaning is unresolved; the enum now
-        labels it unknown.
+        Value 7 means IG3 on with the ignition off, charging or not: 3299 of 3405 CHARGING+OFF rows
+        and 309 of 310 OFF+IG3 rows (2026-11-22 to 11-26), never in a READY, ON or DRIVING session.
+        The enum labels it ignition_off.
       notes: >-
         Per-state to 2026-11-20: CHARGING,OFF,PARKED 983 rows all 7; PLUGGED,PARKED,IG3 57 all 7;
         CHARGING,PARKED 2371 of 2480 were 7; CHARGING,ON,PARKED 268 of 270 were 6;
@@ -300,23 +308,18 @@ AAF:
         - "B28==B29: a redundant temperature; find its scaling against a known module/coolant temp"
     - type: decode
       target: 2181 B21 temperature mirror candidate
-      status: captured
+      status: done
       priority: P3
       vehicle_states: [IG3]
       created: "2026-11-21"
-      updated: "2026-11-21"
+      updated: "2026-11-26"
       result: >-
-        B21-40 tracks the 2180 compressor-temperature candidate, but the sensor identity is
-        unverified.
+        B21-40 is the same byte as AAF:2180:AAF_MOTOR_TEMP, the drive-motor temperature (r=+0.999 vs
+        MCU:2102:MCU_MOTOR_TEMP over 5519 rows).
       notes: >-
-        Across 5,150 pairs joined within 5 s, 4,739 agree exactly and the other 411 differ by 1 °C.
-        Some historical keep:changes rows are forward-filled, so the pairs are not independent. On
-        2026-11-15 only 65 of 103 pairs agree exactly, although all are within 1 °C; the 2026-11-20
-        capture has two aligned pairs. The 2181 candidate spans -3 to 66 °C across 7,133 captures.
-        The 2180 COMPRESSOR_TEMP definition is unverified; distinct nearby sensors, quantization or
-        poll timing could explain the differences.
+        Across 5,150 pairs joined within 5 s, 4,739 agree exactly with 2180 B21 and the other 411
+        differ by 1 °C. Some historical keep:changes rows are forward-filled, so the pairs are not
+        independent. The 2181 byte spans -3 to 66 °C across 7,133 captures.
       sources:
         - canair align and decode over the capture corpus, 2026-11-21
-      what_to_test:
-        - Compare 2180 and 2181 in cold and warm conditions with close polling.
-        - Check compressor temperature with a thermometer or scan tool.
+        - canair hunt AAF 2180 vs MCU:2102:MCU_MOTOR_TEMP, 2026-11-26
