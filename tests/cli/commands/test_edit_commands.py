@@ -42,6 +42,7 @@ REJECTED = [
     (["states", "add", "X", "--when", "((("], ""),
     (["pids", "rm-param", "TESTECU", "2101", "NOSUCH"], "parameter 'NOSUCH' not found"),
     (["pids", "set-pid-period", "TESTECU", "2101", "0"], "period must be >= 1 ms"),
+    (["pids", "set-pid-states", "TESTECU", "2101", "IG3", "clear"], "cannot be combined"),
     (["pids", "set-addressing", "TESTECU", "--rx-id", "zz"], "--rx-id expects hex"),
     (["ecu", "revisions", "TESTECU", "rm", "nosuch"], "declares no revision"),
     (["action", "rm", "nosuch"], "no actions.yaml to edit"),

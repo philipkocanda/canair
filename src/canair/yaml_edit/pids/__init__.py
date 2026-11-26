@@ -9,7 +9,7 @@ Split by concern into a package:
   * :mod:`.params` — parameter / PID / identity editors (the RE workflow)
   * :mod:`.research` — the ``research:`` backlog editors
   * :mod:`.support_map` — the per-PID ``support_map:`` declaration editor
-  * :mod:`.acquisition` — monitor scheduling and snapshot-only PID fields
+  * :mod:`.acquisition` — answering states, monitor scheduling and snapshot-only PID fields
   * :mod:`.isotp` — an ECU's own ``isotp:`` flow-control block
   * :mod:`.defaults` — PID-level defaults for parameter fields and hoisting them out of parameters
   * :mod:`.categories` — the one-time ``ha_class`` → ``category`` migration
@@ -22,7 +22,7 @@ Not here: the generic write path (``yaml_edit.commit``) and the ``canair pids`` 
 Imports: ``yaml_edit`` helpers, the definition packages and ``core``.
 """
 
-from canair.yaml_edit.pids.acquisition import set_monitor_once, set_snapshot_only
+from canair.yaml_edit.pids.acquisition import set_monitor_once, set_pid_states, set_snapshot_only
 from canair.yaml_edit.pids.categories import Migrated, migrate_categories
 from canair.yaml_edit.pids.defaults import Hoisted, hoist_defaults, set_pid_defaults
 from canair.yaml_edit.pids.hits import (
@@ -100,6 +100,7 @@ __all__ = [
     "set_pid_defaults",
     "set_pid_notes",
     "set_pid_period",
+    "set_pid_states",
     "set_pid_status",
     "set_pid_variable_length",
     "set_research_capture_protocol",

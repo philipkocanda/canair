@@ -4,12 +4,12 @@
 
 ```
 usage: canair pids [-h]
-                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-monitor-once,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing,set-isotp} ...
+                   {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-monitor-once,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-pid-states,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing,set-isotp} ...
 
 [UDS] Safely edit ecus/ parameters and research entries (domain A — diagnostic UDS PIDs, freeform WiCAN expressions). The broadcast-frame (domain B) authoring counterpart is `canair signals` (linear signals/ maps).
 
 positional arguments:
-  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-monitor-once,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing,set-isotp}
+  {upsert-param,rename-param,rm-param,rename-pid,rm-pid,add-pid,add-research,set-status,rm-research,set-research-notes,set-research-result,set-research-capture-protocol,set-pid-status,set-pid-variable-length,set-monitor-once,set-snapshot-only,set-sensitive,set-support-map,set-pid-period,set-pid-states,set-response-frames,set-pid-notes,set-pid-defaults,hoist-defaults,migrate-categories,set-identity,rm-identity,set-can-bus,set-revisions,set-iocontrol-ranges,set-iocontrol,set-wake,set-addressing,set-isotp}
     upsert-param        Add or update a signal
     rename-param        Rename a signal (key only; fields preserved)
     rm-param            Remove a signal
@@ -37,6 +37,8 @@ positional arguments:
     set-support-map     Declare where a PID's support map sits (which
                         following bits/bytes are signals)
     set-pid-period      Set how often the WiCAN AutoPID re-polls a PID (ms)
+    set-pid-states      Set the power states a PID answers in (its
+                        vehicle_states)
     set-response-frames
                         Set how many CAN frames a PID's response occupies
                         (skips the adapter's wait)
@@ -607,6 +609,29 @@ positional arguments:
                  23/ADDRESS+SIZE
   MS|clear       interval in milliseconds (int >= 1), or 'clear' to remove it
                  (device default 5000)
+
+options:
+  -h, --help     show this help message and exit
+  --dir DIR      ecus/ directory (default: active profile)
+  --no-validate  Skip the post-edit schema validation gate
+```
+
+## `canair pids set-pid-states`
+
+```
+usage: canair pids set-pid-states [-h] [--dir DIR] [--no-validate]
+                                  ecu pid STATE|clear [STATE|clear ...]
+
+Set the vehicle states (from the profile's vehicle_states.yaml) in which the
+PID answers. The states replace the PID's current list. 'clear' removes the
+field, so the PID inherits the ECU's states.
+
+positional arguments:
+  ecu            ECU name (a key in ecus/)
+  pid            PID code, hex (e.g. 2101, 22B002); a memory read is
+                 23/ADDRESS+SIZE
+  STATE|clear    one or more states, e.g. IG3 or READY CHARGING; or 'clear'
+                 alone
 
 options:
   -h, --help     show this help message and exit

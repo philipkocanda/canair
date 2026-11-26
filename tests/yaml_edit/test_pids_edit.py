@@ -20,6 +20,7 @@ from canair.yaml_edit.pids import (
     set_monitor_once,
     set_pid_notes,
     set_pid_period,
+    set_pid_states,
     set_pid_variable_length,
     set_response_frames,
     update_iocontrol_field,
@@ -402,6 +403,40 @@ class TestSetPidPeriod:
     def test_unknown_pid(self, tmp_pids_dir: Path):
         with pytest.raises(PidsEditError):
             set_pid_period("TEST", "ZZZZ", 1000, pids_dir=tmp_pids_dir, profile=active())
+
+
+class TestSetPidStates:
+    """The power states a PID answers in, edited through the validated path."""
+
+    def test_sets_a_normalized_flow_list(self, tmp_pids_dir: Path):
+        p = set_pid_states("TEST", "2200", ["ig3", "on"], pids_dir=tmp_pids_dir, profile=active())
+        assert '      vehicle_states: [IG3, "ON"]' in p.read_text()
+        pid = _reload(p)["TEST"]["pids"][2200]
+        assert pid["vehicle_states"] == ["IG3", "ON"]
+        assert pid["parameters"]["DUMMY"]["expression"] == "B:0"
+
+    def test_rewrites_in_place(self, tmp_pids_dir: Path):
+        set_pid_states("TEST", "2200", ["CHARGING"], pids_dir=tmp_pids_dir, profile=active())
+        set_pid_period("TEST", "2200", 1000, pids_dir=tmp_pids_dir, profile=active())
+        before = (tmp_pids_dir / "test.yaml").read_text().splitlines()
+        p = set_pid_states("TEST", "2200", ["IG3"], pids_dir=tmp_pids_dir, profile=active())
+        after = p.read_text().splitlines()
+        changed = [i for i, (a, b) in enumerate(zip(before, after, strict=False)) if a != b]
+        assert len(before) == len(after) and len(changed) == 1
+        assert after[changed[0]].strip() == "vehicle_states: [IG3]"
+
+    def test_clears_when_none(self, tmp_pids_dir: Path):
+        set_pid_states("TEST", "2200", ["IG3"], pids_dir=tmp_pids_dir, profile=active())
+        p = set_pid_states("TEST", "2200", None, pids_dir=tmp_pids_dir, profile=active())
+        assert "vehicle_states" not in _reload(p)["TEST"]["pids"][2200]
+
+    def test_refuses_an_empty_list(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError, match="at least one state"):
+            set_pid_states("TEST", "2200", [], pids_dir=tmp_pids_dir, profile=active())
+
+    def test_unknown_pid(self, tmp_pids_dir: Path):
+        with pytest.raises(PidsEditError):
+            set_pid_states("TEST", "ZZZZ", ["IG3"], pids_dir=tmp_pids_dir, profile=active())
 
 
 class TestSetResponseFrames:

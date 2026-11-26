@@ -15,12 +15,11 @@ from canair.render import ansi
 from canair.uds.support_map import MapDecl, SupportMapError
 from canair.yaml_edit.echo import echo_edit
 from canair.yaml_edit.pids import (
-    find_ecu_file,
-    hoist_defaults,
     set_monitor_once,
     set_pid_defaults,
     set_pid_notes,
     set_pid_period,
+    set_pid_states,
     set_pid_status,
     set_pid_variable_length,
     set_response_frames,
@@ -29,7 +28,7 @@ from canair.yaml_edit.pids import (
     set_support_map,
 )
 
-from .common import ECU_HELP, PID_HELP, apply_in_scope, ecu_names, int_or_clear, words_verb
+from .common import ECU_HELP, PID_HELP, apply_in_scope, int_or_clear, words_verb
 
 
 def add_parsers(sub) -> None:
@@ -168,6 +167,26 @@ def add_parsers(sub) -> None:
     add_edit_args(spp)
     spp.set_defaults(_pids_func=cmd_set_pid_period)
 
+    sst = sub.add_parser(
+        "set-pid-states",
+        help="Set the power states a PID answers in (its vehicle_states)",
+        description=(
+            "Set the vehicle states (from the profile's vehicle_states.yaml) in which the PID "
+            "answers. The states replace the PID's current list. 'clear' removes the field, so "
+            "the PID inherits the ECU's states."
+        ),
+    )
+    sst.add_argument("ecu", help=ECU_HELP)
+    sst.add_argument("pid", help=PID_HELP)
+    sst.add_argument(
+        "states",
+        nargs="+",
+        metavar="STATE|clear",
+        help="one or more states, e.g. IG3 or READY CHARGING; or 'clear' alone",
+    )
+    add_edit_args(sst)
+    sst.set_defaults(_pids_func=cmd_set_pid_states)
+
     srf = sub.add_parser(
         "set-response-frames",
         help="Set how many CAN frames a PID's response occupies (skips the adapter's wait)",
@@ -247,25 +266,6 @@ def add_parsers(sub) -> None:
     )
     add_edit_args(spd)
     spd.set_defaults(_pids_func=cmd_set_pid_defaults)
-
-    hp = sub.add_parser(
-        "hoist-defaults",
-        help="Move fields repeated across a PID's parameters up to the PID",
-        description=(
-            "Find PIDs whose parameters repeat the same unit, min, max, verified, "
-            "source or source_links and state the value once on the PID instead. A field "
-            "moves only when it changes no signal: every parameter must state its own "
-            "non-empty value, and one value must be shared by more than half of them (the "
-            "rest keep theirs as overrides). The result is verified before it is kept. Name "
-            "an ECU (and PID) to narrow the sweep; with neither, the whole profile is "
-            "processed. --dry-run lists what would move."
-        ),
-    )
-    hp.add_argument("ecu", nargs="?", help="Limit to this ECU (default: every ECU)")
-    hp.add_argument("pid", nargs="?", help="Limit to this PID")
-    hp.add_argument("--dry-run", action="store_true", help="List what would move; write nothing")
-    add_edit_args(hp)
-    hp.set_defaults(_pids_func=cmd_hoist_defaults)
 
 
 def cmd_set_pid_status(args: argparse.Namespace) -> int:
@@ -396,6 +396,24 @@ def cmd_set_pid_period(args: argparse.Namespace) -> int:
     )
 
 
+def cmd_set_pid_states(args: argparse.Namespace) -> int:
+    if [s.lower() for s in args.states] == ["clear"]:
+        states = None
+    elif any(s.lower() == "clear" for s in args.states):
+        raise EditError("'clear' cannot be combined with states")
+    else:
+        states = args.states
+
+    shown = "cleared (inherits the ECU's states)" if states is None else ", ".join(states)
+    return run_edit(
+        lambda: set_pid_states(
+            args.ecu, args.pid, states, pids_dir=args.dir, profile=target_profile(args)
+        ),
+        f"{args.ecu} {args.pid} vehicle_states -> {shown}",
+        args=args,
+    )
+
+
 def cmd_set_response_frames(args: argparse.Namespace) -> int:
     value = int_or_clear(args.value)
 
@@ -442,42 +460,3 @@ def cmd_set_pid_defaults(args: argparse.Namespace) -> int:
         f"{args.ecu} {args.pid} defaults: {detail}",
         args=args,
     )
-
-
-def cmd_hoist_defaults(args: argparse.Namespace) -> int:
-    if args.pid and not args.ecu:
-        raise EditError("a PID needs its ECU")
-    ecus = [args.ecu] if args.ecu else ecu_names(args.dir)
-    pids = fields = 0
-    for ecu in ecus:
-        found: list = []
-
-        def do(ecu=ecu, found=found):
-            found.extend(
-                hoist_defaults(
-                    ecu,
-                    args.pid,
-                    dry_run=args.dry_run,
-                    pids_dir=args.dir,
-                    profile=target_profile(args),
-                )
-            )
-
-        if args.dry_run:
-            do()
-            fpath = find_ecu_file(ecu, pids_dir=args.dir, profile=target_profile(args))
-        else:
-            fpath = apply_in_scope(args, do, ecu)
-        by_pid: dict[str, list] = {}
-        for h in found:
-            by_pid.setdefault(h.pid, []).append(h)
-        for pid, hoisted in by_pid.items():
-            names = ", ".join(f"{h.field} ({len(h.params)}/{h.total})" for h in hoisted)
-            print(f"  {ecu} {pid}: {names}")
-        if found and not args.dry_run:
-            echo_edit(f"{ecu} hoisted {len(found)} shared field(s)", fpath)
-        pids += len(by_pid)
-        fields += len(found)
-    verb = "Would hoist" if args.dry_run else "Hoisted"
-    print(f"  {verb} {fields} field(s) across {pids} PID(s).")
-    return 0

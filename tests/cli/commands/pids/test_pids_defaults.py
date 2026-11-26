@@ -7,7 +7,7 @@ import argparse
 import pytest
 import yaml
 
-from canair.cli.commands.pids import pid_settings
+from canair.cli.commands.pids import migrate, pid_settings
 from canair.cli.profile_context import active
 from canair.ecus.pids import effective_param, load_pids_dir
 from canair.validation.pids import validate_ecu_file, validate_pids_file
@@ -349,17 +349,17 @@ class TestValidation:
 
 def test_cli_hoist_and_dry_run(pids_dir, capsys):
     args = argparse.Namespace(ecu="TEST", pid=None, dir=pids_dir, dry_run=True, no_validate=False)
-    assert pid_settings.cmd_hoist_defaults(args) == 0
+    assert migrate.cmd_hoist_defaults(args) == 0
     assert "Would hoist 6 field(s) across 2 PID(s)" in capsys.readouterr().out
     args.dry_run = False
-    assert pid_settings.cmd_hoist_defaults(args) == 0
+    assert migrate.cmd_hoist_defaults(args) == 0
     assert "Hoisted 6 field(s)" in capsys.readouterr().out
     assert _load(pids_dir)[2101]["source"] == "shared source"
 
 
 def test_cli_hoist_without_ecu_sweeps_every_file(pids_dir):
     args = argparse.Namespace(ecu=None, pid=None, dir=pids_dir, dry_run=False, no_validate=False)
-    assert pid_settings.cmd_hoist_defaults(args) == 0
+    assert migrate.cmd_hoist_defaults(args) == 0
     assert _load(pids_dir)[2104]["unit"] == "V"
 
 
