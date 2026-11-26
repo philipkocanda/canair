@@ -12,7 +12,7 @@ Usage (via canair monitor):
     canair monitor "query BMS:2101" --interval 2.0
     canair monitor "session IGPM --wake" "query IGPM:BC03,BC06"
 
-Every 'query' step in the pipeline is polled repeatedly: by default each pending PID at its
+Every 'query' step in the pipeline is polled repeatedly: by default each PID at its
 own profile ``period:`` (:mod:`canair.live.monitor.schedule`), or every PID on
 every cycle with ``--schedule fixed``.
 
@@ -40,7 +40,7 @@ from canair.transport.session_manager import SessionManager
 from ...captures.link_events import is_rx
 from .actuation import MonitorActuation
 from .backoff import PollBackoff
-from .edit import MonitorEditor
+from .edit import MonitorEditor, changed_pids
 from .foreground import ForegroundLane
 from .health import MonitorHealth, answered, is_nrc, label_ecu
 from .link_events import LinkEventTracker
@@ -262,11 +262,14 @@ class MonitorController:
 
         ``canair.pids_edit`` clears the memoized load on every write, so this
         picks up the just-edited expression/flags; the rebuilt ECU index makes
-        the next poll decode with the new definition.
+        the next poll decode with the new definition. A retired one-shot PID has no
+        next poll, so one whose definition changed is read once more.
         """
+        old = self._ecu_index or {}
         self.pids_data = load_pids_dir(self.pids_dir) if self.pids_dir else load_pids(self.profile)
         self._ecu_index = build_ecu_index(self.pids_data)
         self.sessions.invalidate_index()  # rebuilt lazily on next access
+        self.schedule.rearm(changed_pids(old, self._ecu_index))
 
     async def setup(self, session_steps: list[dict] | None) -> None:
         """Build the ECU index, open the sessions, prime each ECU and start keepalives."""
@@ -305,7 +308,7 @@ class MonitorController:
     async def poll_once(self) -> None:
         """Run one tick: read every PID that is due, updating live state.
 
-        On the fixed schedule that is every pending PID; on the per-PID schedule only the
+        On the fixed schedule that is every PID not retired; on the per-PID schedule only the
         ones whose period has elapsed (the rest keep showing their last value).
         Sets ``disconnected``.
         """
@@ -335,7 +338,7 @@ class MonitorController:
         self.health.apply_backoff()
         self.health.check_liveness(
             {label_ecu(label) for label, rows in self.fresh_queries if rows},
-            {label_ecu(label) for label, _rows in self.last_queries},
+            {label_ecu(label) for label, _rows in self.last_queries} & self.schedule.polling_ecus(),
         )
 
     def mark_disconnected(self, cause: "DisconnectCause") -> None:
@@ -373,7 +376,9 @@ class MonitorController:
         never returns data.
         """
         if entry.get("raw_hex") and not entry.get("stale") and not is_nrc(entry):
-            self.schedule.note_success(label_ecu(key[0]), key[1])
+            ecu = label_ecu(key[0])
+            if self.schedule.note_success(ecu, key[1]):
+                self.health.retire((ecu, key[1]))
         shown = self._decide_display(key, entry)
         self._last_shown[key] = shown
         if answered(entry):
@@ -475,6 +480,9 @@ class MonitorController:
 
         The old client's transport counts move to the new client, so the session's
         recorded ``quality`` still covers the exchanges made before the reconnect.
+
+        Retired one-shot PIDs are read once more: a reconnect often follows the car
+        sleeping and waking, and the record they hold may have changed meanwhile.
         """
         previous = self.diag_recorder()
         if self.raw:
@@ -487,4 +495,5 @@ class MonitorController:
         if previous is not None and current is not None and current is not previous:
             current.absorb(previous)
         self.health.reset_backoff()
+        self.schedule.rearm()
         self.disconnected = False

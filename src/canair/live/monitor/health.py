@@ -129,6 +129,15 @@ class MonitorHealth:
             detail = slowdown_log_message(f"{ecu} {pid}", factor, self.backoff.reason(key))
             log_event("config", detail, level=logging.INFO, transport=self._transport())
 
+    def retire(self, key: Key) -> None:
+        """Drop the slowdown of a one-shot PID that just retired: nothing would restore it."""
+        slowed = self.schedule.slowdown(key) > 1 or self.backoff.slowdown(key) > 1
+        self.backoff.forget(key)
+        self.schedule.set_slowdown(key, 1)
+        if slowed:
+            ecu, pid = key
+            self.link_events.backoff(ecu, 1, pid=pid)
+
     def reset_backoff(self) -> None:
         """Restore every slowed-down PID to its normal poll rate.
 
@@ -161,14 +170,18 @@ class MonitorHealth:
         this guards: count polls where nothing answered, and hand the session to
         the reconnector once it is clearly not recovering on its own.
 
-        ``polled`` are the ECUs read this tick, ``live`` every ECU on screen. It
+        ``polled`` are the ECUs read this tick, ``live`` every ECU still being polled. It
         escalates once *every* live ECU has gone unanswered for the threshold, so
         a tick that only reached a sleeping ECU is not held against a slower one
-        that is still answering between its own ticks.
+        that is still answering between its own ticks. A tick that read nothing (every
+        due PID sat out a slowdown) is no evidence either way, so it leaves the counts
+        as they are.
         """
-        if self.cycle_answered or not polled:
+        if self.cycle_answered:
             self.unanswered.clear()
             self.dead_cycles = 0
+            return
+        if not polled:
             return
         for ecu in polled:
             self.unanswered[ecu] = self.unanswered.get(ecu, 0) + 1

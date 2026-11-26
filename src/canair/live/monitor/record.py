@@ -373,6 +373,10 @@ class MonitorRecorder:
             written = self._close_segment()
 
         self.journal = open_journal(self.c, label, states, notes)
+        # Each segment is its own capture, so it reads the one-shot records again.
+        schedule = getattr(self.c, "schedule", None)
+        if schedule is not None:
+            schedule.rearm()
         # A disconnect still open belongs to both segments: restate it in the new one.
         tracker = getattr(self.c, "link_events", None)
         if tracker is not None:

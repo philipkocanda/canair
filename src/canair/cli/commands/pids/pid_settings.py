@@ -59,11 +59,12 @@ def add_parsers(sub) -> None:
 
     smo = sub.add_parser(
         "set-monitor-once",
-        help="Read a PID once successfully per monitor run",
+        help="Read a PID once successfully per monitor segment",
         description=(
             "After the first positive response, monitor retains the value without polling it "
-            "again for the rest of the run, even on a fixed schedule. Failed reads retry at "
-            "the normal rate. This does not affect read or the WiCAN AutoPID cadence."
+            "again, even on a fixed schedule. Until then it retries every --interval. It is "
+            "read once more when a saved segment starts, after a reconnect and when its "
+            "definition changes. This does not affect read or the WiCAN AutoPID cadence."
         ),
     )
     smo.add_argument("ecu", help=ECU_HELP)
@@ -371,11 +372,13 @@ def cmd_set_support_map(args: argparse.Namespace) -> int:
 
 def cmd_set_monitor_once(args: argparse.Namespace) -> int:
     value = args.value == "true"
+
+    state = "true" if value else "false (cleared)"
     return run_edit(
         lambda: set_monitor_once(
             args.ecu, args.pid, value, pids_dir=args.dir, profile=target_profile(args)
         ),
-        f"{args.ecu} {args.pid} monitor_once -> {value}",
+        f"{args.ecu} {args.pid} monitor_once -> {state}",
         args=args,
     )
 

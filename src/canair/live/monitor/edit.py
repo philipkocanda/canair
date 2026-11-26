@@ -18,7 +18,8 @@ profile's ``ecus/`` definitions.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any
 
 from canair.ecus.shipping import param_ships
 from canair.yaml_edit.pids import PidsEditError, set_param_field, upsert_parameter
@@ -39,6 +40,16 @@ def _ecu_name(ecu_label: str) -> str:
     """Leading token of a monitor ECU label (``"BMS (0x7E4)"`` -> ``"BMS"``)."""
     m = re.match(r"(\w+)", ecu_label)
     return m.group(1) if m else ecu_label
+
+
+def changed_pids(old: Mapping[str, Any], new: Mapping[str, Any]) -> list[tuple[str, str]]:
+    """``(ECU, PID)`` of every PID whose ECU-index entry differs between two indexes."""
+    return [
+        (ecu, pid)
+        for ecu, info in new.items()
+        for pid, pid_info in info["pids"].items()
+        if (old.get(ecu) or {}).get("pids", {}).get(pid) != pid_info
+    ]
 
 
 class MonitorEditor:

@@ -86,12 +86,13 @@ examples:
 
 Polling: by default each PID is read every half of its own `period:` from the profile
 (the period is the WiCAN AutoPID cadence; set one with `canair pids set-pid-period`), and a
-PID without one every --interval seconds. --schedule fixed reads every pending PID each cycle,
+PID without one every --interval seconds. --schedule fixed reads every PID each cycle,
 --interval apart.
 
-PIDs marked `monitor_once` are retried until one positive response, then retained without
-further polling for this monitor run, even with --schedule fixed. A new saved segment does
-not restart them. Set the mark with `canair pids set-monitor-once`.
+PIDs marked `monitor_once` are retried every --interval until one positive response, then
+retained without further polling, even with --schedule fixed. They are read once more when
+a saved segment starts, after a reconnect, and when their definition is edited in the TUI.
+Set the mark with `canair pids set-monitor-once`.
 
 A PID that stops answering or is answered very slowly holds up every other PID's next
 poll, so it is polled 2x, 4x, then up to 32x less often until it answers promptly again
@@ -129,7 +130,7 @@ For a single one-shot read (no live refresh) use `canair read` instead.
         choices=SCHEDULES,
         default=DEFAULT_SCHEDULE,
         help="dynamic (default): poll each PID at its own profile `period:`, falling back "
-        "to --interval; fixed: poll every pending PID each cycle, --interval apart",
+        "to --interval; fixed: poll every PID each cycle, --interval apart",
     )
     parser.add_argument(
         "--no-backoff",

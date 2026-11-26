@@ -8,11 +8,14 @@ so it must not pull in :mod:`canair.live`). Two schedules:
   falling back to ``--interval`` for a PID that declares none. A fast PID refreshes
   quickly while a slow per-cycle record is read only as often as it can change, so
   bus time goes where it is useful.
-- ``fixed`` polls every pending PID on every tick, ``--interval`` apart — the behaviour the
-  monitor had before per-PID scheduling.
+- ``fixed`` polls every PID that has not retired (see below) on every tick, ``--interval``
+  apart — the behaviour the monitor had before per-PID scheduling.
 
-PIDs marked ``monitor_once`` stop after their first positive response in either schedule.
-Failures remain on the ordinary schedule. This is per monitor run, not per saved segment.
+PIDs marked ``monitor_once`` retire after their first positive response in either schedule.
+Until then they retry every ``--interval``, not at their (usually long) profile period, so one
+failed read does not leave a baseline without its record. :meth:`PollScheduler.rearm` reads
+them once more: the monitor calls it when a saved segment starts, after a reconnect and when
+a definition changes.
 
 Each PID keeps its own phase anchor and advances along a fixed grid
 (``anchor + k * period``), so PIDs whose periods are multiples of one another stay
@@ -28,7 +31,7 @@ of *that* PID's polls, not three ticks of a faster neighbour.
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from typing import Any, Literal, get_args
 
 Schedule = Literal["dynamic", "fixed"]
@@ -179,14 +182,34 @@ class PollScheduler:
         self._woken = True
 
     def forget(self, ecu: str, pid: str) -> None:
-        """Drop a PID's phase, so re-adding a pending PID polls it straight away."""
+        """Drop a PID's phase and retirement, so re-adding it polls it straight away."""
         self._anchor.pop((ecu, pid), None)
+        self._completed.discard((ecu, pid))
 
-    def note_success(self, ecu: str, pid: str) -> None:
-        """Retire a one-shot PID only after a positive response was received."""
+    def note_success(self, ecu: str, pid: str) -> bool:
+        """Retire a one-shot PID after a positive response; True when this retired it."""
         key = (ecu, pid)
-        if key in self._once:
-            self._completed.add(key)
+        if key not in self._once or key in self._completed:
+            return False
+        self._completed.add(key)
+        return True
+
+    def rearm(self, keys: Iterable[Key] | None = None) -> None:
+        """Read retired one-shot PIDs (all, or just ``keys``) once more, straight away."""
+        chosen = set(self._completed) if keys is None else set(keys) & self._completed
+        for key in chosen:
+            self._completed.discard(key)
+            self._anchor.pop(key, None)
+        if chosen:
+            self.wake()
+
+    def is_retired(self, ecu: str, pid: str) -> bool:
+        """Whether a one-shot PID has answered and is no longer polled."""
+        return (ecu, pid) in self._completed
+
+    def polling_ecus(self) -> set[str]:
+        """ECUs with at least one PID the last tick still polls (not retired)."""
+        return {ecu for ecu, _pid in self._live - self._completed}
 
     # -- the per-signal clock ----------------------------------------------
 
@@ -233,7 +256,8 @@ class PollScheduler:
         """The effective poll period of one PID, in seconds."""
         if self.schedule == "fixed":
             return self.interval * self.slowdown(key)
-        ms = self._period_ms.get(key)
+        # A one-shot PID still waiting for its answer retries at the fallback cadence.
+        ms = None if key in self._once else self._period_ms.get(key)
         base = ms / 1000.0 / self.period_speedup if ms is not None else self.interval
         return base / self.rate * self.slowdown(key)
 

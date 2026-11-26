@@ -141,12 +141,8 @@ class MonitorSessions:
             plan = build_query_plan(
                 info, step.get("pids", []), quiet=True, include_static=c.include_static
             )
-            # A throwaway warm-up must not duplicate a deliberately one-shot PID.
-            warmup = next(
-                (entry for entry in (plan or []) if not (entry[1] or {}).get("monitor_once")), None
-            )
-            if warmup:
-                reads.append((ecu, info, warmup[0]))
+            if plan:
+                reads.append((ecu, info, plan[0][0]))
         return reads
 
     def invalidate_index(self) -> None:

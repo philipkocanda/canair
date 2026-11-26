@@ -47,13 +47,61 @@ class TestMonitorOnce:
             scheduler.begin_tick(now)
             assert scheduler.take_due("BMS", plan) == plan
             scheduler.end_tick()
-        scheduler.note_success("BMS", "21F2")
-        scheduler.forget("BMS", "21F2")
+        assert scheduler.note_success("BMS", "21F2")
+        assert not scheduler.note_success("BMS", "21F2")
+        scheduler.wake()
         scheduler.toggle()
         scheduler.begin_tick(1000.0)
         assert scheduler.take_due("BMS", plan) == []
         scheduler.end_tick()
         assert scheduler.seconds_until_due(1000.0) > 0
+
+    def test_a_pending_one_shot_retries_at_the_interval_not_its_period(self):
+        scheduler = PollScheduler("dynamic", interval=2.0, period_speedup=2.0)
+        plan = [("21F2", {"monitor_once": True, "period": 300000}, False)]
+        scheduler.begin_tick(0.0)
+        assert scheduler.take_due("BMS", plan) == plan
+        scheduler.end_tick()
+        assert scheduler.seconds_until_due(0.0) == pytest.approx(2.0)
+
+    def test_forget_and_rearm_read_a_retired_pid_again(self):
+        scheduler = PollScheduler("fixed", interval=1.0)
+        plan = [("21F2", {"monitor_once": True}, False)]
+        for forget in (True, False):
+            scheduler.begin_tick(0.0)
+            scheduler.take_due("BMS", plan)
+            scheduler.note_success("BMS", "21F2")
+            scheduler.end_tick()
+            assert scheduler.is_retired("BMS", "21F2")
+            if forget:
+                scheduler.forget("BMS", "21F2")
+            else:
+                scheduler.rearm()
+            assert not scheduler.is_retired("BMS", "21F2")
+            scheduler.begin_tick(1.0)
+            assert scheduler.take_due("BMS", plan) == plan
+            scheduler.end_tick()
+
+    def test_rearm_with_keys_only_touches_those(self):
+        scheduler = PollScheduler("fixed", interval=1.0)
+        plan = [("21F2", {"monitor_once": True}, False)]
+        scheduler.begin_tick(0.0)
+        for ecu in ("BMS", "VCU"):
+            scheduler.take_due(ecu, plan)
+            scheduler.note_success(ecu, "21F2")
+        scheduler.end_tick()
+        scheduler.rearm([("VCU", "21F2")])
+        assert scheduler.is_retired("BMS", "21F2")
+        assert not scheduler.is_retired("VCU", "21F2")
+
+    def test_polling_ecus_leaves_out_ecus_with_only_retired_pids(self):
+        scheduler = PollScheduler("fixed", interval=1.0)
+        scheduler.begin_tick(0.0)
+        scheduler.take_due("BMS", [("21F2", {"monitor_once": True}, False)])
+        scheduler.take_due("VCU", [("2101", {}, False)])
+        scheduler.note_success("BMS", "21F2")
+        scheduler.end_tick()
+        assert scheduler.polling_ecus() == {"VCU"}
 
     def test_retirement_is_per_ecu_and_a_new_run_starts_fresh(self):
         scheduler = PollScheduler("fixed", interval=1.0)

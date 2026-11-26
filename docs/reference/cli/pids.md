@@ -29,7 +29,7 @@ positional arguments:
     set-pid-variable-length
                         Flag a PID as returning legitimately variable-length
                         responses
-    set-monitor-once    Read a PID once successfully per monitor run
+    set-monitor-once    Read a PID once successfully per monitor segment
     set-snapshot-only   Mark a DID as served only inside a DTC snapshot
                         (decoded by canair dtc)
     set-sensitive       Mark a PID or signal as sensitive: masked on screen,
@@ -480,8 +480,9 @@ usage: canair pids set-monitor-once [-h] [--dir DIR] [--no-validate]
                                     ecu pid {true,false}
 
 After the first positive response, monitor retains the value without polling
-it again for the rest of the run, even on a fixed schedule. Failed reads retry
-at the normal rate. This does not affect read or the WiCAN AutoPID cadence.
+it again, even on a fixed schedule. Until then it retries every --interval. It
+is read once more when a saved segment starts, after a reconnect and when its
+definition changes. This does not affect read or the WiCAN AutoPID cadence.
 
 positional arguments:
   ecu            ECU name (a key in ecus/)

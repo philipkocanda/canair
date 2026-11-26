@@ -141,6 +141,10 @@ class PollBackoff:
         """
         self._keys.clear()
 
+    def forget(self, key: Key) -> None:
+        """Forget one PID's history (it is no longer polled)."""
+        self._keys.pop(key, None)
+
 
 def describe_slowdown(factor: int, reason: SlowReason | None) -> str:
     """Short note for a PID's row, e.g. ``slow (not answering) · polled 4× less often``."""

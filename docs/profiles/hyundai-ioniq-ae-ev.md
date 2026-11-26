@@ -115,11 +115,12 @@ parked, ignition-off baseline while IG3 is already powered:
 canair monitor @ig3 --save --label "IG3 baseline" --state IG3
 ```
 
-The group does not itself turn on IG3. The three large `21F2` pages are polled until each has one
-positive reply, then retained without another read for the rest of the monitor run. This also
-applies when monitoring those PIDs outside `@ig3`. Starting a new saved segment does not restart
-them. The broad IGPM and BCM selectors lengthen the poll cycle; use explicit ECU/PID selectors
-instead when timing a transition matters.
+The group does not itself turn on IG3. The three large `21F2` pages are retried every
+`--interval` until each has one positive reply, then retained without another read. This also
+applies when monitoring those PIDs outside `@ig3`. Each new saved segment and each reconnect
+reads them once more, so every capture holds its own copy and a record that changed while the
+car slept is picked up. The broad IGPM and BCM selectors lengthen the poll cycle; use explicit
+ECU/PID selectors instead when timing a transition matters.
 
 ## IOControl actuators
 

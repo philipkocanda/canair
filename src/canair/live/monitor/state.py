@@ -65,9 +65,14 @@ class MonitorStateSuggester:
         """The clock a state input is aged by: polls of its own PID (or ECU).
 
         Falls back to the global cycle count for anything the scheduler has never
-        polled (inputs recorded directly, as the tests do).
+        polled (inputs recorded directly, as the tests do). A retired one-shot PID's
+        own clock has stopped, so it ages by the global count too: its record says
+        what the previous cycle was, not what is true now, and must not vouch for a
+        state forever.
         """
         sched = self.c.schedule
+        if pid is not None and sched.is_retired(ecu, pid):
+            return self.c.cycle
         n = sched.ecu_ticks(ecu) if pid is None else sched.due_count(ecu, pid)
         return self.c.cycle if n is None else n
 

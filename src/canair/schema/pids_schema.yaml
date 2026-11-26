@@ -525,9 +525,10 @@ definitions:
       monitor_once:
         type: boolean
         description: >-
-          Monitor until the first positive response, then retain it without polling again for the
-          rest of the monitor run. Failed reads are retried. Does not change read or AutoPID.
-          Edit with canair pids set-monitor-once.
+          Monitor until the first positive response (retrying every --interval), then retain it
+          without polling again. Read once more when a saved segment starts, after a reconnect and
+          when the definition changes. Does not change read or AutoPID. Edit with canair pids
+          set-monitor-once.
       variable_length:
         type: boolean
         description: >-
