@@ -42,7 +42,8 @@ options:
   --verified            Show only verified parameters
   --unverified          Show only unverified parameters
   --json                Output as JSON (per-capture decoded values)
-  --compact             One line per capture (chronological param=value pairs)
+  --compact             One row per capture: a table of signal values in time
+                        order
   --changes-only, -c    With --compact: skip rows where all shown params are
                         unchanged from the previous row (collapses stationary
                         runs)

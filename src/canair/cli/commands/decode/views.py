@@ -54,11 +54,7 @@ def print_compact(
     headers = {n: (f"{n}[{units[n]}]" if units[n] else n) for n in present}
     widths = {}
     for n in present:
-        vals = [
-            _compact_cell(r["decoded"].get(n, {}).get("value"))
-            for r in all_results
-            if n in r["decoded"]
-        ]
+        vals = [_compact_cell(r["decoded"][n]) for r in all_results if n in r["decoded"]]
         widths[n] = max([len(headers[n]), *(len(v) for v in vals)] or [len(headers[n])])
 
     # Are all captures the same date? If so, rows show time only.
@@ -111,7 +107,10 @@ def print_compact(
             prev_row_vals = None
             continue
 
-        raw_vals = tuple(r["decoded"].get(n, {}).get("value") for n in present)
+        raw_vals = tuple(
+            (r["decoded"].get(n, {}).get("value"), r["decoded"].get(n, {}).get("display"))
+            for n in present
+        )
         if changes_only and raw_vals == prev_row_vals:
             continue
         prev_row_vals = raw_vals
@@ -119,7 +118,7 @@ def print_compact(
         cells = []
         for n in present:
             d = r["decoded"].get(n)
-            cell = _compact_cell(d["value"]) if d else ""
+            cell = _compact_cell(d) if d else ""
             cells.append(f"{cell:>{widths[n]}}")
         print(f"  {ansi.DIM}{ts:<{ts_w}}{ansi.RESET}  {'  '.join(cells)}")
     print()

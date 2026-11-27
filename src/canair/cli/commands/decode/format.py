@@ -55,10 +55,15 @@ def scope_banner(since, until, state, label, first, last) -> str:
     return "  ·  ".join(parts)
 
 
-def _compact_cell(v: float | None) -> str:
-    """Format one decoded value for a compact column (no unit; units go in header)."""
+def _compact_cell(decoded: dict) -> str:
+    """Format one decoded signal for a compact column (no unit; units go in header).
+
+    A typed signal with no numeric raw (ascii, date, struct) shows its rendered text.
+    """
+    v = decoded.get("value")
     if v is None:
-        return "ERR"
+        display = decoded.get("display")
+        return "ERR" if display is None or decoded.get("error") else display
     if v == int(v):
         return str(int(v))
     return f"{v:.2f}"

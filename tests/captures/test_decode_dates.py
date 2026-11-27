@@ -551,6 +551,28 @@ class TestPrintCompact:
         out = capsys.readouterr().out
         assert "no decodable parameters" in out
 
+    def test_ascii_signal_shows_text(self, capsys):
+        results = _compact_results([("16:00:00", "s", {"TAG": None})])
+        results[0]["decoded"]["TAG"]["display"] = "EHEL-MS2"
+        views.print_compact(results, ["TAG"], {"TAG": {"type": "ascii"}}, set())
+        out = capsys.readouterr().out
+        assert "EHEL-MS2" in out
+        assert "ERR" not in out
+
+    def test_failed_signal_shows_err(self, capsys):
+        results = _compact_results([("16:00:00", "s", {"SPEED": None})])
+        views.print_compact(results, ["SPEED"], {"SPEED": {"unit": ""}}, set())
+        assert "ERR" in capsys.readouterr().out
+
+    def test_changes_only_compares_ascii_text(self, capsys):
+        results = _compact_results([(t, "s", {"TAG": None}) for t in ("16:00:00", "16:00:01")])
+        results[0]["decoded"]["TAG"]["display"] = "AAAA"
+        results[1]["decoded"]["TAG"]["display"] = "BBBB"
+        views.print_compact(results, ["TAG"], {"TAG": {"type": "ascii"}}, set(), changes_only=True)
+        out = capsys.readouterr().out
+        assert "16:00:01" in out
+        assert "BBBB" in out
+
 
 # ---------------------------------------------------------------------------
 # --group-by state stats

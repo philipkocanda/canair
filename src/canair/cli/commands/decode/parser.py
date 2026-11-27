@@ -65,7 +65,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     parser.add_argument(
         "--compact",
         action="store_true",
-        help="One line per capture (chronological param=value pairs)",
+        help="One row per capture: a table of signal values in time order",
     )
     parser.add_argument(
         "--changes-only",

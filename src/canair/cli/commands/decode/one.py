@@ -233,6 +233,8 @@ def _emit_capture_json(all_results: list[dict], ecu_key, pid_key, json_collect):
                 "unit": d["unit"],
                 "verified": d["verified"],
             }
+            if d.get("display") is not None:
+                entry["parameters"][name]["display"] = d["display"]
             if d.get("error"):
                 entry["parameters"][name]["error"] = d["error"]
         if r.get("error"):
