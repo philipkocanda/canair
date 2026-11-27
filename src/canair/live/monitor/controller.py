@@ -378,7 +378,7 @@ class MonitorController:
         if entry.get("raw_hex") and not entry.get("stale") and not is_nrc(entry):
             ecu = label_ecu(key[0])
             if self.schedule.note_success(ecu, key[1]):
-                self.health.retire((ecu, key[1]))
+                self.health.restore((ecu, key[1]))
         shown = self._decide_display(key, entry)
         self._last_shown[key] = shown
         if answered(entry):

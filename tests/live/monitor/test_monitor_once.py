@@ -63,16 +63,42 @@ def test_removing_and_re_adding_a_retired_pid_reads_it_again():
     assert "22BC03" in _rows(c)
 
 
-def test_a_slowdown_does_not_outlive_retirement():
+def test_a_one_shot_pid_is_never_slowed_while_it_waits_for_an_answer():
     c, terminal = _controller({"22BC03": NO_DATA, "22BC04": ok("62BC0400")})
+    _poll(c, 6)
+    assert terminal.sent.count("22BC03") == 6
+    assert c.schedule.slowdown(KEY) == 1
+    assert c.backoff.slowdown(KEY) == 1
+    assert ROW not in c.health.pid_notes(c.last_queries)
+    terminal.responses["22BC03"] = ok("62BC0301")
+    _poll(c, 3)
+    assert terminal.sent.count("22BC03") == 7
+    assert c.schedule.is_retired(*KEY)
+
+
+def test_a_slowdown_does_not_outlive_retirement():
+    c, terminal = _controller({"22BC03": NO_DATA, "22BC04": ok("62BC0400")}, once=False)
     _poll(c, 2)
     assert c.schedule.slowdown(KEY) == 2
+    # The definition becomes one-shot while the PID is slowed down.
+    c._ecu_index = build_ecu_index(_pids_data(once=True))
     terminal.responses["22BC03"] = ok("62BC0301")
     _poll(c, 3)
     assert c.schedule.is_retired(*KEY)
     assert c.schedule.slowdown(KEY) == 1
     assert c.backoff.slowdown(KEY) == 1
     assert ROW not in c.health.pid_notes(c.last_queries)
+
+
+def test_the_row_says_the_pid_is_read_once():
+    c, terminal = _controller({"22BC03": NO_DATA, "22BC04": ok("62BC0400")})
+    _poll(c)
+    assert "(read once: retrying)" in c.renderer.render().plain
+    terminal.responses["22BC03"] = ok("62BC0301")
+    _poll(c)
+    shown = c.renderer.render().plain
+    assert "(read once" in shown
+    assert "retrying" not in shown
 
 
 def test_an_ecu_of_retired_pids_does_not_keep_a_dead_link_alive():

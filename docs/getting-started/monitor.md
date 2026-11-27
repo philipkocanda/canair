@@ -180,6 +180,8 @@ slowly. In both cases, the PID delays the next read of every other PID.
 
 The monitor detects this and polls the slow PID 2×, then 4×, up to 32× less often. It does this
 until the PID answers promptly again. The healthy PIDs of the same ECU keep their normal rate.
+A `monitor_once` PID that has not answered yet is never slowed (see
+[PIDs read once](#pids-read-once)).
 
 - The row of the PID says `slow (not answering) · polled 4× less often`.
 - The poll zone lists the PID, for example `slow SKM:22B002÷4`.
@@ -188,6 +190,17 @@ until the PID answers promptly again. The healthy PIDs of the same ECU keep thei
 
 If a read of a PID fails, the monitor keeps the last value. It greys the value and shows its age,
 for example `(stale 12s)`.
+
+### PIDs read once
+
+A PID marked `monitor_once` (set it with `canair pids set-monitor-once`) is a record that changes
+only rarely, such as the `21F2` previous-cycle pages. The monitor reads it until it gets one
+positive reply, then keeps that value and stops polling it:
+
+- Until the first reply, the monitor reads the PID every `--interval`, also while its ECU is
+  asleep. The row says `(read once: retrying)`.
+- After the reply, the row says `(read once, 3m ago)` and the `○` marker is grey.
+- Each new saved segment, each reconnect and each edit of its definition reads it once more.
 
 ### Switch outputs
 

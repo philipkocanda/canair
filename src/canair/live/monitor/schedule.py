@@ -13,9 +13,10 @@ so it must not pull in :mod:`canair.live`). Two schedules:
 
 PIDs marked ``monitor_once`` retire after their first positive response in either schedule.
 Until then they retry every ``--interval``, not at their (usually long) profile period, so one
-failed read does not leave a baseline without its record. :meth:`PollScheduler.rearm` reads
-them once more: the monitor calls it when a saved segment starts, after a reconnect and when
-a definition changes.
+failed read does not leave a baseline without its record (the slow-PID backoff in
+:mod:`canair.live.monitor.health` leaves them at that rate too). :meth:`PollScheduler.rearm`
+reads them once more: the monitor calls it when a saved segment starts, after a reconnect and
+when a definition changes.
 
 Each PID keeps its own phase anchor and advances along a fixed grid
 (``anchor + k * period``), so PIDs whose periods are multiples of one another stay
@@ -37,6 +38,9 @@ from typing import Any, Literal, get_args
 Schedule = Literal["dynamic", "fixed"]
 SCHEDULES: tuple[Schedule, ...] = get_args(Schedule)
 DEFAULT_SCHEDULE: Schedule = "dynamic"
+
+# Where a ``monitor_once`` PID is: still waiting for its first positive response, or retired.
+OnceState = Literal["retrying", "retired"]
 
 # The live monitor reads each PID twice as often as its profile period: the period is
 # what ships to the AutoPID device (its MQTT cadence), and someone watching the screen
@@ -206,6 +210,13 @@ class PollScheduler:
     def is_retired(self, ecu: str, pid: str) -> bool:
         """Whether a one-shot PID has answered and is no longer polled."""
         return (ecu, pid) in self._completed
+
+    def once_state(self, ecu: str, pid: str) -> OnceState | None:
+        """A one-shot PID's state, or None for a PID that is polled on its period."""
+        key = (ecu, pid)
+        if key not in self._once:
+            return None
+        return "retired" if key in self._completed else "retrying"
 
     def polling_ecus(self) -> set[str]:
         """ECUs with at least one PID the last tick still polls (not retired)."""

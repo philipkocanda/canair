@@ -118,8 +118,16 @@ class MonitorHealth:
             self.link_events.ecu_polled(ecu, answered=ok, link_ok=self.cycle_answered)
 
     def apply_backoff(self) -> None:
-        """Slow down (or restore) each PID this tick's costs say is holding up the poll."""
+        """Slow down (or restore) each PID this tick's costs say is holding up the poll.
+
+        A one-shot PID still waiting for its first answer is never slowed. Its ECU is often
+        asleep when the run starts, and a 32x slowdown would leave the run without its record
+        for minutes after the ECU wakes. One retry per ``--interval`` costs little.
+        """
         for key, cost in self.poll_costs.items():
+            if self.schedule.once_state(*key) == "retrying":
+                self.restore(key)
+                continue
             factor = self.backoff.observe(key, cost)
             if factor is None:
                 continue
@@ -129,8 +137,12 @@ class MonitorHealth:
             detail = slowdown_log_message(f"{ecu} {pid}", factor, self.backoff.reason(key))
             log_event("config", detail, level=logging.INFO, transport=self._transport())
 
-    def retire(self, key: Key) -> None:
-        """Drop the slowdown of a one-shot PID that just retired: nothing would restore it."""
+    def restore(self, key: Key) -> None:
+        """Drop a PID's slowdown and its history, for a PID the backoff no longer judges.
+
+        A one-shot PID that retired has no next poll to restore it, and one still waiting
+        for its first answer is never slowed (see :meth:`apply_backoff`).
+        """
         slowed = self.schedule.slowdown(key) > 1 or self.backoff.slowdown(key) > 1
         self.backoff.forget(key)
         self.schedule.set_slowdown(key, 1)

@@ -28,7 +28,14 @@ from canair.render.signal_table import render_param_ranges, render_param_table
 from canair.uds.layout import subfunction_bytes_for_pid
 
 from .history import HistoryRun, PayloadHistory
-from .render_cache import RenderCache, entry_signature, pid_stat_signature, stale_age
+from .render_cache import (
+    RenderCache,
+    entry_age,
+    entry_signature,
+    pid_stat_signature,
+    stale_age,
+)
+from .schedule import OnceState
 
 if TYPE_CHECKING:
     from .controller import MonitorController
@@ -44,6 +51,12 @@ MARKER_LEGEND: tuple[tuple[str, str, str], ...] = (
     ("2101", "cyan", "a PID, as you type it"),
     ("○", "green", "PID answered this cycle"),
     ("○", "dim", "stale: the last good value, held"),
+    ("(read once)", "dim", "a monitor_once PID: its one answer, kept and not polled again"),
+    (
+        "(read once: retrying)",
+        "dim",
+        "a monitor_once PID with no answer yet, read every --interval",
+    ),
     ("●", "bright_green", "payload changed this cycle"),
     ("✓", "green", "verified signal"),
     ("?", "yellow", "unverified signal"),
@@ -72,6 +85,8 @@ def _render_entry(
     stale_label: str = "",
     note: str = "",
     width: int | None = None,
+    once: OnceState | None = None,
+    once_age: str = "",
 ) -> Text:
     """Render one PID entry (mark line, param table, hex/history) to its own Text.
 
@@ -90,6 +105,9 @@ def _render_entry(
     ``stale_label`` (see :func:`stale_age`) says how long a stale value has been held, and
     ``note`` is appended to the PID's line (the slow-PID backoff's). ``width`` is the room the
     signal table has; its names are shortened to fit (``render_param_table``).
+
+    ``once`` marks a ``monitor_once`` PID: ``"retrying"`` until it answers, then ``"retired"``,
+    whose value is kept but not read again (``once_age`` says how long ago it was read).
     """
     pid = entry["pid"]
     error = entry.get("error")
@@ -109,12 +127,17 @@ def _render_entry(
     # own answer and dim once it is a carried-forward last-good reuse (see _decide_display).
     # A different glyph from the solid "●" change flash below, so the two never look like
     # one doubled dot and grepping for "●" is unaffected by it being on every row.
-    entry_text.append("○", style="dim" if stale else "green")
+    entry_text.append("○", style="dim" if stale or once == "retired" else "green")
     if changed and not stale:
         entry_text.append(" ●", style="bright_green")
     if stale:
         held = f" {stale_label}" if stale_label else ""
         entry_text.append(f" (stale{held})", style="dim")
+    if once == "retired":
+        ago = f", {once_age} ago" if once_age else ""
+        entry_text.append(f" (read once{ago})", style="dim")
+    elif once == "retrying":
+        entry_text.append(" (read once: retrying)", style="dim")
     if unmapped:
         entry_text.append(" (unmapped)", style="dim")
     if note:
@@ -259,6 +282,7 @@ def _render_results(
     now: float | None = None,
     width: int | None = None,
     title: bool = True,
+    once_states: dict[tuple[str, str], OnceState] | None = None,
 ) -> Text:
     """Render all ECU query results as a Rich Text object for display.
 
@@ -290,6 +314,8 @@ def _render_results(
 
     ``pid_notes`` adds a note to a PID's row, keyed by ``(ECU label, PID)`` (the slow-PID
     backoff's). ``now`` is the wall clock a stale value's age is measured against.
+    ``once_states`` marks the ``monitor_once`` PIDs, keyed the same way
+    (:meth:`~canair.live.monitor.view.MonitorView.once_states`).
 
     ``width`` fits each signal table to the room it has (the TUI passes its pane's width).
     ``title`` draws the ``Monitor — cycle N`` line; the TUI leaves it out, since its status line
@@ -363,7 +389,11 @@ def _render_results(
             )
             stale_label = stale_age(entry, now)
             note = (pid_notes or {}).get(hex_key, "")
+            once = (once_states or {}).get(hex_key)
+            once_age = entry_age(entry, now) if once == "retired" else ""
 
+            block = None
+            sig = None
             if cache is not None:
                 sig = entry_signature(
                     entry,
@@ -382,29 +412,11 @@ def _render_results(
                     stale_label=stale_label,
                     note=note,
                     width=width,
+                    once=once,
+                    once_age=once_age,
                 )
                 block = cache.get(hex_key, sig)
-                if block is None:
-                    block = _render_entry(
-                        entry,
-                        ecu_label,
-                        changed=bool(changed),
-                        verbose=verbose,
-                        show_rulers=show_rulers,
-                        sel_name=sel_name,
-                        row_cap=row_cap,
-                        prev_raw=prev_raw,
-                        prev_values=prev_values,
-                        history=history,
-                        view_mode=view_mode,
-                        pid_stats=pid_stats,
-                        notation=notation,
-                        stale_label=stale_label,
-                        note=note,
-                        width=width,
-                    )
-                    cache.put(hex_key, sig, block)
-            else:
+            if block is None:
                 block = _render_entry(
                     entry,
                     ecu_label,
@@ -422,7 +434,11 @@ def _render_results(
                     stale_label=stale_label,
                     note=note,
                     width=width,
+                    once=once,
+                    once_age=once_age,
                 )
+                if cache is not None and sig is not None:
+                    cache.put(hex_key, sig, block)
             text.append_text(block)
 
     if cache is not None:
@@ -468,6 +484,7 @@ class MonitorRenderer:
             param_stats=c.param_stats,
             notation=c.notation,
             pid_notes=c.health.pid_notes(c.last_queries),
+            once_states=c.view.once_states(c.last_queries),
             width=width,
             title=title,
         )

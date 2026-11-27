@@ -90,14 +90,16 @@ PID without one every --interval seconds. --schedule fixed reads every PID each 
 --interval apart.
 
 PIDs marked `monitor_once` are retried every --interval until one positive response, then
-retained without further polling, even with --schedule fixed. They are read once more when
-a saved segment starts, after a reconnect, and when their definition is edited in the TUI.
-Set the mark with `canair pids set-monitor-once`.
+retained without further polling, even with --schedule fixed. Their row says `(read once:
+retrying)` until then and `(read once, 3m ago)` after. They are read once more when a saved
+segment starts, after a reconnect, and when their definition is edited in the TUI. Set the
+mark with `canair pids set-monitor-once`.
 
 A PID that stops answering or is answered very slowly holds up every other PID's next
 poll, so it is polled 2x, 4x, then up to 32x less often until it answers promptly again
-(its ECU's other PIDs keep their rate); its row and the status line say so. --no-backoff
-keeps polling it at the normal rate.
+(its ECU's other PIDs keep their rate); its row and the status line say so. A `monitor_once`
+PID that has not answered yet is never slowed. --no-backoff keeps polling every PID at the
+normal rate.
 
 In the TUI every command is in the menu bar (f10, alt+the underlined letter, or a click)
 and in the command palette (ctrl+p, search by name); each item shows its key. The status

@@ -116,8 +116,9 @@ canair monitor @ig3 --save --label "IG3 baseline" --state IG3
 ```
 
 The group does not itself turn on IG3. The three large `21F2` pages are retried every
-`--interval` until each has one positive reply, then retained without another read. This also
-applies when monitoring those PIDs outside `@ig3`. Each new saved segment and each reconnect
+`--interval` until each has one positive reply, then retained without another read. The retry
+continues while the ECU is still asleep, so you can start the monitor before IG3 is on. This
+also applies when monitoring those PIDs outside `@ig3`. Each new saved segment and each reconnect
 reads them once more, so every capture holds its own copy and a record that changed while the
 car slept is picked up. The broad IGPM and BCM selectors lengthen the poll cycle; use explicit
 ECU/PID selectors instead when timing a transition matters.

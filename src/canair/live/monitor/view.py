@@ -2,18 +2,23 @@
 
 :class:`MonitorView` (``controller.view``) answers the display's questions about the run:
 the polled-selector label, the title of the current segment, the session summary the info
-overlay lists, how many history rows to draw and which view mode comes next. It returns
-strings, numbers and dicts. Turning the run into Rich text is
+overlay lists, how many history rows to draw, which view mode comes next and which rows are
+``monitor_once`` PIDs. It returns strings, numbers and dicts. Turning the run into Rich text is
 :class:`~canair.live.monitor.render.MonitorRenderer`, the only monitor module that imports
 ``rich``.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from canair.captures.keepmode import KEEP_LAST
 from canair.ecus.names import ecu_index_key
+from canair.expression.results import EcuFrame
+
+from .health import label_ecu
+from .schedule import OnceState
 
 if TYPE_CHECKING:
     from .controller import MonitorController
@@ -89,6 +94,17 @@ class MonitorView:
         the TUI header is meaningful even before (or without) a --save label.
         """
         return self.c.recorder.session_label or self.query_label() or "Monitor"
+
+    def once_states(self, queries: Sequence[EcuFrame]) -> dict[tuple[str, str], OnceState]:
+        """Each shown ``monitor_once`` PID's state, keyed by its ``(ECU label, PID)`` display key."""
+        states: dict[tuple[str, str], OnceState] = {}
+        for label, rows in queries:
+            ecu = label_ecu(label)
+            for row in rows:
+                state = self.c.schedule.once_state(ecu, row["pid"])
+                if state is not None:
+                    states[(label, row["pid"])] = state
+        return states
 
     def session_summary(self) -> dict:
         """A snapshot of the current run/segment for the session-info modal.

@@ -6,6 +6,7 @@ from canair.expression.notation import ByteNotation
 from canair.expression.results import ResultEntry
 
 from .history import HistoryRun
+from .schedule import OnceState
 
 
 class RenderCache:
@@ -61,6 +62,8 @@ def entry_signature(
     stale_label: str = "",
     note: str = "",
     width: int | None = None,
+    once: OnceState | None = None,
+    once_age: str = "",
 ) -> tuple:
     """A hashable signature of everything that affects one PID entry's render.
 
@@ -98,6 +101,8 @@ def entry_signature(
         notation,
         note,
         width,
+        once,
+        once_age,
     )
 
 
@@ -107,8 +112,15 @@ def stale_age(entry: ResultEntry, now: float) -> str:
     Coarse on purpose: the label is part of the render-cache signature, so it should
     change no more often than a reader can use.
     """
+    if not entry.get("stale"):
+        return ""
+    return entry_age(entry, now)
+
+
+def entry_age(entry: ResultEntry, now: float) -> str:
+    """How long ago an entry was acquired, as coarse as :func:`stale_age` (``""`` if unknown)."""
     acquired = entry.get("acquired_at")
-    if not entry.get("stale") or not acquired:
+    if not acquired:
         return ""
     secs = max(0, int(now - acquired))
     if secs < 60:
