@@ -20,6 +20,7 @@
     AAF:2181:B17  ==  AAF:2180:B17  n=673, 633 agree, κ=0.93
     AAF:2181:B21  ==  AAF:2180:AAF_MOTOR_TEMP + 40  n=673, 619 agree, κ=0.91
     AAF:2181:B21  ==  AAF:2180:B21  n=673, 619 agree, κ=0.91
+    AAF:2181:AAF_12V_SUPPLY  ==  AAF:2180:AAF_12V_SUPPLY_2180  n=673, 607 agree, κ=0.86
     AAF:2181:B28  ==  AAF:2180:B28  n=673, 607 agree, κ=0.86
     AAF:2181:B28  ==  AAF:2180:B29  n=673, 607 agree, κ=0.86
     AAF:2181:B29  ==  AAF:2180:B28  n=673, 607 agree, κ=0.86

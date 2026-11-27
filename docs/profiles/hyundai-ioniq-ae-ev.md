@@ -123,6 +123,10 @@ reads them once more, so every capture holds its own copy and a record that chan
 car slept is picked up. The broad IGPM and BCM selectors lengthen the poll cycle; use explicit
 ECU/PID selectors instead when timing a transition matters.
 
+IG3 with the HV main relay open runs every IG3 ECU from the 12 V battery, because the LDC (the
+DC-DC converter that charges it) does not run. At -3 °C on 2026-11-27 the 12 V fell from 11.69 V
+to 11.17 V over about 20 minutes of IG3 wakes. Keep these sessions short when the 12 V is low.
+
 ## IOControl actuators
 
 Never send `0x30` to the OBC. On the OBC, `0x30` is the factory sensor calibration, and it drives

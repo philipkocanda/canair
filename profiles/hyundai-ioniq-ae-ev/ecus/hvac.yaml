@@ -252,12 +252,14 @@ HVAC:
           max: "50"
           source: Kia e-Niro 7B3 220102 sheet; saturation-curve check 2026-11-07
           notes: >-
-            Refrigerant high-side gauge pressure, 0.2 kgf/cm2 (0.196 bar) per count; raw 16-94. The
+            Refrigerant high-side gauge pressure, 0.2 kgf/cm2 (0.196 bar) per count; raw 9-94. The
             e-Niro sheet labels this byte 'pressure (kgf/cm2)/5'. AAF:2180:AAF_REFRIGERANT_PRESSURE
-            carries the same value in 2 psi counts (B19 = 1.42 x AAF B17, r=1.000, n=2387). The
-            R1234yf saturation temperature at this pressure is within 0.3 °C of HVAC_AAT with the
-            compressor off and the circuit at ambient (median, n=58), and within 0.3 °C of
-            HVAC_HEAT_EXCHANGER_TEMP in heat-pump mode (median, n=314).
+            carries the same value in 2 psi counts (B19 = 1.42 x AAF B17, r=1.000, n=2387), and
+            2201A1 HVAC_REFRIGERANT_PRESSURE_FINE at twice the resolution. The R1234yf saturation
+            temperature at this pressure is within 0.3 °C of HVAC_AAT with the compressor off and
+            the circuit at ambient (median, n=58), and within 0.3 °C of HVAC_HEAT_EXCHANGER_TEMP in
+            heat-pump mode (median, n=314). Cold-soaked at -3 °C (2026-11-27) it read 1.76 bar:
+            about -3 °C saturation as gauge pressure, about -17 °C if it were absolute.
           min: "0"
           verified: true
         HVAC_HEAT_PUMP_ON_MIRROR_B12:
@@ -324,16 +326,19 @@ HVAC:
           source: set-point and cabin-temperature transitions, 2026-04-17 to 2026-11-07
           notes: >-
             16-bit big-endian climate demand value; B06 alone (read as 0/1/2 before 2026-11-07) is
-            its high byte, B07 its low byte. 0-669 across 3395 time-joined rows. Rises with the set
-            point and falls with the cabin and ambient temperatures: per session it fits +43 to +79
-            counts per °C of set point and -5 to -24 per °C of cabin (r=0.96-0.999 on the
-            2026-04-17, 2026-07-21, 2026-07-26, 2026-10-25, 2026-11-02 and 2026-11-07 sessions).
-            36-208 in the A/C cooling sessions (2026-07-21, 2026-07-30, 2026-08-09). Shifts with the
-            vent mode at a fixed 21 °C set point: about 122 face, 137-157 face and legs, 230 floor,
-            237 floor and windshield (2026-07-26). Not the heat source: 256-511 with only the PTC
-            running, only the heat pump, or the A/C compressor running. HVAC_ACTUATOR_TARGET_1 (B05)
-            follows it (r=0.86-1.00 per session). Copied at [B51:B52], 2201A1 [B21:B22] and 2201A2
-            [B19:B20].
+            its high byte, B07 its low byte. 0-669 across 3395 time-joined rows. Probably the target
+            outlet-air temperature in 0.1 °C: in steady READY heating rows with it at 300-700, the
+            duct temperature (HVAC_DUCT_TEMP_1_FINE_A0) settles 0-0.9 °C above it/10 (median per
+            100-count band, n=675); below 200 the duct reads warmer than it. Read 552 (55.2 °C) at a
+            19 °C set point and a -4 °C cabin on 2026-11-27. Rises with the set point and falls with
+            the cabin and ambient temperatures: per session it fits +43 to +79 counts per °C of set
+            point and -5 to -24 per °C of cabin (r=0.96-0.999 on the 2026-04-17, 2026-07-21,
+            2026-07-26, 2026-10-25, 2026-11-02 and 2026-11-07 sessions). 36-208 in the A/C cooling
+            sessions (2026-07-21, 2026-07-30, 2026-08-09). Shifts with the vent mode at a fixed 21
+            °C set point: about 122 face, 137-157 face and legs, 230 floor, 237 floor and windshield
+            (2026-07-26). Not the heat source: 256-511 with only the PTC running, only the heat
+            pump, or the A/C compressor running. HVAC_ACTUATOR_TARGET_1 (B05) follows it
+            (r=0.86-1.00 per session). Copied at [B51:B52], 2201A1 [B21:B22] and 2201A2 [B19:B20].
           type: numeric
 
         HVAC_DEFROST_FLAGS:
@@ -385,13 +390,19 @@ HVAC:
           notes: >-
             0-4 °C above 220100 HVAC_AAT in 1190 of 1420 time-joined rows (range -0.5 to +9 °C);
             r=+0.89 vs HVAC_AAT.
-        HVAC_A0_UNKNOWN_B47:
-          expression: B47
-          max: "255"
-          source: coverage analysis 2026-07-23; HVAC audit 2026-10-22
+        HVAC_DUCT_TEMP_1_FINE_A0:
+          expression: "[S46:S47]/10"
+          max: "90"
+          source: coverage analysis 2026-07-23; cold-soak capture 2026-11-27
           notes: >-
-            227 distinct values (0-255) across 2256 captures; consecutive samples mostly differ by 0
-            or a few counts. No correlation found.
+            Signed 16-bit big-endian, 0.1 °C; B47 alone (the old HVAC_A0_UNKNOWN_B47) is its low
+            byte, which is why the byte showed no correlation. Equals 2201A1 HVAC_DUCT_TEMP_1_FINE
+            in 99.7 % of 3716 time-joined rows; r=0.987 vs 220100 HVAC_DUCT_TEMP_1, slope 0.97. B46
+            read 0x00-0x02 until 2026-11-27, when it read 0xFF (-4.4 °C). Off the device as a copy.
+          unit: °C
+          min: "-40"
+          verified: false
+          ship: false
         HVAC_A0_UNKNOWN_B50:
           expression: B50
           max: "255"
@@ -447,7 +458,10 @@ HVAC:
             across 2211 captures. Parked in READY with the PTC off, BMS BATTERY_POWER minus
             VCU_AUX_POWER/0.9 = 1.09 x this + 0.08 kW (r=0.957, n=71); pack minus LDC = 1.00 x this
             in heat-pump heating (2026-11-07). Equals HVAC_COMPRESSOR_CURRENT x about 358 V. Not
-            part of HVAC_PTC_POWER_REQUEST. Mirrored at [B30:B31] in 82 % of captures.
+            part of HVAC_PTC_POWER_REQUEST. Mirrored at [B30:B31] in 82 % of captures. Not valid
+            with the HV bus down: it read 0.42-0.46 kW in all 163 IG3-only rows (main relay open, 0
+            V DC link, HVAC_COMPRESSOR_CURRENT 0), 1.15 kW in 9 OFF rows and 0.66 kW in one CHARGING
+            row; the verified decode holds for READY.
         HVAC_COMPRESSOR_CURRENT:
           expression: "[B33:B34]/10"
           unit: A
@@ -460,6 +474,43 @@ HVAC:
             this gives a median 358 V against a 365 V pack; no independent current reference.
             Mirrored at [B59:B60]. Can read 0 while the power word is non-zero at ramp edges (21
             captures).
+        HVAC_EVAPORATOR_TEMP_FINE:
+          expression: "[S17:S18]/10"
+          unit: °C
+          min: "-40"
+          max: "90"
+          source: cold-soak capture 2026-11-27; canair decode --corr over stored captures
+          verified: false
+          notes: >-
+            Signed 16-bit big-endian, 0.1 °C. Equals 220100 HVAC_EVAPORATOR_TEMP at finer
+            resolution: r=0.999, slope 1.004, offset -0.29 °C, n=3225 time-joined rows. Read -4.0 °C
+            at -3 °C ambient (2026-11-27), the first negative value; the high byte was 0x00-0x02
+            before. Read -1.0 (0xFFF6) in all 6 rows of the first 2026-11-27 session while the 0.5
+            °C byte read -4, unexplained.
+        HVAC_DUCT_TEMP_1_FINE:
+          expression: (S23*256+B25)/10
+          unit: °C
+          min: "-40"
+          max: "90"
+          source: cold-soak capture 2026-11-27; canair decode --corr over stored captures
+          verified: false
+          notes: >-
+            Signed 16-bit big-endian, 0.1 °C; B24 between the two bytes is a PCI byte. Equals 220100
+            HVAC_DUCT_TEMP_1 at finer resolution: r=0.994, slope 0.99, n=3225 time-joined rows, and
+            2201A0 HVAC_DUCT_TEMP_1_FINE_A0 in 99.7 % of 3716 rows. Read -4.4 °C on 2026-11-27, the
+            first negative value; -1.0 (0xFFF6) in the first session that day, as
+            HVAC_EVAPORATOR_TEMP_FINE.
+        HVAC_REFRIGERANT_PRESSURE_FINE:
+          expression: B65*0.09805
+          unit: bar
+          min: "0"
+          max: "50"
+          source: canair decode --corr over stored captures, 2026-11-27
+          verified: false
+          notes: >-
+            Refrigerant gauge pressure at twice the resolution of 220102 HVAC_REFRIGERANT_PRESSURE:
+            B65 = 2 x 220102 B19 (r=1.000, n=2969 time-joined rows), so 0.1 kgf/cm2 (0.098 bar) per
+            count.
 
     2201A2:
       response_frames: 8
@@ -467,8 +518,9 @@ HVAC:
       period: 10000
       notes: >-
         51-byte response (48 data bytes after the DID), mostly 16-bit words. [B19:B20] follows
-        2201A0 HVAC_HEAT_DEMAND ([B06:B07]). Constant in all 1499 captures: B45=0xFF, B46=0xD8, and
-        0x00 at B10, B30, B35, B37, B39, B43, B55, B58 and B59.
+        2201A0 HVAC_HEAT_DEMAND ([B06:B07]). Constant in all 1499 captures before 2026-11-27:
+        B45=0xFF, B46=0xD8, and 0x00 at B10, B30, B35, B37, B39, B55, B58 and B59. B43 also read
+        0x00 until it went to 0xFF below 0 °C (HVAC_A2_TEMP_B43).
       vehicle_states: ["ON", IG3]
       min: "0"
       max: "255"
@@ -505,12 +557,30 @@ HVAC:
             r=0.92 on 2026-11-07, n=41); amperes at the 363 V pack would give 0.36 kW. 0 in every
             row with HVAC_PTC_POWER_REQUEST at 0 (n=935) and during heat-pump-only heating.
           max: "15"
-        HVAC_A2_UNKNOWN_B44:
-          expression: B44
-          source: 2026-07-21 cooling + 2026-07-26 heating; HVAC audit 2026-10-22
+        HVAC_A2_TEMP_B43:
+          expression: "[S43:S44]"
+          source: 2026-07-21 cooling + 2026-07-26 heating; HVAC audit 2026-10-22; cold-soak capture 2026-11-27
           notes: >-
-            8-49 across 1499 captures. r=+0.68 vs 220102 HVAC_HEAT_EXCHANGER_TEMP, -0.20 vs
-            HVAC_EVAPORATOR_TEMP (n=1420).
+            Signed 16-bit big-endian, whole °C; B44 alone was the earlier signal. B43 was 0x00 until
+            2026-11-27, when it read 0xFF (-5 to -4 °C). r=+0.92 vs 220102 HVAC_HEAT_EXCHANGER_TEMP
+            but slope 1.49 (n=4245), r=+0.84 vs both duct temperatures, so not the same sensor as
+            either. Which temperature it is is open.
+          unit: °C
+          min: "-40"
+          max: "90"
+          verified: false
+        HVAC_AAT_CLAMPED_B31:
+          expression: B31
+          unit: °C
+          min: "0"
+          max: "60"
+          source: cold-soak capture 2026-11-27; canair decode --corr over stored captures
+          verified: false
+          notes: >-
+            Ambient temperature in whole °C, unsigned: r=0.998 vs 220100 HVAC_AAT, slope 1.03
+            (n=4349). Reads 0 at -3 to -3.5 °C (2026-11-27), so it stops at 0 below freezing. Off
+            the device as a copy.
+          ship: false
     2201A3:
       response_frames: 8
       status: draft
@@ -915,6 +985,25 @@ HVAC:
         - Check the tail bytes across independent sessions with clean links.
         - Compare 24-bit and 32-bit values during timed climate changes.
         - Find a physical reference before naming or shipping the value.
+    - type: decode
+      target: 2201A1/2201A0 fine-temperature 0xFFF6 reading; 2201A2 HVAC_A2_TEMP_B43 identity
+      status: captured
+      priority: P3
+      vehicle_states: [IG3]
+      created: "2026-11-27"
+      updated: "2026-11-27"
+      notes: >-
+        On 2026-11-27 the 0.1 °C words (2201A1 HVAC_EVAPORATOR_TEMP_FINE, HVAC_DUCT_TEMP_1_FINE and
+        the 2201A0 copy) read -1.0 (0xFFF6) in all rows of the first IG3-only session (polled 5 min
+        after the BC44 wake, 09:32:54-09:33:18) while the 0.5 °C bytes read -4; in the third session
+        (polled 1 min after the wake) they read -4.0/-4.4, matching. HVAC_A2_TEMP_B43 is a signed
+        whole-°C temperature that tracks HVAC_HEAT_EXCHANGER_TEMP (r=0.92) at slope 1.49, so it is a
+        different sensor.
+      sources:
+        - captures 2026-11-27 (IG3-only cold soak, -3 °C)
+      what_to_test:
+        - Does 0xFFF6 recur, and is it a not-valid placeholder (time since wake, blower state)?
+        - HVAC_A2_TEMP_B43 during heat-pump heating and A/C cooling vs the refrigerant pressure's saturation temperature (a refrigerant-line or discharge temperature?)
   # Meanings, causes, thresholds and fail-safes are from the Ioniq Electric 2017 service manual,
   # Air Conditioning System chapter. The manual checks every code only with the ignition on.
   # "Listed as" gives the manual's code with its failure-type byte (B1285-77). The key is the

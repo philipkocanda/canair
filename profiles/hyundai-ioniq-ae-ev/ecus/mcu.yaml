@@ -67,8 +67,9 @@ MCU:
           max: "5000"
           notes: >-
             Second HV interlock loop voltage in mV (ADC raw 0x4001531C x 0.001221 V); 4.75 V sets
-            P0A0D, see MCU_INTERLOCK_1_MV. Observed 1062-1145 mV, slowly falling as the coolant
-            warms (r=-0.72 on the low byte vs AAF temperatures).
+            P0A0D, see MCU_INTERLOCK_1_MV. Observed 1062-1167 mV, falling as the inverter warms:
+            r=-0.93 vs MCU:2102:MCU_HEATSINK_TEMP (n=10661). The 1167 mV maximum came at a -6 °C
+            heatsink (2026-11-27).
           ship: false
           unit: mV
           source: MCU firmware EAEEHEL-MS2-D000, static analysis 2026-11-18 (research/MCU_FIRMWARE_FINDINGS.md section 12)
@@ -523,8 +524,13 @@ MCU:
         checked against the five fully logged 2026-08-08 cycles (preconditioning, three drives, a DC
         charge). A cycle is any period in model state 1, IG3-only wakes included: the 2026-11-22
         13:35 read matched the 13:20-13:24 IGPM BC44 cycle (12 V 12.0-12.5 V, motor 22 °C, coolant
-        16-17 °C), which BMS and VCU 21F2 did not record. Firmware map: MCU_FIRMWARE_FINDINGS.md
-        sections 5.4 and 11.
+        16-17 °C), which BMS and VCU 21F2 did not record, and on 2026-11-27 the reads at the second
+        and third BC44 wakes matched the wake before each (12 V 10.9-11.6 V, heatsink -5 °C). The
+        first 2026-11-27 read held a cycle that no capture saw, after the 2026-11-26 IG3-only
+        session: 12 V average 14.6 V and maximum 14.9 V (LDC running), heatsink maximum 1 °C,
+        coolant maximum 7 °C. With VCU 21F2 SOC 67.40 to 67.30 % and BMS
+        CUMULATIVE_CURRENT_DISCHARGED +0.1 Ah over the same night, it is probably a parked 12 V
+        top-up. Firmware map: MCU_FIRMWARE_FINDINGS.md sections 5.4 and 11.
       source: canair 21F2 vs live MCU/VCU/AAF data over the five 2026-08-08 cycles, 2026-10-22
       verified: false
       parameters:

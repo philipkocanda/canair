@@ -72,6 +72,17 @@ AAF:
           notes: >-
             Same raw byte as VCU:2102 B18, so it reads VCU_LDC_TEMP (equal in 4321 of 4469 aligned
             rows, r=+0.999). Not a 12 V voltage: r=-0.04 vs VCU_AUX_BATTERY_VOLTAGE_FINE.
+        AAF_12V_SUPPLY_2180:
+          expression: B28*0.093+0.655
+          unit: V
+          min: "0"
+          max: "16"
+          source: canair decode --corr vs VCU 12 V signals, 2026-11-27
+          verified: false
+          notes: >-
+            Same field as 2181 AAF_12V_SUPPLY (B29 equals B28); r=0.997 vs
+            VCU_AUX_BATTERY_VOLTAGE_FINE, n=7998. Off the device as a copy.
+          ship: false
     2181:
       response_frames: 4
       status: draft
@@ -183,6 +194,21 @@ AAF:
           notes: >-
             r=+0.976 vs VCU:2102:VCU_LDC_TEMP; reads a few °C off MOTOR_COOLANT_TEMP. Rose 36 to 43
             °C during the 2026-08-08 DC charge.
+        AAF_12V_SUPPLY:
+          expression: B28*0.093+0.655
+          unit: V
+          min: "0"
+          max: "16"
+          source: canair decode --corr vs VCU, MCU and BCM 12 V signals, 2026-11-27
+          verified: false
+          notes: >-
+            The AAF's 12 V supply. B29 equals B28. r=0.997 vs VCU:2102:VCU_AUX_BATTERY_VOLTAGE_FINE
+            and MCU:2101:MCU_SUPPLY_VOLTAGE_1 (n=7565-7884); the scale and offset are the
+            least-squares fit against the VCU (B28/10 reads 0.39 V high, median). Raw 108-155: about
+            11-12 V with the LDC off, 14-15 V with it on. On 2026-11-27 (IG3 only, constant
+            temperatures) it fell 117 to 114 as the 12 V sagged under the IG3 load, and read 108 at
+            a wake, when the VCU supply dipped to 10.65 V. The earlier rise with coolant temperature
+            came from READY, where the LDC runs and the coolant warms.
 
   research:
     - type: scan
@@ -194,11 +220,16 @@ AAF:
       result: Only LIDs 80 and 81 answer (ignition on); all others NRC.
     - type: decode
       target: 2180 B28/B29 mirror
-      status: captured
+      status: done
       priority: P3
       vehicle_states: [READY]
       created: "2026-07-23"
-      updated: "2026-07-23"
+      updated: "2026-11-27"
+      result: >-
+        B28 (= B29) is the AAF's 12 V supply, AAF_12V_SUPPLY_2180 / 2181 AAF_12V_SUPPLY: r=0.997 vs
+        the VCU and MCU 12 V signals. The near-constant 141-152 was the LDC-held 14-15 V in READY;
+        the 2026-11-27 IG3-only captures (LDC off) read 108-118 and tracked the 12 V sag at constant
+        temperatures.
       notes: >-
         B28 and B29 are an exact mirror pair (raw 141-152, near-constant) that does not track
         ambient. Undecoded; needs a capture over a wide temperature range.
@@ -290,7 +321,8 @@ AAF:
       result: >-
         Value 7 means IG3 on with the ignition off, charging or not: 3299 of 3405 CHARGING+OFF rows
         and 309 of 310 OFF+IG3 rows (2026-11-22 to 11-26), never in a READY, ON or DRIVING session.
-        The enum labels it ignition_off.
+        The enum labels it ignition_off. B28 = B29 is the 12 V supply (AAF_12V_SUPPLY, 2026-11-27),
+        not a temperature.
       notes: >-
         Per-state to 2026-11-20: CHARGING,OFF,PARKED 983 rows all 7; PLUGGED,PARKED,IG3 57 all 7;
         CHARGING,PARKED 2371 of 2480 were 7; CHARGING,ON,PARKED 268 of 270 were 6;
@@ -299,13 +331,13 @@ AAF:
         10:08:15.808 the AAF reported 7; IGPM reported IGN1 and IGN2 on at 10:08:17.895, 2.1 s
         later. Poll skew and a possible transition prevent a definitive claim about ignition state.
         Value 1, seen with the heat pump, has no enum entry. B14 and B26 were constant in the
-        earlier corpus (0 and 19); B28 equalled B29 (110-155) and rose with coolant temperature.
+        earlier corpus (0 and 19); B28 equalled B29 (110-155). Its rise with coolant temperature
+        was the LDC raising the 12 V in READY.
       sources:
         - canair decode/correlate over the 2026-11-15 and 2026-11-20 captures, 2026-11-20
       what_to_test:
         - "B27: does 7 ever appear with the ignition ON? (suspected no)"
         - "B27 raw 1: what the heat-pump-only case means"
-        - "B28==B29: a redundant temperature; find its scaling against a known module/coolant temp"
     - type: decode
       target: 2181 B21 temperature mirror candidate
       status: done

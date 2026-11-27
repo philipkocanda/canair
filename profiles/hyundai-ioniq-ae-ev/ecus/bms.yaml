@@ -177,6 +177,10 @@ BMS:
           unit: "°C"
           min: "-128"
           max: "128"
+          notes: >-
+            Signed int8, confirmed below 0 °C on 2026-11-27: all module, inlet and heater
+            temperatures read -2 to -1 °C at -3 °C ambient (the first sub-zero module readings), and
+            MODULE_5_TEMP stepped 0 and -1 (0x00 and 0xFF) between polls with no jump.
 
         MODULE_1_TEMP:
           expression: "S22"
@@ -233,7 +237,10 @@ BMS:
           unit: Ah
           min: "0"
           source: "ImHex pattern (u32 @ ISO-TP 0x20) — PCI-corrected"
-          notes: Lifetime total, 0.1 Ah per LSB. B40 is a PCI byte.
+          notes: >-
+            Lifetime total, 0.1 Ah per LSB. B40 is a PCI byte. Rose 0.1 Ah at each of the three
+            IG3-only wakes on 2026-11-27 (36619.8 to 36620.0) with the main relay open and
+            BATTERY_CURRENT at 0, so IGPM BC44 wakes add a small phantom charge.
 
         CUMULATIVE_CURRENT_DISCHARGED:
           expression: "((B43<<24)|(B44<<16)|(B45<<8)|B46)/10"
@@ -389,7 +396,10 @@ BMS:
           unit: kW
           notes: >-
             98.0 kW throughout DC fast charging: the EVMaximumPowerLimit the car sends a charger
-            (broadcast 0x59E bytes 6-7; uhi22 charger logs).
+            (broadcast 0x59E bytes 6-7; uhi22 charger logs). Parked at rest it falls with SOC and
+            with cold. At 67 % SOC: 98.0 kW at 0 °C (2026-11-26) and 93.77 kW at -1 °C (2026-11-27),
+            the first cold derating seen. At 76.5 % SOC: 94.1, 96.6, 96.9 and 97.1 kW at 7, 10, 11
+            and 12 °C. AVAIL_DISCHARGE_POWER stayed 98.0 kW at -1 °C.
 
         AVAIL_DISCHARGE_POWER:
           expression: "[B25:B26]/100"

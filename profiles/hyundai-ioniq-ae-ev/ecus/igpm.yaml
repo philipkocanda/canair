@@ -1246,6 +1246,26 @@ IGPM:
         'IG3 relay hand-over' --state READY. In READY plug in an AC cable, wait for charging, power
         off, wait 1 min, power on (no brake), unplug. A second person at the engine-bay relay box
         notes clicks; press s at each step.
+    - type: verify
+      target: BC44 IG3 drops before the OFF; OFF refused with NRC 0x7F
+      status: captured
+      priority: P2
+      vehicle_states: [IG3]
+      created: "2026-11-27"
+      updated: "2026-11-27"
+      notes: >-
+        IG3 fell with no OFF sent: about 330 s after the ON on 2026-11-27 (09:27:54 to 09:33:2x;
+        VCU_IG3_ON and the BMS mirror fell, the IG3 ECUs stopped answering) and about 170 s after it
+        on 2026-11-22 (13:19:53 to 13:22:43). The OFF sent later got NRC 0x7F
+        (serviceNotSupportedInActiveSession) both times, so the IGPM had left the extended session,
+        which ends the IOControl. On 2026-11-25 IG3 held 10 min and more. The 2026-11-27 drop came
+        between an unpolled event (09:32:47) and a resync (09:34:01); no canair event log exists for
+        that session, so a missed TesterPresent is not shown.
+      sources:
+        - captures 2026-11-22, 2026-11-25, 2026-11-27 (actuations and link_events)
+      what_to_test:
+        - "Log the TesterPresent exchanges to 0x770 around an IG3 drop: does one go unanswered, or does the IGPM leave the session on its own?"
+        - Hold BC44 on an idle link (few PIDs polled) for 10 min and see if IG3 holds
 
   iocontrol_discoveries:
     BC01:
