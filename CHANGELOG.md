@@ -15,6 +15,38 @@ deliberately no "Unreleased" section — the open release pull request is the
 unreleased view, and it is always current.
 -->
 
+## [6.1.0](https://github.com/philipkocanda/canair/compare/v6.0.1...v6.1.0) (2026-11-27)
+
+
+### Added
+
+* **hyundai-ioniq-ae-ev:** add HVAC temperature pages to [@ig3](https://github.com/ig3) ([ba6ca2a](https://github.com/philipkocanda/canair/commit/ba6ca2a505896b081378faa65ae38bc940e2424c))
+* **ioniq:** add BMS 21F2 cycle activity candidate ([75345e6](https://github.com/philipkocanda/canair/commit/75345e62936a430e825d62b1b3d6e242a35f654d))
+* **ioniq:** add BMS 21F2 cycle class candidate ([4d2c4da](https://github.com/philipkocanda/canair/commit/4d2c4da7282aad75aa4c8257f15c7de70a5e004a))
+* **ioniq:** add sub-zero HVAC and AAF signals from the 2026-11-27 cold soak ([e711b8d](https://github.com/philipkocanda/canair/commit/e711b8dbcc87c13fe01839763c6e268015bbec4c))
+* **ioniq:** add unverified AAF11 broadcast signals ([b6416cb](https://github.com/philipkocanda/canair/commit/b6416cbf624271a163751d94131a6337eac180a1))
+* **ioniq:** add unverified VCU 21F2 climate summaries ([4917d73](https://github.com/philipkocanda/canair/commit/4917d73c0c4e459667d61428c839f59757aa0851))
+* **monitor:** capture IG3 baseline with one-shot records ([27f0f5f](https://github.com/philipkocanda/canair/commit/27f0f5f009aef23968995bfc3e1077760055b29a))
+* **pids:** add set-pid-states to edit the states a PID answers in ([a8dda3a](https://github.com/philipkocanda/canair/commit/a8dda3aeb347e506852e00f49ddd041589543509))
+* **signal:** add `canair signal NAME` to show one signal over time by name ([576831c](https://github.com/philipkocanda/canair/commit/576831cc38b3469f1b55d1680507057eb84d61e0))
+
+
+### Fixed
+
+* **decode:** show ASCII, date and struct signals in --compact and --json ([e69c232](https://github.com/philipkocanda/canair/commit/e69c23278c6ec10103a2db93882f4982090c3246))
+* **groups:** keep long members lists wrapped at 100 columns ([3679ac5](https://github.com/philipkocanda/canair/commit/3679ac5fd8c8de5cd9842998e7e0f5d8f39255ed))
+* **hyundai-ioniq-ae-ev:** avoid calling aaf mode 7 charging ([03fa16c](https://github.com/philipkocanda/canair/commit/03fa16c97b299c4cb1132b567019e0536914397d))
+* **ioniq:** correct VCU climate energy scaling ([2c148f7](https://github.com/philipkocanda/canair/commit/2c148f7eb9f4fc075612b5f7ea7a871dcbcc975d))
+* **ioniq:** rename AAF COMPRESSOR_TEMP to AAF_MOTOR_TEMP and record the IG3-only findings ([8b2172b](https://github.com/philipkocanda/canair/commit/8b2172b004c585f24e27683ceafdd0b83598e510))
+* **io:** resend an output request in a reopened session after the ECU dropped it ([c1ccbc0](https://github.com/philipkocanda/canair/commit/c1ccbc04e99cffdf89c2c53e2b11270ca99af214))
+* **monitor:** keep retrying a one-shot PID until it answers, and mark its row ([03ed358](https://github.com/philipkocanda/canair/commit/03ed3587ac68864b2b86025119775fbc95f55d76))
+* **monitor:** re-read one-shot records when they may be stale and keep the dead-link check ([b1e346a](https://github.com/philipkocanda/canair/commit/b1e346ab269695697cca796bd2d02dc062c93e01))
+
+
+### Documentation
+
+* **ioniq:** record EPB 21F2 offline investigation ([40f4540](https://github.com/philipkocanda/canair/commit/40f4540220370a157706aa8571e80f33d4840226))
+
 ## [6.0.1](https://github.com/philipkocanda/canair/compare/v6.0.0...v6.0.1) (2026-11-24)
 
 
