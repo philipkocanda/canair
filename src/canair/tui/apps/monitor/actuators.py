@@ -153,13 +153,15 @@ class ActuatorMixin:
         return isinstance(focused, ActuatorTable)
 
     def refresh_actuators(self) -> None:
-        """Repaint the pane and flash a warning or error a request left behind."""
+        """Repaint the pane and flash a warning or error a request or a readback left behind."""
         pane = self._pane()
         a = self.controller.actuation
         if pane is None or a is None:
             return
         if pane.has_class("shown"):
             pane.sync(self.controller)
+        for warning in a.readback_warnings():
+            self._flash(warning, "warning")
         taken = a.take_status()
         if taken:
             self._flash(taken[0], taken[1])

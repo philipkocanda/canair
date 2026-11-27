@@ -15,7 +15,7 @@
 * :mod:`.foreground` — the user's requests (a session switch, an actuation), run one at a time
   beside the poll and interleaved with it by the transport, request by request
 * :mod:`.actuation` — the ``--actuate`` ECUs' actuators and routines, their sessions, and their
-  release on exit and after a reconnect
+  release on exit and after a reconnect; :mod:`.readback` notices the ECU take an output back
 * :mod:`.selectors`, :mod:`.select`, :mod:`.sessions` and :mod:`.edit` — changing what is polled
 * :mod:`.reconnect` and :mod:`.options` — re-homing a dropped session, and the options as values
 

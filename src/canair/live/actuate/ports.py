@@ -52,6 +52,14 @@ class ActuationSessions(Protocol):
         """
         ...
 
+    async def reopen(self, tx_id: int, mode: str | None) -> bool:
+        """Open session ``mode`` on ``tx_id`` again, whatever canair believes is open.
+
+        For an ECU that refused a request for want of its session: it left the session on its
+        own, which nothing told canair. True when the ECU accepted.
+        """
+        ...
+
 
 class OwnSessions:
     """One ECU's session, owned and kept alive by the command that runs its view.
@@ -83,6 +91,10 @@ class OwnSessions:
         _logger.info("Session established: %s (%s)", outcome.ok, outcome.problem() or "ok")
         return self.active
 
+    async def reopen(self, tx_id: int, mode: str | None) -> bool:
+        self.active = False
+        return await self.ensure(tx_id, mode)
+
     async def close(self) -> None:
         """Stop the keepalive. The session itself times out on the ECU."""
         await self.sm.stop_background_keepalive()
@@ -96,10 +108,13 @@ class SharedSessions:
         self._sm = sm
 
     async def ensure(self, tx_id: int, mode: str | None) -> bool:
-        sm = self._sm()
-        open_mode = sm.session_mode(tx_id)
+        open_mode = self._sm().session_mode(tx_id)
         wanted = parse_session_type(mode or DEFAULT_IOCONTROL_SESSION_MODE)
         if open_mode is not None and (mode is None or open_mode == wanted):
             return True
-        outcome = await sm.open_session(tx_id, mode=wanted, force=True, report=False)
+        return await self.reopen(tx_id, mode)
+
+    async def reopen(self, tx_id: int, mode: str | None) -> bool:
+        wanted = parse_session_type(mode or DEFAULT_IOCONTROL_SESSION_MODE)
+        outcome = await self._sm().open_session(tx_id, mode=wanted, force=True, report=False)
         return outcome.ok

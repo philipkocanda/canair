@@ -42,3 +42,11 @@ def test_it_never_starts_a_keepalive():
     sessions, sm, _ = _shared()
     asyncio.run(sessions.ensure(0x770, "03"))
     assert not sm.keepalive_running
+
+
+def test_reopen_sends_the_session_request_although_the_table_has_it_open():
+    sessions, sm, terminal = _shared()
+    asyncio.run(sm.open_session(0x770, mode="03"))
+    assert asyncio.run(sessions.reopen(0x770, "03")) is True
+    assert terminal.sessions == ["03", "03"]
+    assert sm.session_mode(0x770) == 0x03

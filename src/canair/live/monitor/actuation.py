@@ -22,6 +22,10 @@ each output still on.
 Every actuator still ON is released when the monitor exits (:meth:`MonitorActuation.release_all`),
 and again after a reconnect (:meth:`MonitorActuation.after_reconnect`): the dropped link may or
 may not have ended the ECU's session, and a release is safe to repeat.
+
+The ECU can also end the session while the link stays up, and take the output back with it. The
+readback of an output that is ON says so (:meth:`MonitorActuation.readback_warnings`,
+:mod:`.readback`), and the next request to it opens the session again (``IoBank``).
 """
 
 from __future__ import annotations
@@ -43,6 +47,8 @@ from canair.live.actuate.routines_execute import routines_refusal
 from canair.profile.model import Profile
 from canair.uds.response import UdsResponse
 from canair.uds.subfunctions import RoutineControlType
+
+from .readback import ReadbackWatch, readback_row, readback_text, readback_value
 
 if TYPE_CHECKING:
     from .controller import MonitorController
@@ -109,6 +115,10 @@ class _MonitorSessions:
         self._a.remember_mode(tx_id)
         return await self._shared.ensure(tx_id, mode)
 
+    async def reopen(self, tx_id: int, mode: str | None) -> bool:
+        self._a.remember_mode(tx_id)
+        return await self._shared.reopen(tx_id, mode)
+
 
 class MonitorActuation:
     """The ``--actuate`` ECUs' actuators and routines, and their requests on the lane."""
@@ -159,6 +169,8 @@ class MonitorActuation:
         # The latest message for the user; the pane shows it and clears it.
         self.status = ""
         self.status_level: StatusLevel = "info"
+        #: The readback of each output switched on, to notice the ECU take it back.
+        self.readbacks = ReadbackWatch()
 
     # -- what the pane shows ---------------------------------------------------
     def actuators(self) -> list[Actuator]:
@@ -337,6 +349,8 @@ class MonitorActuation:
 
     def submit_toggle(self, a: Actuator) -> asyncio.Future:
         bank = self.io_bank(a)
+        if bank.state.get(a.ident) != ACTUATOR_ON:
+            self._note_readback(a)
         return self._submit(a, "toggle", bank.tx_id, lambda: bank.toggle(a.ident))
 
     def submit_off(self, a: Actuator) -> asyncio.Future:
@@ -348,11 +362,41 @@ class MonitorActuation:
 
     def submit_adjust(self, a: Actuator, value: bytes) -> asyncio.Future:
         bank = self.io_bank(a)
+        self._note_readback(a)
         return self._submit(a, "adjust", bank.tx_id, lambda: bank.send_adjust(a.ident, value))
 
     def submit_routine(self, a: Actuator, sub_function: int) -> asyncio.Future:
         bank = self.routine_bank(a)
         return self._submit(a, "routine", bank.tx_id, lambda: bank.send(a.ident, sub_function))
+
+    # -- readbacks ---------------------------------------------------------------
+    def _note_readback(self, a: Actuator) -> None:
+        """Keep ``a``'s readback from before the request that switches it."""
+        if a.status_param:
+            row = readback_row(self.c.last_queries, a.ecu, a.status_param)
+            self.readbacks.switched(a.key, readback_value(row))
+
+    def readback_warnings(self) -> list[str]:
+        """A warning for each output that is ON but whose readback is back where it was before.
+
+        Checked between polls (:class:`~.readback.ReadbackWatch`): each hold warns once. An
+        output with a request queued or on the bus is left until that request is done.
+        """
+        out: list[str] = []
+        for a in self.actuators():
+            if a.kind != "iocontrol" or not a.status_param or a.key in self.pending:
+                continue
+            if self.io_bank(a).state.get(a.ident) != ACTUATOR_ON:
+                self.readbacks.released(a.key)
+                continue
+            row = readback_row(self.c.last_queries, a.ecu, a.status_param)
+            if row is not None and self.readbacks.returned(a.key, readback_value(row)):
+                out.append(
+                    f"{a.ecu} {a.ident} may be off: {a.status_param} is back at "
+                    f"{readback_text(row)}, as before the switch, so the ECU may have left its "
+                    "session"
+                )
+        return out
 
     # -- exit and reconnect --------------------------------------------------------
     async def release_all(self) -> list[str]:

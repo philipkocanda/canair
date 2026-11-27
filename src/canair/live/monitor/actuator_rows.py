@@ -15,12 +15,11 @@ from rich.text import Text
 from canair.live.actuate.iocontrol_actuate import ACTUATOR_ERROR, ACTUATOR_OFF, ACTUATOR_ON
 from canair.live.actuate.routines_execute import sf_label
 from canair.render import glyphs
-from canair.render.formatting import format_value
 from canair.uds.subfunctions import RoutineControlType
 
 from .actuation import Actuator, MonitorActuation
 from .controller import MonitorController
-from .health import label_ecu
+from .readback import readback_row, readback_text
 
 #: The table's column keys and headings, in order.
 ACTUATOR_COLUMNS: tuple[tuple[str, str], ...] = (
@@ -48,17 +47,8 @@ NOT_POLLED = "not polled"
 
 def readback(c: MonitorController, ecu: str, signal: str | None) -> str | None:
     """``signal``'s value on ``ecu`` as the monitor last showed it; None when not polled."""
-    if not signal:
-        return None
-    for label, entries in c.last_queries:
-        if label_ecu(label) != ecu:
-            continue
-        for entry in entries:
-            for row in entry.get("params") or ():
-                if row[0] == signal:
-                    _name, value, unit, _expr, error, _verified, display = row
-                    return error if error else format_value(value, unit, display)
-    return None
+    row = readback_row(c.last_queries, ecu, signal)
+    return readback_text(row) if row is not None else None
 
 
 def _io_state(a: MonitorActuation, act: Actuator) -> Text:

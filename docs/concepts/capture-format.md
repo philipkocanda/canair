@@ -235,6 +235,9 @@ the time canair sent it. You can then line up a toggle with the signal changes i
   reconnect), `start`, `stop` or `results`. `held` sends nothing. A new segment (`n`) starts with
   one `held` entry for each output that was still on.
 - **`outcome`** is `ok`, `nrc` (with the code) or `error` (no reply).
+- When the ECU refuses an output's request because it left its session, canair opens the session
+  again and sends the request once more ([Safety](safety.md#discovery-vs-actuation)). The list
+  then has two entries: the refusal with its code, and the request sent again.
 
 Like `link_events`, canair records the list live and never derives it. It holds no labels or free
 text. It is absent on a session that actuated nothing.

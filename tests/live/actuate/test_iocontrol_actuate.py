@@ -320,6 +320,12 @@ class TestEnsureSession:
         asyncio.run(tui.sessions.ensure(0x770, "03"))
         assert tui.terminal.sessions == []
 
+    def test_reopen_sends_the_session_request_although_one_is_active(self):
+        _act, tui = _actuator()
+        assert asyncio.run(tui.sessions.reopen(0x770, "03")) is True
+        assert tui.terminal.sessions == ["03"]
+        assert tui.session_active is True
+
     def test_switches_session_and_stops_the_old_keepalive(self):
         _act, tui = _actuator()
 
@@ -752,3 +758,129 @@ class TestOneTransaction:
         asyncio.run(act.send_off("BC01"))
         assert tui.terminal.headers == [0x770, 0x770]
         assert tui.terminal.sent == [ON_CMD, OFF_CMD]
+
+
+NOT_IN_SESSION = {
+    "ok": False,
+    "nrc": 0x7F,
+    "nrc_desc": "serviceNotSupportedInActiveSession",
+    "hex": "7F2F7F",
+}
+
+
+class SessionLossTerminal(FakeTerminal):
+    """An ECU that refuses every IOControl request (NRC 0x7F) while it is out of its session.
+
+    It starts in its session, as the rig's own session says; :meth:`drop` takes it out, as an
+    S3 timeout does, and a session request puts it back (``stays_out`` ignores that).
+    """
+
+    def __init__(self, *, refusal: dict | None = None, stays_out: bool = False):
+        super().__init__()
+        self.in_session = True
+        self.refusal = refusal or NOT_IN_SESSION
+        self.stays_out = stays_out
+
+    def drop(self) -> None:
+        self.in_session = False
+
+    async def session_reply(self, mode: str) -> dict:
+        self.in_session = not self.stays_out
+        return await super().session_reply(mode)
+
+    async def send_uds(self, cmd: str, timeout: float = 3.0, **kwargs) -> dict:
+        if cmd[:2] in ("2F", "30") and not self.in_session:
+            self.sent.append(cmd)
+            self.kwargs.append(kwargs)
+            return dict(self.refusal)
+        return await super().send_uds(cmd, timeout, **kwargs)
+
+
+def _lost_session(dids=("BC01",), **kw):
+    """A bank whose ECU has left the session the rig believes open, its output still ON."""
+    terminal = SessionLossTerminal(**kw)
+    act, tui = _actuator(dids=dids, terminal=terminal)
+    for did in dids:
+        tui.cmds[did]["session"] = True
+        tui.state[did] = "on"
+    terminal.drop()
+    exchanged: list[tuple[str, str, dict | None]] = []
+    act.on_exchange = lambda action, did, _req, resp, _at: exchanged.append((action, did, resp))
+    return act, tui, terminal, exchanged
+
+
+class TestSessionLost:
+    """Regression (2026-11-27): the IGPM left its session while BC44 was on, and the OFF went
+    out in the default session, was refused with NRC 0x7F, and left the row in error."""
+
+    def test_the_off_reopens_the_session_and_is_sent_again(self):
+        act, tui, terminal, _ = _lost_session()
+        asyncio.run(act.send_off("BC01"))
+        assert terminal.sent == [OFF_CMD, OFF_CMD]
+        assert terminal.sessions == ["03"]
+        assert tui.state["BC01"] == "off"
+        assert tui.status_level == "warning"
+        assert "the ECU had left its session (NRC 0x7F SNSIAS)" in tui.status
+        assert "reopened 10 03 and sent the OFF again" in tui.status
+
+    def test_both_requests_are_recorded(self):
+        act, _tui, _terminal, exchanged = _lost_session()
+        asyncio.run(act.send_off("BC01"))
+        assert [(a, d) for a, d, _ in exchanged] == [("off", "BC01"), ("off", "BC01")]
+        first, second = exchanged[0][2], exchanged[1][2]
+        assert first is not None and first["nrc"] == 0x7F
+        assert second is not None and second["ok"]
+
+    def test_the_exit_release_reopens_the_session_too(self):
+        act, tui, terminal, _ = _lost_session(dids=("BC01", "BC02"))
+        asyncio.run(act.release_all())
+        assert terminal.sent == [OFF_CMD, OFF_CMD, OFF_CMD]  # one refusal, then both go out
+        assert tui.state == {"BC01": "off", "BC02": "off"}
+
+    def test_an_on_is_sent_again_after_the_reopen(self):
+        act, tui, terminal, _ = _lost_session()
+        tui.state["BC01"] = "off"
+        asyncio.run(act.send_on("BC01"))
+        assert terminal.sent == [ON_CMD, ON_CMD]
+        assert tui.state["BC01"] == "on"
+
+    def test_a_second_refusal_is_an_error(self):
+        act, tui, terminal, _ = _lost_session(stays_out=True)
+        asyncio.run(act.send_off("BC01"))
+        assert terminal.sent == [OFF_CMD, OFF_CMD]  # tried once more, never a third time
+        assert tui.state["BC01"] == "error"
+        assert tui.status_level == "error"
+        assert "which failed too" in tui.status
+
+    def test_a_refused_session_sends_nothing_more(self):
+        act, tui, terminal, exchanged = _lost_session()
+        terminal.session_reply = _refusing  # type: ignore[method-assign]
+        asyncio.run(act.send_off("BC01"))
+        assert terminal.sent == [OFF_CMD]
+        assert len(exchanged) == 1
+        assert tui.state["BC01"] == "error"
+        assert "it refused 10 03" in tui.status
+
+    def test_an_entry_without_a_session_is_not_retried(self):
+        act, tui, terminal, _ = _lost_session()
+        tui.cmds["BC01"]["session"] = False
+        asyncio.run(act.send_off("BC01"))
+        assert terminal.sent == [OFF_CMD]
+        assert terminal.sessions == []
+        assert tui.state["BC01"] == "error"
+
+    def test_another_refusal_is_not_retried(self):
+        act, tui, terminal, _ = _lost_session(refusal={"ok": False, "nrc": 0x22, "hex": "7F2F22"})
+        asyncio.run(act.send_off("BC01"))
+        assert terminal.sent == [OFF_CMD]
+        assert terminal.sessions == []
+        assert tui.status == ""
+
+    def test_kwp_says_it_with_nrc_0x80(self):
+        refusal = {"ok": False, "nrc": 0x80, "hex": "7F3080"}
+        act, tui, terminal, _ = _lost_session(dids=("01",), refusal=refusal)
+        tui.protocol = "kwp"
+        tui.cmds["01"].update(on="300100", off="300111", release="3001AA")
+        asyncio.run(act.send_release("01"))
+        assert terminal.sent == ["3001AA", "3001AA"]
+        assert tui.state["01"] == "off"

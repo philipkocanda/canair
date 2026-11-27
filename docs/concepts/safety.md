@@ -235,6 +235,12 @@ Discovering a capability is different from using it:
       `scan routines` asks for confirmation there (`--yes` skips the prompt). Without a terminal,
       it refuses unless you pass `--yes`.
 - Actuating (`canair io`) or starting a routine is a separate action, and it confirms first.
+    - An ECU leaves its diagnostic session by itself when no request reaches it within its
+      session timer (S3, about 5 s), for example while the link stalls. It then takes back every
+      output. TesterPresent also works in the default session, so canair cannot see this happen.
+      When the ECU refuses an IOControl request with "service not supported in active session"
+      (NRC 0x7F, or 0x80 on KWP2000), canair opens the session of the entry again, sends the
+      request once more and tells you. It does not do this for an entry that declares no session.
     - canair switches on a KWP2000 `0x30` actuator only when its profile entry declares a
       `release:`. This is the request that hands the output back. canair sends it on exit and on
       Ctrl-C.
@@ -296,6 +302,11 @@ canair monitor IGPM:BC03 --actuate IGPM --save --label "rear defogger toggle"
 - Hiding the pane releases nothing. The status line shows how many outputs are on. The monitor
   releases every output that is still on when it exits, and again after a reconnect. A dropped
   link may or may not have ended the session of the ECU, and a release is safe to repeat.
+- The readback signal of an output can show that the ECU took the output back. The monitor notes
+  the readback just before it switches an output. If the readback then moves away from that value
+  and later returns to it while the output is still on, the monitor warns once: the output may be
+  off, and the ECU may have left its session. A readback that has not moved yet says nothing,
+  because some outputs take seconds to show their effect.
 - `--actuate` needs a terminal. In a script, a `canair read` pipeline drives an output with an
   `iocontrol` step and releases it when the pipeline ends
   ([pipelines](query-mini-language.md#pipelines)).

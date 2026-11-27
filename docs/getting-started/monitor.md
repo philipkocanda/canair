@@ -215,7 +215,9 @@ beside the values; otherwise it sits below them:
 With a row selected, **`enter`** switches the output on or off, **`O`** hands it back to the ECU,
 **`w`** sends a value, and **`!`** and **`S`** start and stop a routine. The **Actuators** menu has
 the same commands. Every output that the run switched on shows in the car zone (`⚠ 1 ON`), and
-the monitor releases them when it exits. Read [Safety](../concepts/safety.md) first.
+the monitor releases them when it exits. When the readback of an output that is on goes back to
+its value from before the switch, the monitor warns that the ECU may have taken the output back.
+Read [Safety](../concepts/safety.md#actuating-from-the-monitor) first.
 
 ## On a phone
 

@@ -115,6 +115,37 @@ async def test_enter_switches_an_output_on_while_polling_and_the_readback_shows(
         await pilot.press("q")
 
 
+def _set_readback(c, value: float) -> None:
+    """Show ``value`` for REAR_DEFOG, as if the next poll had read it."""
+    label, entries = c.last_queries[0]
+    entry = dict(entries[0])
+    entry["params"] = [
+        (r[0], value, *r[2:]) if r[0] == "REAR_DEFOG" else r for r in entry["params"]
+    ]
+    c.last_queries = [(label, [entry])]
+
+
+@pytest.mark.asyncio
+async def test_a_readback_back_at_its_value_from_before_the_on_is_flashed():
+    c, terminal = _controller()
+    terminal.responses["22BC03"] = ok("62BC0300")
+    await _start(c)
+    app = MonitorApp(c)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await _settle(pilot, 0.3)
+        await pilot.press("A")
+        await _settle(pilot)
+        await pilot.press("enter")
+        await _settle(pilot, 0.3)
+        assert _cell(app, "IGPM/iocontrol/BC0C", "state") == "ON"
+        _set_readback(c, 1.0)
+        await _settle(pilot, 0.3)
+        _set_readback(c, 0.0)
+        await _settle(pilot, 0.3)
+        assert "IGPM BC0C may be off: REAR_DEFOG is back at 0" in app.shell_messages.current
+        await pilot.press("q")
+
+
 @pytest.mark.asyncio
 async def test_an_output_with_no_on_asks_for_a_value():
     c, terminal = _controller()

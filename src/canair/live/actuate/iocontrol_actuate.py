@@ -7,7 +7,8 @@ one ECU, and remembers what each DID was last told and answered. ``canair io``'s
 exit-time release are written once.
 
 A bank opens no session itself: it asks its owner's :class:`~.ports.ActuationSessions` for the
-session mode each entry declares. It reaches the terminal through a callable, because the
+session mode each entry declares, and for it again when the ECU refuses a request because it
+left that session on its own. It reaches the terminal through a callable, because the
 monitor replaces its terminal when it reconnects, and every request sets the header and sends
 inside one ``terminal.transaction()``, so a keepalive or a poll can never re-point it between
 the two.
@@ -26,7 +27,7 @@ from canair.ecus.pids import IoControlCommand
 from canair.render import glyphs
 from canair.safety.actuation import on_refusal, parse_io_request
 from canair.transport.protocol import Terminal
-from canair.uds.nrc import nrc_abbrev
+from canair.uds.nrc import NOT_IN_ACTIVE_SESSION_NRCS, nrc_abbrev
 from canair.uds.protocol import KWP, DiagProtocol
 from canair.uds.requests import io_control_request
 from canair.uds.response import UdsResponse
@@ -37,7 +38,7 @@ from canair.uds.services import (
 )
 from canair.uds.subfunctions import IoControlParameter
 
-from .ports import ActuationSessions, Exchanged, Report
+from .ports import ActuationSessions, Exchanged, Report, StatusLevel
 
 # Per-DID actuator state — the single source of truth for these sentinels.
 #
@@ -86,11 +87,23 @@ _ACTIONS: dict[str, ActuationAction] = {
     "ADJ": "adjust",
 }
 
+#: What each kind of request is called in a message.
+_WHAT: dict[str, str] = {"ON": "ON", "OFF": "OFF", "REL": "release", "ADJ": "value"}
+
 
 def _nrc_text(resp: UdsResponse, protocol: DiagProtocol) -> str:
     nrc = resp["nrc"]
     assert nrc is not None
     return f"NRC 0x{nrc:02X} {nrc_abbrev(nrc, protocol)}"
+
+
+def _left_session(cmd: IoControlCommand, resp: UdsResponse) -> bool:
+    """Did the ECU refuse a request of ``cmd`` because it is not in ``cmd``'s session?
+
+    Only an entry that uses a session can have lost it: one that declares none was sent
+    outside any, and opening one for it would go against its profile entry.
+    """
+    return cmd["session"] and resp.get("nrc") in NOT_IN_ACTIVE_SESSION_NRCS
 
 
 class IoBank:
@@ -189,7 +202,15 @@ class IoBank:
     async def _exchange(
         self, did: str, hex_cmd: str, kind: str, on_ok: ActuatorState
     ) -> UdsResponse | None:
-        """Send ``hex_cmd`` for ``did`` in its session and record the outcome; the reply."""
+        """Send ``hex_cmd`` for ``did`` in its session and record the outcome; the reply.
+
+        An ECU leaves its session on its own when no request reaches it before its S3 timer
+        runs out (a stalled link, for one), and it then takes back every output it drove.
+        TesterPresent is answered in the default session too, so canair learns of it only
+        when the ECU refuses a request for want of the session (:func:`_left_session`). Then
+        the session is opened again and the request sent once more, and the user is told.
+        :attr:`on_exchange` hears of each request sent.
+        """
         cmd = self.all_cmds.get(did)
         label = cmd["label"] if cmd else ""
         self.busy = True
@@ -197,10 +218,29 @@ class IoBank:
         _logger.info("%-3s %s %s cmd=%s", kind, did, label, hex_cmd)
         resp: UdsResponse | None = None
         sent_at = datetime.now()
+        notice = ""
+        level: StatusLevel = "warning"
+        recorded = False
         try:
             await self._ensure_session(did)
             sent_at = datetime.now()
             resp = await self._send(hex_cmd)
+            if cmd is not None and _left_session(cmd, resp):
+                self._exchanged(kind, did, hex_cmd, resp, sent_at)
+                recorded = True
+                notice = f"{did}: the ECU had left its session ({_nrc_text(resp, self.protocol)})"
+                _logger.warning("%-3s %s", kind, notice)
+                mode = cmd["session_mode"]
+                if await self.sessions.reopen(self.tx_id, mode):
+                    # A resend that raises is recorded as an error, not as the refusal again.
+                    resp, recorded, sent_at = None, False, datetime.now()
+                    resp = await self._send(hex_cmd)
+                    notice += f"; reopened 10 {mode} and sent the {_WHAT[kind]} again"
+                    if not resp["ok"]:
+                        notice, level = f"{notice}, which failed too", "error"
+                else:
+                    notice, level = f"{notice}; it refused 10 {mode}", "error"
+            assert resp is not None  # the resend's reply, or the refusal when there was none
             _logger.info("%-3s %s resp: %s", kind, did, resp)
             self.extract_status_bytes(did, resp)
             if resp["ok"]:
@@ -219,10 +259,16 @@ class IoBank:
             self.last_response[did] = str(e)
             return None
         finally:
-            self.report("", "info")
+            self.report(notice, level if notice else "info")
             self.busy = False
-            if self.on_exchange is not None:
-                self.on_exchange(_ACTIONS[kind], did, hex_cmd, resp, sent_at)
+            if not recorded:
+                self._exchanged(kind, did, hex_cmd, resp, sent_at)
+
+    def _exchanged(
+        self, kind: str, did: str, hex_cmd: str, resp: UdsResponse | None, sent_at: datetime
+    ) -> None:
+        if self.on_exchange is not None:
+            self.on_exchange(_ACTIONS[kind], did, hex_cmd, resp, sent_at)
 
     async def send_on(self, did: str) -> None:
         """Send ON command for a DID."""
