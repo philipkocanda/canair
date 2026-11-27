@@ -63,10 +63,10 @@ groups:
     description: CCS (DC fast charge) live session status from the CCM
     members: [CCM:22CC01]
   ig3:
-    description: 'IG3-only baseline: body, battery, OBC and powertrain temperatures'
+    description: 'IG3-only baseline: body, battery, OBC, powertrain and climate temperatures'
     members:
       [IGPM, BCM, BMS:2101, BMS:2105, BMS:21F2, OBC:2101, VCU:2101, VCU:2102, VCU:21F2,
-       MCU:2101, MCU:2102, MCU:21F2, AAF:2180, AAF:2181]
+       MCU:2101, MCU:2102, MCU:21F2, AAF:2180, AAF:2181, HVAC:220100, HVAC:220102]
 
   # --- More useful sets (uncomment to enable) --------------------------------
   # charging-dc:

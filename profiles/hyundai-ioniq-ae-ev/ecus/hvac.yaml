@@ -205,7 +205,7 @@ HVAC:
       response_frames: 3
       status: active
       period: 10000
-      vehicle_states: []
+      vehicle_states: ["ON", IG3]
       notes: >-
         16-byte response (13 data bytes after the DID) of secondary temperatures and the heat-pump
         flag. Constant in all 950 captures: B5=0xFF, B6=0x80, and 0x00 at B7, B9, and B14.

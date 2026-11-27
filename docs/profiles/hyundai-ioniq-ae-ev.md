@@ -108,8 +108,9 @@ car unplugged. Its meaning remains unknown.
 ## IG3 baseline capture
 
 For the 28 kWh car, `@ig3` combines the body, battery and charger pages with VCU, MCU and AAF
-temperature pages and the BMS, VCU and MCU previous-session `21F2` pages. It is useful for a
-parked, ignition-off baseline while IG3 is already powered:
+temperature pages, the HVAC temperature pages (`220100`, `220102`) and the BMS, VCU and MCU
+previous-session `21F2` pages. It is useful for a parked, ignition-off baseline while IG3 is
+already powered:
 
 ```bash
 canair monitor @ig3 --save --label "IG3 baseline" --state IG3
