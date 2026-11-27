@@ -9,7 +9,8 @@ clobbering the file's comments or layout.
 Every write goes through :func:`canair.yaml_edit.doc.edit_doc`, which re-parses and validates
 the file (structure + selector syntax) and reverts on failure — a broken edit
 never lands on disk. Group names are normalized to the canonical lower-cased
-form; members are written as an inline flow list (``[BMS:2101, OBC]``).
+form; members are written as an inline flow list (``[BMS:2101, OBC]``), wrapped below the key
+when the line would pass 100 columns.
 """
 
 from __future__ import annotations
@@ -33,6 +34,8 @@ from .ruamel_ops import find_key, flow_seq, remove_key, rename_key
 # hyphens/underscores (e.g. ``charging``, ``charge-detail``, ``12v``). No spaces
 # or leading punctuation — a clean token for the ``@name`` sigil.
 _NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+
+MAX_LINE = 100
 
 
 class GroupsEditError(EditError):
@@ -100,6 +103,38 @@ def _check(data: dict | None) -> None:
         _validate_members(members)
 
 
+_MEMBERS_LINE = re.compile(r"^(?P<indent> *)members: \[(?P<body>[^\]#]*)\]$")
+
+
+def _wrap_members(text: str) -> str:
+    """Wrap each inline ``members:`` list that overflows the 100-column limit.
+
+    ruamel emits a flow list on one line and drops any wrapping the file had, so every edit
+    would otherwise rewrite each long group as a single line. A long list goes below its key,
+    filled greedily, with continuation lines aligned under the first member.
+    """
+    out: list[str] = []
+    for line in text.split("\n"):
+        m = _MEMBERS_LINE.match(line)
+        if m is None or len(line) <= MAX_LINE:
+            out.append(line)
+            continue
+        items = [s.strip() for s in m["body"].split(",")]
+        pieces = [f"{item}," for item in items[:-1]] + [f"{items[-1]}]"]
+        indent = m["indent"] + "  "
+        out.append(f"{m['indent']}members:")
+        current = f"{indent}["
+        for piece in pieces:
+            candidate = f"{current}{'' if current.endswith('[') else ' '}{piece}"
+            if len(candidate) > MAX_LINE and not current.endswith("["):
+                out.append(current)
+                current = f"{indent} {piece}"
+            else:
+                current = candidate
+        out.append(current)
+    return "\n".join(out)
+
+
 GROUPS = Target(
     key="groups",
     path=lambda profile: profile.groups_file,
@@ -107,6 +142,7 @@ GROUPS = Target(
     section="groups",
     check=_check,
     header=schema_modeline("groups") + "\n",
+    polish=_wrap_members,
 )
 
 

@@ -56,6 +56,8 @@ class Target:
     """Block-sequence (indent, dash offset) for a file with no list to copy the layout from."""
     after_write: Callable[[], None] = noop
     """Runs after a write and after a revert (drops caches)."""
+    polish: Callable[[str], str] | None = None
+    """Rewrites the rendered text, for a layout ruamel cannot keep (a wrapped inline list)."""
 
     @property
     def noun(self) -> str:
@@ -88,6 +90,8 @@ class Doc:
         buf = StringIO()
         rt.dump(self.data, buf, sequence=seq, offset=off)
         text = buf.getvalue()
+        if self.target.polish is not None:
+            text = self.target.polish(text)
         return self.target.header + text if self.original is None else text
 
     def commit(self, validate: bool = True) -> None:

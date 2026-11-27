@@ -35,7 +35,9 @@ groups:
 
   climate:
     description: Climate power / heat-pump / active air flap
-    members: [HVAC:220100, HVAC:220102, HVAC:2201A0, HVAC:2201A1, HVAC:2201A2, VCU:2102, BMS:2101, AAF:2180, AAF:2181]
+    members:
+      [HVAC:220100, HVAC:220102, HVAC:2201A0, HVAC:2201A1, HVAC:2201A2, VCU:2102, BMS:2101,
+       AAF:2180, AAF:2181]
 
   body:
     description: Body / gateway comfort modules
@@ -65,8 +67,8 @@ groups:
   ig3:
     description: 'IG3-only baseline: body, battery, OBC, powertrain and climate temperatures'
     members:
-      [IGPM, BCM, BMS:2101, BMS:2105, BMS:21F2, OBC:2101, VCU:2101, VCU:2102, VCU:21F2,
-       MCU:2101, MCU:2102, MCU:21F2, AAF:2180, AAF:2181, HVAC:220100, HVAC:220102]
+      [IGPM, BCM, BMS:2101, BMS:2105, BMS:21F2, OBC:2101, VCU:2101, VCU:2102, VCU:21F2, MCU:2101,
+       MCU:2102, MCU:21F2, AAF:2180, AAF:2181, HVAC:220100, HVAC:220102]
 
   # --- More useful sets (uncomment to enable) --------------------------------
   # charging-dc:

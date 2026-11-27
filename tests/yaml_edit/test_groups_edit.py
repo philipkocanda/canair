@@ -145,6 +145,33 @@ class TestSetFields:
             set_group_members("charging", ["@nested"], profile=prof)
 
 
+LONG_MEMBERS = [f"ECU{n}:2101" for n in range(14)]
+
+
+class TestLongMembers:
+    def test_wraps_below_the_key_within_100_columns(self, tmp_path):
+        prof = _Prof(tmp_path)
+        add_group("long", LONG_MEMBERS, profile=prof)
+        text = prof.groups_file.read_text()
+        assert max(map(len, text.splitlines())) <= 100
+        assert "  long:\n    members:\n      [ECU0:2101," in text
+        assert _groups(prof)["long"]["members"] == LONG_MEMBERS
+
+    def test_short_list_stays_inline(self, tmp_path):
+        prof = _Prof(tmp_path)
+        add_group("short", ["BMS:2101", "OBC"], profile=prof)
+        assert "    members: [BMS:2101, OBC]\n" in prof.groups_file.read_text()
+
+    def test_editing_another_group_leaves_a_wrapped_list_alone(self, tmp_path):
+        prof = _Prof(tmp_path)
+        add_group("long", LONG_MEMBERS, profile=prof)
+        add_group("short", ["BMS"], profile=prof)
+        before = prof.groups_file.read_text()
+        set_group_description("short", "Battery", profile=prof)
+        after = prof.groups_file.read_text()
+        assert after.replace("    description: Battery\n", "") == before
+
+
 class TestReparseGuard:
     def test_failed_post_check_reverts(self, tmp_path, monkeypatch):
         prof = _Prof(tmp_path)
