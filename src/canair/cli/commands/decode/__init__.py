@@ -30,6 +30,6 @@ Imports: `captures`, `expression`, `analysis` and below.
 """
 
 from .entry import run
-from .parser import ALIASES, NAME, add_parser
+from .parser import ALIASES, NAME, add_arguments, add_parser
 
-__all__ = ["ALIASES", "NAME", "add_parser", "run"]
+__all__ = ["ALIASES", "NAME", "add_arguments", "add_parser", "run"]

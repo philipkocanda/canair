@@ -26,6 +26,7 @@ Every capability is a `canair <subcommand>`. These pages are generated from each
 
 - [`canair captures`](captures.md) — Query captured data.
 - [`canair decode`](decode.md) — Decode captured UDS payloads using PID parameter definitions.
+- [`canair signal`](signal.md) — Show one diagnostic signal's captured values over time.
 - [`canair align`](align.md) — Emit a time-aligned, wide table of several ECU:PID:PARAM signals — one row per reference sample, one column per signal, nearest-joined within a tolerance.
 - [`canair correlate`](correlate.md) — Find every strong cross-signal relationship across a drive/session.
 - [`canair hunt`](hunt.md) — Answer 'which byte carries a signal I already know?'

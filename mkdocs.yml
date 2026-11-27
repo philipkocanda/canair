@@ -177,6 +177,7 @@ nav:
           - canair lock: reference/cli/lock.md
           - canair captures: reference/cli/captures.md
           - canair decode: reference/cli/decode.md
+          - canair signal: reference/cli/signal.md
           - canair align: reference/cli/align.md
           - canair correlate: reference/cli/correlate.md
           - canair hunt: reference/cli/hunt.md

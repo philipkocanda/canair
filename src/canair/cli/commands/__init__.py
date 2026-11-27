@@ -43,6 +43,7 @@ COMMAND_NAMES: list[str] = [
     # offline analysis
     "captures",
     "decode",
+    "signal",
     "align",
     "correlate",
     "hunt",

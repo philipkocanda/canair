@@ -36,6 +36,7 @@ DOMAINS: dict[str, str] = {
     # offline analysis
     "captures": BOTH,
     "decode": UDS,
+    "signal": UDS,
     "align": UDS,
     "correlate": BOTH,
     "hunt": BOTH,

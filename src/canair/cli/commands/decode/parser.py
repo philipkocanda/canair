@@ -38,6 +38,13 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=EXAMPLES + "\n" + _METHOD_CHEAT_SHEET,
     )
+    add_arguments(parser)
+    parser.set_defaults(func=run)
+    return parser
+
+
+def add_arguments(parser: argparse.ArgumentParser) -> None:
+    """Declare every ``decode`` flag on ``parser`` (also how ``signal`` gets the defaults)."""
     parser.add_argument(
         "query",
         nargs="*",
@@ -48,7 +55,7 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
         "the default value-range, --compact and --json views; the analysis modes "
         "(--corr/--plot/--stats/--discriminate/--find-mirrors/--try/--dump-bytes) "
         "require the query to resolve to a single PID.",
-    ).completer = _ecu_completer
+    ).completer = _ecu_completer  # ty: ignore[unresolved-attribute]
     parser.add_argument(
         "--param",
         action="extend",
@@ -189,5 +196,3 @@ def add_parser(subparsers) -> argparse.ArgumentParser:
     )
     add_notation_arg(parser)
     add_scope_args(parser)
-    parser.set_defaults(func=run)
-    return parser

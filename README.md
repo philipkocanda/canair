@@ -165,6 +165,7 @@ For SecurityAccess with a user-supplied key, see
 |--------|---------|
 | `canair captures` | Search, compare and step through saved captures (alias: `cap`). |
 | `canair decode` | Decode captures by value, plot them, and test expressions (alias: `dec`). |
+| `canair signal` | Show one signal's values over time, found by name. |
 | `canair align` | Show several signals side by side in one time-aligned table. |
 | `canair correlate` | Rank the strongest relationships between signals, and find mirrored signals. |
 | `canair hunt` | Find which byte is a known signal. |

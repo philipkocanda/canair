@@ -47,6 +47,7 @@ CATEGORIES: list[tuple[str, tuple[str, ...]]] = [
         (
             "captures",
             "decode",
+            "signal",
             "align",
             "correlate",
             "hunt",

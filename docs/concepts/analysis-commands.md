@@ -66,6 +66,7 @@ Use these when a PID has nothing co-polled to correlate against.
 | nothing specific | the strongest relationships in a whole drive | `correlate` (bare) |
 | a candidate expression | to test it without editing YAML | `decode --try "N=EXPR"` |
 | a defined PID | its value ranges / stats / distribution | `decode [--stats]` |
+| a signal **name**, not its ECU or PID | its values over time | `signal <NAME>` |
 | a grouping signal (state, mode, on/off) | which bytes *separate* the groups | `decode --discriminate <axis>` |
 | several signals from different electronic control units (ECUs) | them **side-by-side, time-aligned** | `align "A:B:C D:E:F"` |
 | several PIDs' **raw captures** | to read them at the same instant, frame by frame | `captures "A:P1,P2" --step` |
