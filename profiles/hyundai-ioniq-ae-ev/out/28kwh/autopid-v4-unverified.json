@@ -377,7 +377,6 @@
         "HVAC_AAT_MIRROR_B17": "(B17/2)-40",
         "HVAC_INTERIOR_TEMP_B13": "(B13/2)-40",
         "HVAC_AAT_B15": "(B15/2)-40",
-        "HVAC_A0_UNKNOWN_B47": "B47",
         "HVAC_A0_UNKNOWN_B50": "B50",
         "HVAC_BLOWER_FAN_SPEED": "B18",
         "HVAC_PRECONDITIONING_ACTIVE": "B41"
@@ -392,7 +391,7 @@
         "HVAC_PTC_POWER_REQUEST": "B42/10",
         "HVAC_COOL_LOAD_B41": "B41",
         "HVAC_PTC_LOAD": "B17",
-        "HVAC_A2_UNKNOWN_B44": "B44"
+        "HVAC_A2_TEMP_B43": "[S43:S44]"
       }
     },
     {

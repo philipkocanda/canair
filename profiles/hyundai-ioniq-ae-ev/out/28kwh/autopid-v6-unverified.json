@@ -2167,14 +2167,6 @@
           "max": 87.5
         },
         {
-          "name": "HVAC_A0_UNKNOWN_B47",
-          "expression": "B47",
-          "unit": "",
-          "class": "",
-          "min": 0,
-          "max": 255
-        },
-        {
           "name": "HVAC_A0_UNKNOWN_B50",
           "expression": "B50",
           "unit": "",
@@ -2235,12 +2227,12 @@
           "max": 15
         },
         {
-          "name": "HVAC_A2_UNKNOWN_B44",
-          "expression": "B44",
-          "unit": "",
-          "class": "",
-          "min": 0,
-          "max": 255
+          "name": "HVAC_A2_TEMP_B43",
+          "expression": "[S43:S44]",
+          "unit": "\u00b0C",
+          "class": "temperature",
+          "min": -40,
+          "max": 90
         }
       ]
     },
